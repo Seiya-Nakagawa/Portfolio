@@ -186,23 +186,17 @@ nav.globalMenuSp.active {
 /*各パーツ指定*/
 .top {
   background-image: url("../img/3d-space-scene.jpg");
-  background-size: cover;
-  background-position: center bottom;
-  background-repeat: no-repeat;
-  height: 100vh;
 }
 
 .mail {
   background-image: url("../img/milky-way-1023340_1920.jpg");
+}
+
+.back-image {
   background-size: cover;
   background-position: center bottom;
   background-repeat: no-repeat;
   height: 100vh;
-}
-
-#mail-annai {
-  font-size: 13px;
-  width: 90%;
 }
 
 .top h1 {
@@ -320,10 +314,22 @@ nav.globalMenuSp.active {
   line-height: 20px;
 }
 
+#mail-annai {
+  font-size: 15px;
+  font-weight: bold;
+  width: 90%;
+}
+
 #addres {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: bold;
   color: floralwhite;
+}
+
+#addres:hover {
+  color: yellow;
+  text-decoration: none;
+  font-size: 24px;
 }
 
 footer {
