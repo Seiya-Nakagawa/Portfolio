@@ -12,8 +12,14 @@ a {
   flex-wrap: wrap;
 }
 
-h1 {
-  padding: 25px 0;
+#about,
+#skill,
+#work {
+  margin-bottom: 50px;
+}
+
+#mail {
+  margin-bottom: 60px;
 }
 
 h2 {
@@ -41,7 +47,7 @@ section {
 }
 
 body {
-  background-color: #000099;
+  background-color: #030b13;
 }
 /*ヘッダー部分*/
 
@@ -186,9 +192,22 @@ nav.globalMenuSp.active {
   height: 100vh;
 }
 
+.mail {
+  background-image: url("../img/milky-way-1023340_1920.jpg");
+  background-size: cover;
+  background-position: center bottom;
+  background-repeat: no-repeat;
+  height: 100vh;
+}
+
+#mail-annai {
+  font-size: 13px;
+  width: 90%;
+}
+
 .top h1 {
   font-size: 50px;
-  padding-top: 60px;
+  margin: 120px 0 10px 0;
 }
 
 .about-image img {
@@ -217,6 +236,13 @@ nav.globalMenuSp.active {
 
 .about-menu {
   width: 30%;
+}
+
+@media (max-width: 600px) {
+  .about-menu {
+    font-size: 20px;
+    font-weight: bold;
+  }
 }
 
 .about-answer {
@@ -294,14 +320,15 @@ nav.globalMenuSp.active {
 }
 
 .work-type {
-  font-size: 16px;
+  font-size: 13px;
   padding-top: 10px;
   line-height: 20px;
 }
 
 #addres {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: bold;
+  color: floralwhite;
 }
 
 footer {
@@ -311,6 +338,7 @@ footer {
 }
 
 /*レスポンシブル対応*/
+
 @media (min-width: 601px) {
   .hamburger {
     display: none;
@@ -346,7 +374,6 @@ footer {
   .about-introduction,
   .about-container,
   .flex,
-  .about-image img,
   .skill-flex,
   .skill-menu {
     width: 100%;
