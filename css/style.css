@@ -19,7 +19,7 @@ a {
 }
 
 #mail {
-  margin-bottom: 120px;
+  margin-bottom: 50px;
 }
 
 h2 {
@@ -44,6 +44,9 @@ section {
 
 .design-l {
   text-align: left;
+}
+
+.design-r {
 }
 
 body {
@@ -315,9 +318,41 @@ nav.globalMenuSp.active {
 }
 
 #mail-annai {
-  font-size: 15px;
+  font-size: 20px;
   font-weight: bold;
   width: 90%;
+  margin-bottom: 10vw;
+}
+
+.mail-menu {
+  width: 40%;
+  text-align: right;
+  padding-right: 20px;
+}
+
+.mail-form {
+  width: 60%;
+  text-align: left;
+}
+
+.mail-form input,
+.mail-form textarea {
+  color: black;
+  text-align: left;
+}
+
+.mail-menu,
+.mail-form {
+  margin: 0;
+  padding-bottom: 30px;
+}
+
+.mail-button {
+  background-color: rgb(41, 100, 168);
+  opacity: 0.7;
+  width: 270px;
+  height: 80px;
+  font-weight: bold;
 }
 
 #addres {
