@@ -321,7 +321,7 @@ nav.globalMenuSp.active {
   font-size: 20px;
   font-weight: bold;
   width: 90%;
-  margin-bottom: 10vw;
+  margin-bottom: 8vw;
 }
 
 .mail-menu {
@@ -345,14 +345,6 @@ nav.globalMenuSp.active {
 .mail-form {
   margin: 0;
   padding-bottom: 30px;
-}
-
-.mail-button {
-  background-color: rgb(41, 100, 168);
-  opacity: 0.7;
-  width: 270px;
-  height: 80px;
-  font-weight: bold;
 }
 
 #addres {
@@ -427,4 +419,23 @@ footer {
   .skill-text {
     margin-top: 20px;
   }
+}
+
+/* contact??? */
+.btn-gradation {
+  display: inline-block;
+  width: 250px;
+  font-size: 20px;
+  color: #fff;
+  text-decoration: none;
+  font-weight: bold;
+  padding: 12px 24px;
+  border-radius: 4px;
+  background-image: linear-gradient(-90deg, #ff006e, #ffd500);
+  transition: 0.5s;
+  background-size: 200%;
+}
+
+.btn-gradation:hover {
+  background-position: right center;
 }
