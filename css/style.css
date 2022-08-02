@@ -185,6 +185,9 @@ nav.globalMenuSp.active {
 /*�e�p�[�c�w��*/
 .top {
   background-image: url("../img/top_space.jpg");
+  background-size: cover;
+  background-repeat: no-repeat;
+  min-height: 100vh;
 }
 
 /* .mail {
@@ -193,6 +196,7 @@ nav.globalMenuSp.active {
 
 .back-image {
   margin-bottom: 70px;
+
 }
 
 .top h1 {
