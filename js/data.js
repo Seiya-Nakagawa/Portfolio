@@ -10,7 +10,7 @@ const skillsData = [
     { name: "SQL", years: "1年", level: 3, category: "言語" },
     { name: "B_Shell", years: "8年", level: 3, category: "言語" },
     { name: "PHP", years: "1年", level: 2, category: "言語" },
-    { name: "Python", years: "-", level: 3, category: "言語" },
+    { name: "Python", years: "1年", level: 3, category: "言語" },
 
     // フレームワーク
     { name: "Laravel", years: "10か月", level: 2, category: "フレームワーク" },
