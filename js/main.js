@@ -227,7 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             el.innerHTML = `
                 <div class="work-img">
-                    <!-- Image placeholder -->
+                    <img src="${work.thumbnail || 'img/placeholder.png'}" alt="${work.title}" style="width: 100%; height: 100%; object-fit: cover;">
                 </div>
                 <div class="work-content">
                     <h3>${work.title}</h3>
