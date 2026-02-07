@@ -71,7 +71,7 @@ const worksData = [
         desc_ja: "ニュース収集・要約アプリケーション。",
         desc_en: "News collection and summarization application.",
         tags: ["Python", "AWS", "Terraform"],
-        thumbnail: "img/daytra.png",
+        thumbnail: "img/news_check.png",
         live_url: "https://technohonesty.com/news",
         github_url: "https://github.com/Seiya-Nakagawa/news_check"
     }
