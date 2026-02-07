@@ -63,13 +63,14 @@ const worksData = [
         desc_ja: "このポートフォリオサイトのリニューアルプロジェクト。",
         desc_en: "Renewal project of this portfolio website.",
         tags: ["HTML", "CSS", "JS"],
-        link: "https://github.com/SeiyaNakagawa2219/Portfolio"
+        github_url: "https://github.com/Seiya-Nakagawa/Portfolio"
     },
     {
         title: "News Check App",
         desc_ja: "ニュース収集・要約アプリケーション。",
         desc_en: "News collection and summarization application.",
         tags: ["Python", "AWS", "Terraform"],
-        link: "#"
+        live_url: "https://technohonesty.com/news",
+        github_url: "https://github.com/Seiya-Nakagawa/news_check"
     }
 ];

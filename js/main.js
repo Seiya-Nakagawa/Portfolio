@@ -221,6 +221,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const desc = currentLang === 'ja' ? work.desc_ja : work.desc_en;
             const el = document.createElement('div');
             el.className = 'work-card glass-panel';
+            const r = resources[currentLang || 'ja'].nav;
+            const liveLink = work.live_url ? `<a href="${work.live_url}" target="_blank" style="font-size: 0.9rem; text-decoration: underline; margin-right: 1.5rem;">${r.view_live} <i class="fas fa-external-link-alt"></i></a>` : '';
+            const githubLink = work.github_url ? `<a href="${work.github_url}" target="_blank" style="font-size: 0.9rem; text-decoration: underline;">${r.view_github} <i class="fab fa-github"></i></a>` : '';
+
             el.innerHTML = `
                 <div class="work-img">
                     <!-- Image placeholder -->
@@ -231,7 +235,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="work-tags">
                         ${work.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
                     </div>
-                    <a href="${work.link}" target="_blank" style="font-size: 0.9rem; text-decoration: underline;">View Project <i class="fas fa-external-link-alt"></i></a>
+                    <div class="work-links">
+                        ${liveLink}
+                        ${githubLink}
+                    </div>
                 </div>
             `;
             container.appendChild(el);

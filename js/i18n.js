@@ -15,7 +15,9 @@ const resources = {
                 l3: "★★★☆☆: 中級 (一人称で開発可能)",
                 l2: "★★☆☆☆: 初級 (実務経験あり)",
                 l1: "★☆☆☆☆: 入門 (基礎学習済み)"
-            }
+            },
+            view_live: "サイトを見る",
+            view_github: "GitHubで見る"
         },
         hero: {
             name: "Seiya Nakagawa",
@@ -52,7 +54,9 @@ const resources = {
                 l3: "★★★☆☆: Intermediate",
                 l2: "★★☆☆☆: Elementary",
                 l1: "★☆☆☆☆: Beginner"
-            }
+            },
+            view_live: "Visit Site",
+            view_github: "GitHub Repository"
         },
         hero: {
             name: "Seiya Nakagawa",
