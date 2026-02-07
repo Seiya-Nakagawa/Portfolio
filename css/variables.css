@@ -1,0 +1,37 @@
+:root {
+  /* Default (Dark Mode) */
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+
+  --accent-1: #06b6d4; /* Cyan */
+  --accent-2: #8b5cf6; /* Purple */
+  --accent-gradient: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+
+  --glass-bg: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+
+  /* Fonts */
+  --font-main: 'Inter', sans-serif;
+
+  /* Sizes */
+  --header-height: 70px;
+  --border-radius: 16px;
+}
+
+body.light-mode {
+  /* Light Mode Overrides */
+  --bg-primary: #f8fafc;
+  --bg-secondary: #e2e8f0;
+  --text-main: #1e293b;
+  --text-muted: #475569;
+
+  --accent-1: #0284c7;
+  --accent-2: #7c3aed;
+
+  --glass-bg: rgba(255, 255, 255, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.8);
+  --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
+}

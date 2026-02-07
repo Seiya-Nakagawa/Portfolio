@@ -1,260 +1,141 @@
-﻿<!DOCTYPE html>
-<html>
-	<head>
-		<!-- Global site tag (gtag.js) - Google Analytics -->
-		<script async src="https://www.googletagmanager.com/gtag/js?id=G-MEFQKRNLM7"></script>
-		<script>
-			window.dataLayer = window.dataLayer || [];
-			function gtag() { dataLayer.push(arguments); }
-			gtag('js', new Date());
+﻿<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Seiya Nakagawa | Portfolio</title>
 
-			gtag('config', 'G-MEFQKRNLM7');
-		</script>
-	    <meta http-equiv="content-type" charset="UTF-8">
-	    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-	    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
-		<link href="https://use.fontawesome.com/releases/v5.6.1/css/all.css" rel="stylesheet">
-	    <link rel="stylesheet" href="css/style.css">
-	    <title>ポートフォリオ</title>
-	</head>
-	<body>
-		<header>
-			<div class="header-container">
-				<div class="header-title">PortFolio Site</div>
-				<div class="header-menu">
-					<ul>
-						<li><a href="#about">About</a></li>
-						<li><a href="#skill">Skill</a></li>
-						<li><a href="#work">Work</a></li>
-						<li><a href="#mail">Contact</a></li>
-					</ul>
-				</div>
-				<div class="hamburger">
-				  <span></span>
-				  <span></span>
-				  <span></span>
-				</div>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap"
+      rel="stylesheet"
+    />
 
-				<nav class="globalMenuSp">
-				<ul>
-					<li><a href="#about">About</a></li>
-					<li><a href="#skill">Skill</a></li>
-					<li><a href="#work">Work</a></li>
-					<li><a href="#mail">Mail</a></li>
-				</ul>
-				</nav>
-			</div>
-		</header>
-		<section class="top back-image">
-			<h1>Seiya Nakagawa</h1>
-			<h2>PortFolio</h2>
-		</section>
-		<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <!-- Font Awesome -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
 
-		<div class="container">
+    <!-- Styles -->
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <header class="container">
+      <nav>
+        <div class="logo">SN</div>
+        <ul class="nav-links glass-panel">
+          <li><a href="#about" data-i18n="nav.about">About</a></li>
+          <li><a href="#skills" data-i18n="nav.skills">Skills</a></li>
+          <li><a href="#works" data-i18n="nav.works">Works</a></li>
+          <li><a href="#contact" data-i18n="nav.contact">Contact</a></li>
+        </ul>
+        <div class="nav-tools">
+          <div id="theme-toggle" class="icon-btn">
+            <i class="fas fa-moon"></i>
+          </div>
+          <div id="lang-toggle" class="icon-btn">
+            <span>JP</span>
+          </div>
+          <div id="mobile-menu-btn" class="icon-btn mobile-only">
+            <i class="fas fa-bars"></i>
+          </div>
+        </div>
+      </nav>
+    </header>
 
-			<section class="about">
-				<h1 id="about">About</h1>
-				<div class="flex">
-					<div class="about-image">
-						<img src="img/astronaut-2024888_1280.png">
-					</div>
-					<div class="about-introduction">
-						<div class="flex">
-							<div class="about-menu design-l">名前</div>
-							<div class="about-answer design-l">Seiya Nakagawa</div>
-							<div class="about-menu design-l">年齢</div>
-							<div id="age" class="about-answer design-l"></div>
-							<div class="about-menu design-l">職業</div>
-							<div class="about-answer design-l">システムエンジニア</div>
-							<div class="about-menu design-l">学歴</div>
-							<div class="about-answer design-l">東海大学工学部生命化学科卒</div>
-							<div class="about-menu design-l">所在地</div>
-							<div class="about-answer design-l">神奈川県綾瀬市在住</div>
-							<div class="about-menu design-l">趣味・特技</div>
-							<div class="about-answer design-l">フットサル、サウナ、スポーツ観戦</div>
-							<div class="about-menu design-l">GitHub URL</div>
-							<div class="about-answer design-l"><a href="https://github.com/SeiyaNakagawa2219">https://github.com/SeiyaNakagawa2219</a></div>
-							<div class="about-menu design-l">自己PR</div>
-							<div class="about-answer design-l">
-								神奈川県在住のエンジニア。未経験でIT業界に飛び込み、営業からエンジニアにシフトチェンジ。運用・ヘルプデスクからスタートし、AWSクラウドサーバー構築、ECサイト保守・運用、Python/Beautiful Soupでのスクレイピングツール作成など、インフラからフロント・バックエンドまで幅広く業務を経験してきました。
-							</div>
-						</div>
-					</div>
-				</div>
-			</section>
-			<section class="skill">
-				<h1 id="skill">Skill</h1>
-				<div class="flex skill-flex">
-					<div class="skill-container margin-d">
-						<div class="container-flex">
-							<div class="skill-icon margin-d">
-								<i class="fab fa-html5 fa-4x  margin-d"></i>
-							</div>
-							<div class="skill-menu margin-d">
-								<h4 class="design-l">HTML & CSS</h4>
-								<p class="design-l">★★☆☆☆</p>
-								<div class="skill-text design-l">
-									ポートフォリオ、LPページ、ブログサイトの作成経験有
-									bootstrap習得。<br>
-								</div>
-							</div>
-						</div>
-					</div>
-					<div class="skill-container margin-d">
-						<div class="container-flex">
-							<div class="skill-icon margin-d">
-								<i class="fab fa-wordpress fa-4x  margin-d"></i>
-							</div>
-							<div class="skill-menu margin-d">
-								<h4 class="design-l">WordPress</h4>
-								<p class="design-l">★☆☆☆☆</p>
-								<div class="skill-text design-l">
-									ブログサイトを作成。
-									テンプレートからコード修正してカスタマイズ。
-								</div>
-							</div>
-						</div>
-					</div>
-					<div class="skill-container margin-d">
-						<div class="container-flex">
-							<div class="skill-icon margin-d">
-								<i class="fab fa-php fa-4x  margin-d"></i>
-							</div>
-							<div class="skill-menu margin-d">
-								<h4 class="design-l">PHP</h4>
-								<p class="design-l">★★☆☆☆</p>
-								<div class="skill-text design-l">
-									ECサイト（EC-CUBE2）の保守・運用を担当。
-									Smartyテンプレートのサイト改修。
-								</div>
-							</div>
-						</div>
-					</div>
-					<div class="skill-container margin-d">
-						<div class="container-flex">
-							<div class="skill-icon margin-d">
-								<i class="fab fa-js fa-4x  margin-d"></i>
-							</div>
-							<div class="skill-menu margin-d">
-								<h4 class="design-l">JavaScript</h4>
-								<p class="design-l">★☆☆☆☆</p>
-								<div class="skill-text design-l">
-									簡単な占いゲームを作成。<br>
-								</div>
-							</div>
-						</div>
-					</div>
-					<div class="skill-container margin-d">
-						<div class="container-flex">
-							<div class="skill-icon margin-d">
-								<i class="fab fa-java fa-4x  margin-d"></i>
-							</div>
-							<div class="skill-menu margin-d">
-								<h4 class="design-l">Java</h4>
-								<p class="design-l">★★☆☆☆</p>
-								<div class="skill-text design-l">
-									既存システムの改修。<br>
-									ソースコードの解析、コード追加、修正。<br>
-									フレームワークはStruts、Spring。
-								</div>
-							</div>
-						</div>
-					</div>
-					<div class="skill-container margin-d">
-						<div class="container-flex">
-							<div class="skill-icon margin-d">
-								<i class="fas fa-database fa-4x  margin-d"></i>
-							</div>
-							<div class="skill-menu margin-d">
-								<h4 class="design-l">SQL</h4>
-								<p class="design-l">★★★☆☆</p>
-								<div class="skill-text design-l">
-									某不動産向けシステムの改修。<br>
-									Oracle：テーブル、カラム追加、テスト時のデータ確認、PL/SQLの改修。<br>
-									Mysql ：5.6⇛8.0バージョンアップ対応。
-								</div>
-							</div>
-						</div>
-					</div>
-					<div class="skill-container margin-d">
-						<div class="container-flex">
-							<div class="skill-icon margin-d">
-								<i class="fab fa-aws fa-4x  margin-d"></i>
-							</div>
-							<div class="skill-menu margin-d">
-								<h4 class="design-l">AWS</h4>
-								<p class="design-l">★★★☆☆</p>
-								<div class="skill-text design-l">
-									某鉄道会社向けシステム開発<br>
-									(Nginx⇛Tomcat⇛RDSのシステム構築)<br><br>
-									某自動車運転解析システム開発
-									(TerraForm)
-								</div>
-							</div>
-						</div>
-					</div>
-				</div>
-				<div class="shikaku">
-					<h2>資格</h2>
-					<div>
-						<ul>
-							<li class="text-left">AWS Solutions Architect Associate</li>
-							<li class="text-left">ORACLE MASTER Bronze Oracle Database 12</li>
-							<li class="text-left">LinuC Level1</li>
-							<li class="text-left">LinuC Level2</li>
-						</ul>
-					</div>
-				</div>
-			</section>
-			<section class="work">
-				<h1 id="work">Work</h1>
-				<div class="flex">
-					<div class="work-container">
-						<p>ポートフォリオ</p>
-						<a href="https://seiyanakagawa2219.github.io/Portfolio/" target="_blank"><img src="img/portfolio.png"></a>
-					</div>
-					<!-- <div class="work-container">
-						<p>寺＆神社ブログ</p>
-						<a href="https://m-temple.main.jp/" target="_blank"><img src="img/Temple&shrine.png"></a>
-						<div class="work-type design-l">
-							レンタルサーバを使いWordpressで作成。
-						</div>
-					</div> -->
-					<!-- <div class="work-container">
-						<p>練習作成用ログインページ</p>
-						<a href="https://seiyanakagawa2219.github.io/Flower/" target="_blank"><img src="img/login.png"></a>
-					</div> -->
-					<!-- <div class="work-container">
-						<p>練習模写用デイトラページ</p>
-						<a href="https://seiyanakagawa2219.github.io/Daytra/" target="_blank"><img src="img/daytra.png"></a>
-					</div> -->
-					<div class="work-container">
-						<p>練習模写用Flowerページ</p>
-						<a href="https://seiyanakagawa2219.github.io/Flower/" target="_blank"><img src="img/flower.png"></a>
-					</div>
-					<div class="work-container">
-						<p>オークション代行 ECサイト(EC-CUBE2)</p>
-						<a href="https://www.straight-japan.com/" target="_blank"><img src="img/straight-japan.png"></a>
-					</div>
-				</div>
-			</section>
-		</div>
-			<section class="mail back-image">
-				<h1 id="mail">Contact</h1>
-				<p id="mail-annai">お問い合わせは、以下ボタンよりお気軽にお問い合わせください。</p>
-				<div class="container">
-					<a target="_blank" href="https://docs.google.com/forms/d/e/1FAIpQLScCgs4OVyQwGBpTlb-ItbBG3FZriWsf3s42h0QUPyaCq_xNIQ/viewform?usp=sf_link" class="btn-gradation">GO</a>
-				</div>
-			</section>
-		<footer>
-			<div>
-				MyPortfollio Site
-			</div>
-		</footer>
-		<script src="js/main.js"></script>
-		<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
-		<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
-		<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js" integrity="sha384-OgVRvuATP1z7JjHLkuOU7Xw704+h835Lr+6QL9UvYjZE3Ipu6Tp75j7Bh/kR0JKI" crossorigin="anonymous"></script>
-	</body>
+    <main>
+      <!-- Hero Section -->
+      <section id="hero" class="hero">
+        <div class="hero-content">
+          <h1 data-i18n="hero.name">Seiya Nakagawa</h1>
+          <h2>
+            <span id="typing-text"></span><span class="typing-cursor">|</span>
+          </h2>
+          <p data-i18n="hero.desc">ポートフォリオサイトへようこそ。</p>
+        </div>
+      </section>
+
+      <!-- About Section -->
+      <section id="about" class="container">
+        <h2 class="section-title" data-i18n="nav.about">About</h2>
+        <div class="about-grid glass-panel" style="padding: 2rem">
+          <div class="about-text">
+            <p data-i18n="about.intro">
+              クラウドアーキテクトエンジニアとして、AWS等のパブリッククラウドにおけるアーキテクチャ設計、IaC導入、CI/CDパイプライン構築を得意としております。また、フロントエンドからバックエンドまで幅広い開発経験を持ち、領域を問わず柔軟に対応できる点が強みです。常に最新技術のキャッチアップを心がけ、クライアントにとって最善の提案を行うことを重視して活動しています。
+            </p>
+            <table class="profile-table">
+              <tr>
+                <th data-i18n="profile.age">年齢</th>
+                <td id="age-display">--</td>
+              </tr>
+              <tr>
+                <th data-i18n="profile.location">居住地</th>
+                <td data-i18n="profile.location_val">神奈川県</td>
+              </tr>
+              <tr>
+                <th data-i18n="profile.hobby">趣味</th>
+                <td data-i18n="profile.hobby_val">サウナ、サッカー観戦</td>
+              </tr>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Skills Section -->
+      <section id="skills" class="container">
+        <h2 class="section-title" data-i18n="nav.skills">Skills</h2>
+        <div id="skills-container" class="skills-grid">
+          <!-- Injected via JS -->
+        </div>
+      </section>
+
+      <!-- Works Section -->
+      <section id="works" class="container">
+        <h2 class="section-title" data-i18n="nav.works">Works</h2>
+        <div id="works-container" class="works-grid">
+          <!-- Injected via JS -->
+        </div>
+      </section>
+
+      <!-- Contact Section -->
+      <section id="contact" class="container">
+        <h2 class="section-title" data-i18n="nav.contact">Contact</h2>
+        <div class="contact-container glass-panel">
+          <p data-i18n="contact.msg">
+            ご興味を持っていただけましたら、下記フォームよりお気軽にお問い合わせください。
+          </p>
+          <a
+            href="https://docs.google.com/forms/..."
+            target="_blank"
+            class="btn-primary"
+            data-i18n="contact.btn"
+          >
+            お問い合わせフォーム
+          </a>
+          <div class="social-links" style="margin-top: 2rem">
+            <a
+              href="https://github.com/SeiyaNakagawa2219"
+              target="_blank"
+              class="icon-btn"
+              style="font-size: 2rem"
+            >
+              <i class="fab fa-github"></i>
+            </a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer style="text-align: center; padding: 2rem; color: var(--text-muted)">
+      <p>&copy; 2024 Seiya Nakagawa. All rights reserved.</p>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="js/i18n.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/main.js"></script>
+  </body>
 </html>
