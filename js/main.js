@@ -1,40 +1,24 @@
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- State ---
-    let currentLang = localStorage.getItem('lang') || 'ja';
-    let isLightMode = localStorage.getItem('theme') === 'light';
+    const currentLang = 'ja';
 
     // --- DOM Elements ---
-    const themeToggle = document.getElementById('theme-toggle');
-    const themeIcon = themeToggle.querySelector('i');
-    const langToggle = document.getElementById('lang-toggle');
-    const langText = langToggle.querySelector('span');
     const typingText = document.getElementById('typing-text');
     const ageDisplay = document.getElementById('age-display');
     const header = document.querySelector('header');
 
     // --- Initialization ---
-    applyTheme();
     applyLang();
     calculateAge();
     renderSkills();
+    renderCertifications();
     renderWorks();
     startTyping();
     initScrollEffects();
 
     // --- Event Listeners ---
-    themeToggle.addEventListener('click', () => {
-        isLightMode = !isLightMode;
-        localStorage.setItem('theme', isLightMode ? 'light' : 'dark');
-        applyTheme();
-    });
-
-    langToggle.addEventListener('click', () => {
-        currentLang = currentLang === 'ja' ? 'en' : 'ja';
-        localStorage.setItem('lang', currentLang);
-        applyLang();
-        renderWorks(); // Re-render works to update language
-    });
+    // --- Event Listeners ---
 
     window.addEventListener('scroll', () => {
         if (window.scrollY > 50) {
@@ -46,24 +30,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Functions ---
 
-    function applyTheme() {
-        if (isLightMode) {
-            document.body.classList.add('light-mode');
-            themeIcon.className = 'fas fa-sun';
-        } else {
-            document.body.classList.remove('light-mode');
-            themeIcon.className = 'fas fa-moon';
-        }
-    }
-
     function applyLang() {
-        langText.textContent = currentLang === 'ja' ? 'JP' : 'EN';
         document.querySelectorAll('[data-i18n]').forEach(el => {
             const key = el.dataset.i18n;
             const keys = key.split('.');
             let val = resources[currentLang];
             keys.forEach(k => { if(val) val = val[k]; });
-            if (val) el.textContent = val;
+            if (val) el.innerHTML = val.replace(/\n/g, '<br>');
         });
     }
 
@@ -213,6 +186,65 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function renderCertifications() {
+        const container = document.getElementById('certifications-container');
+        if (!container) return;
+        container.innerHTML = '';
+
+        const listWrapper = document.createElement('div');
+        listWrapper.className = 'glass-panel';
+        listWrapper.style.padding = '2rem';
+        listWrapper.style.maxWidth = '800px';
+        listWrapper.style.margin = '0 auto';
+
+        certificationsData.forEach((cert, index) => {
+            const item = document.createElement('div');
+            item.className = 'cert-item';
+            item.style.display = 'flex';
+            item.style.justifyContent = 'space-between';
+            item.style.alignItems = 'center';
+            item.style.padding = '1.2rem 0';
+            if (index !== certificationsData.length - 1) {
+                item.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+            }
+
+            item.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 1.5rem;">
+                    <div class="cert-icon" style="color: var(--primary); font-size: 1.5rem;">
+                        <i class="fas fa-certificate"></i>
+                    </div>
+                    <div>
+                        <div style="font-weight: 700; color: var(--text-main); font-size: 1.1rem; margin-bottom: 0.2rem;">${cert.name}</div>
+                        <div style="font-size: 0.85rem; color: var(--text-muted); opacity: 0.8;">${cert.org}</div>
+                    </div>
+                </div>
+                <div style="background: rgba(6, 182, 212, 0.1); color: var(--primary); padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.9rem; font-weight: 600;">
+                    ${cert.date}
+                </div>
+            `;
+            listWrapper.appendChild(item);
+        });
+
+        container.appendChild(listWrapper);
+
+        // Simple fade in
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = 1;
+                    entry.target.style.transform = 'translateY(0)';
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.1 });
+
+        listWrapper.style.opacity = 0;
+        listWrapper.style.transform = 'translateY(20px)';
+        listWrapper.style.transition = 'opacity 0.8s ease, transform 0.8s ease';
+        observer.observe(listWrapper);
+    }
+
+
     function renderWorks() {
         const container = document.getElementById('works-container');
         container.innerHTML = '';
@@ -290,7 +322,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
         });
-
-        // We can add .reveal class to sections later if wanted
     }
+
+    // --- Contact Form Event ---
+    // Removed: Contact is now handled via Google Forms link in index.html
 });

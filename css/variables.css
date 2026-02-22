@@ -20,18 +20,3 @@
   --header-height: 70px;
   --border-radius: 16px;
 }
-
-body.light-mode {
-  /* Light Mode Overrides */
-  --bg-primary: #f8fafc;
-  --bg-secondary: #e2e8f0;
-  --text-main: #1e293b;
-  --text-muted: #475569;
-
-  --accent-1: #0284c7;
-  --accent-2: #7c3aed;
-
-  --glass-bg: rgba(255, 255, 255, 0.6);
-  --glass-border: rgba(255, 255, 255, 0.8);
-  --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
-}

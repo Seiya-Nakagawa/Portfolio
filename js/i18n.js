@@ -3,6 +3,7 @@ const resources = {
         nav: {
             about: "About",
             skills: "Skills",
+            certifications: "Certifications",
             works: "Works",
             contact: "Contact",
             skill_tech: "技術",
@@ -24,57 +25,24 @@ const resources = {
             desc: "ポートフォリオサイトへようこそ。"
         },
         about: {
-            intro: "クラウドアーキテクトエンジニアとして、AWS等のパブリッククラウドにおけるアーキテクチャ設計、IaC導入、CI/CDパイプライン構築を得意としております。また、フロントエンドからバックエンドまで幅広い開発経験を持ち、領域を問わず柔軟に対応できる点が強みです。常に最新技術のキャッチアップを心がけ、クライアントにとって最善の提案を行うことを重視して活動しています。"
+            intro: "クラウドアーキテクトエンジニアとして、AWS等のパブリッククラウドにおけるアーキテクチャ設計、IaC導入、CI/CDパイプライン構築を得意としております。\nまた、フロントエンドからバックエンドまで幅広い開発経験を持ち、領域を問わず柔軟に対応できる点が強みです。\n常に最新技術のキャッチアップを心がけ、クライアントにとって最善の提案を行うことを重視して活動しています。"
         },
         profile: {
             age: "年齢",
+            job: "職業",
+            job_val: "インフラ（クラウド）エンジニア",
+            education: "学歴",
+            education_val: "東海大学工学部 生命化学科卒",
             location: "居住地",
-            location_val: "神奈川県",
+            location_val: "神奈川県綾瀬市在住",
             hobby: "趣味",
-            hobby_val: "サウナ、サッカー観戦"
+            hobby_val: "サウナ、サッカー観戦",
+            github: "GitHub URL",
+            github_val: "https://github.com/Seiya-Nakagawa"
         },
         contact: {
-            msg: "ご興味を持っていただけましたら、下記フォームよりお気軽にお問い合わせください。",
-            btn: "お問い合わせフォーム"
-        }
-    },
-    en: {
-        nav: {
-            about: "About",
-            skills: "Skills",
-            works: "Works",
-            contact: "Contact",
-            skill_tech: "Technology",
-            skill_years: "Experience",
-            skill_level: "Level",
-            skill_level_label: "Level",
-            skill_legend: {
-                l5: "★★★★★: Specialist",
-                l4: "★★★★☆: Advanced",
-                l3: "★★★☆☆: Intermediate",
-                l2: "★★☆☆☆: Elementary",
-                l1: "★☆☆☆☆: Beginner"
-            },
-            view_live: "Visit Site",
-            view_github: "GitHub Repository"
-        },
-        hero: {
-            name: "Seiya Nakagawa",
-            desc: "Welcome to My Portfolio."
-        },
-        about: {
-            intro: "As a Cloud Architect Engineer, I specialize in architecture design, IaC, and CI/CD pipelines for public clouds like AWS. I also have extensive experience in both frontend and backend development. I dedicate myself to keeping up with the latest technologies to propose the best solutions for my clients."
-        },
-        profile: {
-            age: "Age",
-            location: "Location",
-            location_val: "Kanagawa, Japan",
-            hobby: "Hobby",
-            hobby_val: "Sauna, Watching Soccer"
-        },
-        contact: {
-            msg: "If you are interested, please feel free to contact me using the form below.",
-            btn: "Contact Form"
+            msg: "ご興味を持っていただけましたら、下記ボタンよりお気軽にお問い合わせください。\n副業での案件も積極的に対応しております！",
+            btn: "問い合わせ"
         }
     }
 };

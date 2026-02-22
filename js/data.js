@@ -35,7 +35,7 @@ const skillsData = [
     { name: "Zabbix", years: "1年", level: 2, category: "監視" },
     { name: "JP1 Integrated Management", years: "1年", level: 3, category: "監視" },
     { name: "ESB File Transfer", years: "8ヶ月", level: 2, category: "監視" },
-    { name: "CloudWatch", years: "-", level: 2, category: "監視" },
+    { name: "CloudWatch", years: "4年", level: 2, category: "監視" },
 
     // ログ分析
     { name: "ELK Stack", years: "2ヶ月", level: 2, category: "ログ分析" },
@@ -60,7 +60,7 @@ const skillsData = [
 const worksData = [
     {
         title: "Portfolio",
-        desc_ja: "このポートフォリオサイトのリニューアルプロジェクト。",
+        desc_ja: "当ポートフォリオサイト",
         desc_en: "Renewal project of this portfolio website.",
         tags: ["HTML", "CSS", "JS"],
         thumbnail: "img/portfolio.png",
@@ -74,5 +74,53 @@ const worksData = [
         thumbnail: "img/news_check.png",
         live_url: "https://technohonesty.com/news",
         github_url: "https://github.com/Seiya-Nakagawa/news_check"
+    },
+    {
+        title: "Blog Link Checker",
+        desc_ja: "ブログ記事内のリンク切れを自動でチェック。GASとAWS（Lambda, S3）を連携。",
+        desc_en: "Automated broken link checker for blogs. Integrates GAS with AWS Lambda and S3.",
+        tags: ["GAS", "AWS", "Terraform"],
+        thumbnail: "img/blog_link_checker.jpg",
+        github_url: "https://github.com/Seiya-Nakagawa/blog_link_checker"
+    },
+    {
+        title: "Train Delay Alert",
+        desc_ja: "登録した路線の情報をLINEで受け取れる遅延通知システム。",
+        desc_en: "Train delay notification system using LINE Messaging API and AWS.",
+        tags: ["Python", "AWS", "Line API", "Terraform"],
+        thumbnail: "img/train_delay_alert.jpg",
+        github_url: "https://github.com/Seiya-Nakagawa/train_delay_alert"
+    }
+];
+const certificationsData = [
+    {
+        name: "Google Cloud Certified - Associate Cloud Engineer",
+        date: "Jul 2025",
+        org: "Google Cloud"
+    },
+    {
+        name: "AWS Certified Solutions Architect – Professional",
+        date: "Jul 2024",
+        org: "Amazon Web Services (AWS)"
+    },
+    {
+        name: "LinuC LEVEL2",
+        date: "Sep 2020",
+        org: "LPI-Japan"
+    },
+    {
+        name: "AWS Certified Solutions Architect – Associate",
+        date: "Sep 2020",
+        org: "Amazon Web Services (AWS)"
+    },
+    {
+        name: "Oracle Master Bronze 12c",
+        date: "Jul 2018",
+        org: "Oracle"
+    },
+    {
+        name: "LinuC LEVEL1",
+        date: "Feb 2018",
+        org: "LPI-Japan"
     }
 ];

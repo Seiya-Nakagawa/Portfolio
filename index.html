@@ -29,16 +29,15 @@
         <ul class="nav-links glass-panel">
           <li><a href="#about" data-i18n="nav.about">About</a></li>
           <li><a href="#skills" data-i18n="nav.skills">Skills</a></li>
+          <li>
+            <a href="#certifications" data-i18n="nav.certifications"
+              >Certifications</a
+            >
+          </li>
           <li><a href="#works" data-i18n="nav.works">Works</a></li>
           <li><a href="#contact" data-i18n="nav.contact">Contact</a></li>
         </ul>
         <div class="nav-tools">
-          <div id="theme-toggle" class="icon-btn">
-            <i class="fas fa-moon"></i>
-          </div>
-          <div id="lang-toggle" class="icon-btn">
-            <span>JP</span>
-          </div>
           <div id="mobile-menu-btn" class="icon-btn mobile-only">
             <i class="fas fa-bars"></i>
           </div>
@@ -72,12 +71,35 @@
                 <td id="age-display">--</td>
               </tr>
               <tr>
+                <th data-i18n="profile.job">職業</th>
+                <td data-i18n="profile.job_val">
+                  インフラ（クラウド）エンジニア
+                </td>
+              </tr>
+              <tr>
+                <th data-i18n="profile.education">学歴</th>
+                <td data-i18n="profile.education_val">
+                  東海大学工学部 生命化学科卒
+                </td>
+              </tr>
+              <tr>
                 <th data-i18n="profile.location">居住地</th>
-                <td data-i18n="profile.location_val">神奈川県</td>
+                <td data-i18n="profile.location_val">神奈川県綾瀬市在住</td>
               </tr>
               <tr>
                 <th data-i18n="profile.hobby">趣味</th>
                 <td data-i18n="profile.hobby_val">サウナ、サッカー観戦</td>
+              </tr>
+              <tr>
+                <th data-i18n="profile.github">GitHub URL</th>
+                <td>
+                  <a
+                    href="https://github.com/Seiya-Nakagawa"
+                    target="_blank"
+                    data-i18n="profile.github_val"
+                    >https://github.com/Seiya-Nakagawa</a
+                  >
+                </td>
               </tr>
             </table>
           </div>
@@ -88,6 +110,16 @@
       <section id="skills" class="container">
         <h2 class="section-title" data-i18n="nav.skills">Skills</h2>
         <div id="skills-container" class="skills-grid">
+          <!-- Injected via JS -->
+        </div>
+      </section>
+
+      <!-- Certifications Section -->
+      <section id="certifications" class="container">
+        <h2 class="section-title" data-i18n="nav.certifications">
+          Certifications
+        </h2>
+        <div id="certifications-container" class="certifications-grid">
           <!-- Injected via JS -->
         </div>
       </section>
@@ -105,19 +137,26 @@
         <h2 class="section-title" data-i18n="nav.contact">Contact</h2>
         <div class="contact-container glass-panel">
           <p data-i18n="contact.msg">
-            ご興味を持っていただけましたら、下記フォームよりお気軽にお問い合わせください。
+            ご興味を持っていただけましたら、下記ボタンよりお気軽にお問い合わせください。<br />
+            副業での案件も積極的に対応しております！
           </p>
-          <a
-            href="https://docs.google.com/forms/..."
-            target="_blank"
-            class="btn-primary"
-            data-i18n="contact.btn"
+          <div
+            class="contact-actions"
+            style="display: flex; justify-content: center; margin-top: 2rem"
           >
-            お問い合わせフォーム
-          </a>
+            <a
+              href="https://docs.google.com/forms/d/e/1FAIpQLScCgs4OVyQwGBpTlb-ItbBG3FZriWsf3s42h0QUPyaCq_xNIQ/viewform?usp=sharing&ouid=102622625500046231898"
+              target="_blank"
+              class="btn-primary"
+              data-i18n="contact.btn"
+              id="contact-button"
+            >
+              問い合わせ
+            </a>
+          </div>
           <div class="social-links" style="margin-top: 2rem">
             <a
-              href="https://github.com/SeiyaNakagawa2219"
+              href="https://github.com/Seiya-Nakagawa"
               target="_blank"
               class="icon-btn"
               style="font-size: 2rem"
