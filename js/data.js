@@ -54,7 +54,10 @@ const skillsData = [
     { name: "GitHub Actions", years: "3年", level: 4, category: "CI/CD" },
     { name: "GitLab Runner", years: "1年", level: 3, category: "CI/CD" },
     { name: "CodeBuild", years: "1年", level: 2, category: "CI/CD" },
-    { name: "CodeDeploy", years: "2年", level: 3, category: "CI/CD" }
+    { name: "CodeDeploy", years: "2年", level: 3, category: "CI/CD" },
+
+    // クラスタリング
+    { name: "CLUSTERPRO", years: "2ヶ月", level: 2, category: "クラスタリング" }
 ];
 
 const worksData = [
