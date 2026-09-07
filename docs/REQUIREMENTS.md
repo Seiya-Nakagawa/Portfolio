@@ -12,7 +12,7 @@
 | 項目 | 内容 |
 | ---- | ---- |
 | プロジェクト名 | Portfolio サイト |
-| 対象サイト | <https://seiyanakagawa2219.github.io/Portfolio/> |
+| 対象サイト | <https://seiya-nakagawa.github.io/Portfolio/> |
 | ホスティング | GitHub Pages |
 
 - 旧サイトは Bootstrap 4.5 + jQuery 依存の汎用テンプレートで構成され、デザインの差別化・パフォーマンス・保守性に課題があった
