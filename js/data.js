@@ -84,6 +84,13 @@ const worksData = [
         tags: ["Python", "AWS", "Line API", "Terraform"],
         thumbnail: "img/train_delay_alert.jpg",
         github_url: "https://github.com/Seiya-Nakagawa/train_delay_alert"
+    },
+    {
+        title: "Skillsheet Builder",
+        desc_ja: "職務経歴書のMarkdownマスターデータをPDF化するローカル完結型ビルドツール（ダミーデータ同梱、実データは非同梱）。",
+        desc_en: "A local build tool that converts a Markdown résumé master file into a PDF (ships with dummy sample data only).",
+        tags: ["Python", "Markdown", "PDF"],
+        github_url: "https://github.com/Seiya-Nakagawa/Portfolio/tree/main/tools/skillsheet-builder"
     }
 ];
 const certificationsData = [

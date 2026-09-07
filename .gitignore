@@ -1,0 +1,7 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# skillsheet-builder のビルド生成物
+tools/skillsheet-builder/output/
