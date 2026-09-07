@@ -111,9 +111,16 @@ flowchart TD
 
 Portfolio サイト本体（1〜7 章）とは独立した、個人の職務経歴書（スキルシート）運用に関する設計を記載する。
 
-- 作業ディレクトリはローカル（例: `~/skillsheet/`）に置き、Portfolio リポジトリには含めない
-- 履歴管理はリモートを持たないローカル git リポジトリで行う
-- バックアップは Google ドライブへの退避で担保する
+- 作業ディレクトリは本リポジトリ内のパス `skillsheet/` に配置する。実体は Google ドライブの
+  同期フォルダ（`/mnt/g/履歴書関連/skillsheet/`）に置き、`skillsheet/` はそこへの
+  シンボリックリンクとする
+- `.gitignore` により `skillsheet` を除外し、GitHub には一切アップロードしない
+- 履歴管理はリモートを持たないローカル git リポジトリで行う。git 管理領域（`.git`）は
+  Google ドライブの同期対象外（`~/.local/share/skillsheet/git`）に配置し、`.git` ファイル
+  （`gitdir: ...`）で参照する。同期中のファイル書き込みによる git リポジトリ破損を避けるため
+- バックアップは Google ドライブによるリアルタイム同期で担保する。手動でのファイルコピーは不要
+- Python 仮想環境（`.venv`）は Google ドライブに同期させず、ローカル
+  （`~/.local/share/skillsheet/venv`）に配置する
 - PDF 生成はローカルの `build_pdf.py` 実行で行い、GitHub Actions 等の CI は使用しない
 - ビルドスクリプトとテンプレートは、架空のダミーデータを同梱した形で Portfolio リポジトリの
   `tools/skillsheet-builder/` に公開する。実データは同梱しない
@@ -124,6 +131,8 @@ Portfolio サイト本体（1〜7 章）とは独立した、個人の職務経�
 ```text
 Portfolio/
 ├── index.html               # エントリーポイント
+├── skillsheet/               # 職務経歴書ローカル作業ディレクトリ
+│                              # （Googleドライブへのシンボリックリンク、.gitignoreで除外）
 ├── css/
 │   ├── style.css            # メインスタイルシート
 │   ├── variables.css        # CSS変数定義（色、フォント、サイズ）
