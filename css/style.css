@@ -90,6 +90,10 @@ nav {
   color: var(--accent-1);
 }
 
+.mobile-only {
+  display: none;
+}
+
 /* Hero Section */
 .hero {
   height: 100vh;
@@ -404,8 +408,8 @@ section {
     display: none; /* TODO: Implement mobile menu */
   }
 
-  .mobile-menu-btn {
-    display: block;
+  .mobile-only {
+    display: flex;
   }
 }
 /* Certifications */
