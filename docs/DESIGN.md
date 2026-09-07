@@ -117,6 +117,7 @@ Portfolio サイト本体（1〜7 章）とは独立した、個人の職務経�
 - PDF 生成はローカルの `build_pdf.py` 実行で行い、GitHub Actions 等の CI は使用しない
 - ビルドスクリプトとテンプレートは、架空のダミーデータを同梱した形で Portfolio リポジトリの
   `tools/skillsheet-builder/` に公開する。実データは同梱しない
+- 公開ツールのセットアップ手順・実行方法は [`tools/skillsheet-builder/README.md`](../tools/skillsheet-builder/README.md) を参照
 
 ## 9. ディレクトリ構成
 
