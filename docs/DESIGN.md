@@ -1,169 +1,144 @@
-# ポートフォリオサイト リニューアル基本設計書
+# 基本設計書 - Portfolio サイト
 
-## 1. はじめに
+## 1. システム構成
 
-本ドキュメントは、`REQUIREMENTS.md` に基づくポートフォリオサイトリニューアルの基本設計をまとめたものである。
+### 1.1. 前提インフラ
 
-## 2. システムアーキテクチャ
+- GitHub Pages（`main` ブランチを直接公開する構成。GitHub Actions は使用しない）
 
-### 2.1 構成概要
+### 1.2. 構成図
 
-GitHub Pages を利用した静的サイトホスティング構成とする。
-ビルドプロセスを排し、純粋な HTML/CSS/JavaScript で構成することで、保守性と学習コストの低減を図る。
-
-| 階層 | 技術スタック | 備考 |
-|------|--------------|------|
-| フロントエンド | HTML5, CSS3, Vanilla JS | フレームワーク依存なし |
-| ホスティング | GitHub Pages | リポジトリ連携 |
-| ドメイン | github.io サブドメイン | <https://seiyanakagawa2219.github.io/Portfolio/> |
-
-### 2.2 ディレクトリ構成
-
-機能追加に伴い、翻訳データ格納用の `i18n.js` を追加する。
-
+```mermaid
+flowchart LR
+    Browser["閲覧者のブラウザ"] -->|HTTPS| Pages["GitHub Pages"]
+    Pages -->|配信| Repo["Portfolio リポジトリ\n(main ブランチ)"]
+    Browser -->|お問い合わせ| GForm["Google フォーム"]
+    Browser -->|プロフィール参照| GitHub["GitHub プロフィール"]
 ```
+
+## 2. 技術スタック
+
+### 2.1. バージョン確定方針
+
+- 外部ライブラリは最小限に留め、CDN 経由でバージョンを固定して読み込む
+
+### 2.2. 採用ライブラリ
+
+| ライブラリ | バージョン | 用途 | 配信元 |
+| ---------- | ---------- | ---- | ------ |
+| Font Awesome | 6.4.0 | アイコン表示 | cdnjs.cloudflare.com |
+| Google Fonts (Inter) | 400 / 500 / 700 / 800 | 本文フォント | fonts.googleapis.com |
+
+## 3. 機能設計
+
+| 機能 | 実現方式 |
+| ---- | -------- |
+| ナビゲーション | アンカーリンク + CSS によるスムーズスクロール。`js/main.js` でモバイル用ハンバーガーメニューの開閉を制御する |
+| Hero タイピングアニメーション | `js/main.js` が肩書き文字列配列を 1 文字ずつ `#typing-text` に追加・削除してループ再生する |
+| About 年齢自動計算 | `js/main.js` が生年月日から現在日時との差分を計算し `#age-display` に描画する |
+| Skills スキルバー | `js/data.js` のスキル配列（`name` / `years` / `level` / `category`）を `js/main.js` がカテゴリ別にグルーピングして `#skills-container` に描画する |
+| Certifications 資格一覧 | `js/data.js` の資格配列を `js/main.js` が `#certifications-container` に描画する |
+| Works 実績カード | `js/data.js` の実績配列（`title` / `desc_ja` / リンク等）を `js/main.js` が `#works-container` に描画する |
+| Contact | 静的な Google フォーム URL・GitHub プロフィール URL へのリンク（サイト内フォーム処理は持たない） |
+| 表示文言の切り出し | `js/i18n.js` に `data-i18n` 属性と対応する文言を保持する。`currentLang` は `'ja'` に固定しており、言語切替 UI・英語リソースは持たない |
+
+## 4. データベース設計
+
+### 4.1. 共通方針
+
+該当なし。データベースを使用しない静的サイトであり、コンテンツデータは `js/data.js` に直接記述する。
+
+### 4.2. テーブル定義
+
+該当なし。
+
+## 5. 画面設計
+
+### 5.1. 画面一覧
+
+| 画面 | 内容 |
+| ---- | ---- |
+| index.html | Hero / About / Skills / Certifications / Works / Contact の全セクションを含む単一ページ |
+
+### 5.2. 画面遷移図
+
+ページ遷移は発生しない。ナビゲーションのアンカーリンクにより同一ページ内の各セクションへスクロール移動する。
+
+```mermaid
+flowchart TD
+    Nav["ナビゲーション"] --> Hero
+    Nav --> About
+    Nav --> Skills
+    Nav --> Certifications
+    Nav --> Works
+    Nav --> Contact
+```
+
+### 5.3. 主要画面の項目
+
+| セクション | 主要項目 |
+| ---------- | -------- |
+| Hero | 氏名、タイピングアニメーションによる肩書き、キャッチコピー |
+| About | 自己紹介文、年齢（自動計算）、職業、学歴、居住地、趣味、GitHub URL |
+| Skills | カテゴリ別スキルバー（技術名 / 経験年数 / 習熟度） |
+| Certifications | 取得資格の一覧 |
+| Works | 実績タイトル、説明、リンク |
+| Contact | Google フォームへのリンクボタン、GitHub アイコンリンク |
+
+## 6. 外部インタフェース設計
+
+| 連携先 | 用途 | 方式 |
+| ------ | ---- | ---- |
+| Google フォーム | お問い合わせ受付 | 静的リンク（サイト内フォーム送信処理は持たない） |
+| GitHub | プロフィール・リポジトリ参照 | 静的リンク |
+| Font Awesome CDN / Google Fonts CDN | アイコン・フォント配信 | `<link>` タグによる読み込み |
+
+## 7. 非機能要件の実現方式
+
+要件定義書「[6. 非機能要件](REQUIREMENTS.md#6-非機能要件)」の各項目に対応する。
+
+| 要件定義書の項番 | 項目 | 実現方式 |
+| ---------------- | ---- | -------- |
+| 6.1 | 可用性 | GitHub Pages の可用性に委譲する |
+| 6.2 | 性能 | 外部ライブラリを Font Awesome・Google Fonts のみに限定し、依存を最小化する |
+| 6.3 | セキュリティ | 職務経歴書の実データは本リポジトリに一切含めない。`tools/skillsheet-builder/` に公開するのはダミーデータのみとする（詳細は [8. 職務経歴書の管理方式](#8-職務経歴書の管理方式)を参照） |
+| 6.4 | バックアップ・リストア | 該当なし（ソースは GitHub リポジトリの履歴で管理） |
+| 6.5 | 運用・保守 | CI/CD を用いず、`main` ブランチへのマージで GitHub Pages に反映する |
+| 6.6 | コスト | GitHub Pages の無料枠内で運用する |
+| 6.7 | 移植性・保守性 | フレームワーク非依存の Vanilla HTML/CSS/JavaScript 構成とする |
+
+## 8. 職務経歴書の管理方式
+
+Portfolio サイト本体（1〜7 章）とは独立した、個人の職務経歴書（スキルシート）運用に関する設計を記載する。
+
+- 作業ディレクトリはローカル（例: `~/skillsheet/`）に置き、Portfolio リポジトリには含めない
+- 履歴管理はリモートを持たないローカル git リポジトリで行う
+- バックアップは Google ドライブへの退避で担保する
+- PDF 生成はローカルの `build_pdf.py` 実行で行い、GitHub Actions 等の CI は使用しない
+- ビルドスクリプトとテンプレートは、架空のダミーデータを同梱した形で Portfolio リポジトリの
+  `tools/skillsheet-builder/` に公開する。実データは同梱しない
+
+## 9. ディレクトリ構成
+
+```text
 Portfolio/
-├── index.html          # エントリーポイント
+├── index.html               # エントリーポイント
 ├── css/
-│   ├── style.css       # メインスタイルシート
-│   ├── variables.css   # CSS変数定義（色、フォント、サイズ）
-│   ├── reset.css       # リセットCSS
-│   └── components/     # コンポーネント別CSS（必要に応じて分割）
+│   ├── style.css            # メインスタイルシート
+│   ├── variables.css        # CSS変数定義（色、フォント、サイズ）
+│   ├── reset.css            # リセットCSS
+│   └── components/          # コンポーネント別CSS
 ├── js/
-│   ├── main.js         # メインロジック（UI操作、イベント）
-│   ├── data.js         # コンテンツデータ（スキル、実績など）
-│   └── i18n.js         # 翻訳リソースデータ（日/英）
+│   ├── main.js               # メインロジック（UI操作、イベント）
+│   ├── data.js                # コンテンツデータ（スキル、資格、実績）
+│   └── i18n.js                 # 表示文言データ（日本語のみ）
 ├── assets/
-│   ├── images/         # 画像ファイル
-│   └── fonts/          # フォントファイル
+│   ├── images/               # 画像ファイル
+│   └── fonts/                  # フォントファイル
+├── img/                       # サイト掲載用画像
+├── tools/
+│   └── skillsheet-builder/    # 職務経歴書ビルダー（ダミーデータ同梱、実データは非同梱）
 └── docs/
-    ├── REQUIREMENTS.md # 要件定義書
-    └── DESIGN.md       # 基本設計書
+    ├── REQUIREMENTS.md
+    └── DESIGN.md
 ```
-
-## 3. デザインシステム（UI/UX）
-
-### 3.1 コンセプト: "Dark Mode x Glassmorphism"（Light Mode対応）
-
-要件に基づき、デフォルトはダークモードとし、ユーザー操作によりライトモードへ切り替え可能とする。
-
-- **ダークモード（デフォルト）**:
-  - ベース: 深い紺色 (#0f172a)
-  - アクセント: シアン、パープルのネオンカラー
-- **ライトモード**:
-  - ベース: 不透明度の高い白/明るいグレー (#f8fafc)
-  - アクセント: 視認性の高い青、紫
-  - ガラス効果: 白ベースの曇りガラス
-
-### 3.2 カラーパレット定義 (css/variables.css)
-
-CSSカスタムプロパティ（CSS変数）を使用し、`body.light-mode` クラスの有無で変数を上書きする設計とする。
-
-```css
-:root {
-  /* Default (Dark) */
-  --bg-primary: #0f172a;
-  --bg-secondary: #1e293b;
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
-  --accent-1: #06b6d4;
-  --glass-bg: rgba(255, 255, 255, 0.05);
-  --glass-border: rgba(255, 255, 255, 0.1);
-}
-
-body.light-mode {
-  /* Light Mode Overrides */
-  --bg-primary: #f8fafc;
-  --bg-secondary: #e2e8f0;
-  --text-main: #1e293b;
-  --text-muted: #475569;
-  --accent-1: #0284c7;
-  --glass-bg: rgba(255, 255, 255, 0.4);
-  --glass-border: rgba(255, 255, 255, 0.6);
-}
-```
-
-### 3.3 UIコンポーネント
-
-- **モード切替スイッチ**: ヘッダー内に配置。太陽/月のアイコンでトグル。
-- **言語切替スイッチ**: ヘッダー内に配置。「JP / EN」テキストまたは国旗アイコン。
-
-## 4. 機能詳細設計
-
-### 4.1 タイピングアニメーション (Hero)
-
-Heroセクションの肩書き部分等をタイプライターのように表示する。
-
-- **ロジック**:
-  - 文字列配列: `["Cloud Architect Engineer", "Full Stack Engineer", "Problem Solver"]`
-  - 処理: 1文字ずつ `span` に追加 → 一時停止 → 1文字ずつ削除 → 次の単語へ。
-  - ループ再生。
-
-### 4.2 スキルバー (Skills)
-
-IntersectionObserver を使用し、スクロールして画面に入ったタイミングでアニメーションを開始する。
-
-- **デザイン**:
-  - プログレスバー形式。
-  - 幅 0% から指定% までスムーズに伸長（transition / animation）。
-- **データ構造 (`js/data.js`)**:
-
-  ```javascript
-  { name: "HTML/CSS", percent: 80, category: "frontend" }
-  ```
-
-### 4.3 多言語対応 (i18n)
-
-URLパラメータや複雑なルーティングは使わず、DOMのテキスト書き換えのみで対応するシンプル設計とする。
-
-- **データ構造 (`js/i18n.js`)**:
-
-  ```javascript
-  const resources = {
-    ja: {
-      hero: { title: "こんにちは" },
-      about: { description: "..." }
-    },
-    en: {
-      hero: { title: "Hello" },
-      about: { description: "..." }
-    }
-  };
-  ```
-
-- **切り替えロジック**:
-  - `data-i18n="hero.title"` のような属性をHTML要素に付与。
-  - JSで現在の言語(`currentLang`)に基づき、該当キーのテキストを流し込む。
-  - 言語状態は `localStorage` に保存し、次回訪問時に維持する。
-
-### 4.4 その他のセクション
-
-- **About**: 年齢自動計算ロジックをJSで実装。
-- **Works**: `js/data.js` から動的にカードを生成。
-- **Contact**: Google Forms へのリンク。
-
-## 5. 実装フェーズ分け
-
-### Phase 1: ベース構築と静的コンテンツ
-
-- ディレクトリセットアップ
-- HTML構造 (セマンティックタグ)
-- 基本CSS (Variables, Reset, Layout)
-- コンテンツ流し込み (日本語のみ)
-
-### Phase 2: デザイン適用 (Glassmorphism & Dark/Light)
-
-- ガラスモーフィズムの実装
-- ダークモードのスタイリング
-- ライトモード用変数の調整と切替スイッチ実装
-
-### Phase 3: 動的機能とアニメーション
-
-- タイピングアニメーション
-- スキルバーアニメーション (IntersectionObserver)
-- 多言語対応ロジック実装 (Data binding)
-
-### Phase 4: レスポンシブ調整と最終確認
-
-- モバイルビュー調整
-- 各ブラウザ確認
