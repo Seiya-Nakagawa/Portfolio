@@ -5,3 +5,7 @@ __pycache__/
 
 # skillsheet-builder のビルド生成物
 tools/skillsheet-builder/output/
+
+# 職務経歴書ローカル作業ディレクトリ（Googleドライブへのシンボリックリンク、実データは非公開）
+# 末尾にスラッシュを付けない: シンボリックリンクは trailing slash パターンにマッチしないため
+skillsheet
