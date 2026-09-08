@@ -61,6 +61,6 @@ curl -s -o /dev/null -w "%{http_code}" https://seiya-nakagawa.github.io/Portfoli
 
 ### 3.5. ドキュメントの公開 URL を更新する
 
-- [`docs/REQUIREMENTS.md`](../REQUIREMENTS.md) に記載の対象サイト URL を、
+- [`docs/REQUIREMENTS.md`](../01.要件定義/REQUIREMENTS.md) に記載の対象サイト URL を、
   旧アカウント名の URL（`seiyanakagawa2219.github.io`）から現行の URL
   （`https://seiya-nakagawa.github.io/Portfolio/`）へ修正する
