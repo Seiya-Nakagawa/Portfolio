@@ -91,6 +91,12 @@ uv run python manage.py migrate
 uv run python manage.py runserver
 ```
 
+## デプロイ
+
+リポジトリルートの `deploy-oci.sh` が、イメージのビルド・転送、`k8s/` のマニフェスト適用、
+マイグレーション、初期データ投入を行う（infra-oci 基盤へ作業端末から直接適用する）。
+手順は構築手順書を参照する。
+
 ## テスト・静的解析
 
 ユニットテストは SQLite（メモリ）で実行するため、MySQL への接続は不要。
