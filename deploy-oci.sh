@@ -35,7 +35,13 @@ ssh -i "$SSH_KEY" "$SSH_TARGET" "kubectl rollout status deployment/portfolio-web
 echo "=================================================="
 echo "🔄 [5/5] Djangoマイグレーションと初期データ投入を実行しています..."
 echo "=================================================="
-POD_NAME=$(ssh -i "$SSH_KEY" "$SSH_TARGET" "kubectl get pods -n ${NAMESPACE} -l app=portfolio-web -o jsonpath='{.items[0].metadata.name}'")
+# ロールアウト直後は終了済みの古い Pod が残るため、Running の Pod に限定し、
+# 複数該当する場合は作成日時が最新の Pod を選ぶ
+POD_NAME=$(ssh -i "$SSH_KEY" "$SSH_TARGET" "kubectl get pods -n ${NAMESPACE} -l app=portfolio-web --field-selector=status.phase=Running --sort-by=.metadata.creationTimestamp -o jsonpath='{.items[-1].metadata.name}'")
+if [ -z "$POD_NAME" ]; then
+    echo "Running 状態の portfolio-web Pod が見つかりません。" >&2
+    exit 1
+fi
 echo "Target Pod: $POD_NAME"
 ssh -i "$SSH_KEY" "$SSH_TARGET" "kubectl exec -n ${NAMESPACE} $POD_NAME -c web -- python manage.py migrate"
 # 資格・実績は、データが既にあるテーブルへは投入しない（再デプロイしても二重登録にならない）。
