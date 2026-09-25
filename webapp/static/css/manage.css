@@ -231,3 +231,13 @@ pre {
 .login-box h1 {
   margin-bottom: 1rem;
 }
+
+.finished-projects {
+  margin-bottom: 1rem;
+}
+
+.finished-projects > summary {
+  cursor: pointer;
+  color: var(--muted, inherit);
+  margin-bottom: 0.5rem;
+}

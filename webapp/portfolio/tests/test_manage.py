@@ -189,6 +189,18 @@ class ProjectApiTests(LoggedInTestCase):
         self.assertEqual(body["initial_project"]["name"], "継続中・新")
         self.assertEqual([lv["level"] for lv in body["levels"]], [5, 4, 3, 2, 1])
 
+    def test_終了済み案件は終了年月の降順で返す(self):
+        Project.objects.create(
+            name="古", start_year_month="2023-01", end_year_month="2023-06"
+        )
+        Project.objects.create(
+            name="新", start_year_month="2024-01", end_year_month="2024-06"
+        )
+        Project.objects.create(name="継続中", start_year_month="2025-01")
+        body = self.call("get", "manage-api-bootstrap").json()
+        self.assertEqual([p["name"] for p in body["finished_projects"]], ["新", "古"])
+        self.assertEqual(body["finished_projects"][0]["end_year_month"], "2024-06")
+
     def test_継続中の案件がなければ初期表示は空(self):
         body = self.call("get", "manage-api-bootstrap").json()
         self.assertIsNone(body["initial_project"])

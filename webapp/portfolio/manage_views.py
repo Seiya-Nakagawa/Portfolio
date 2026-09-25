@@ -110,6 +110,13 @@ def _ongoing_projects():
     )
 
 
+def _finished_projects():
+    """終了済み（終了年月が設定済み）の案件を、終了年月・開始年月の降順で返す。"""
+    return Project.objects.exclude(end_year_month="").order_by(
+        "-end_year_month", "-start_year_month", "project_id"
+    )
+
+
 def _skills_with_years() -> list[dict]:
     years_by_skill = {
         row.skill.skill_id: row.years for row in build_skill_rows(timezone.localdate())
@@ -139,6 +146,15 @@ def api_bootstrap(request):
             ],
             "ongoing_projects": [
                 {"project_id": p.project_id, "name": p.name} for p in ongoing
+            ],
+            "finished_projects": [
+                {
+                    "project_id": p.project_id,
+                    "name": p.name,
+                    "start_year_month": p.start_year_month,
+                    "end_year_month": p.end_year_month,
+                }
+                for p in _finished_projects()
             ],
             "initial_project": _project_dict(ongoing[0]) if ongoing else None,
         }

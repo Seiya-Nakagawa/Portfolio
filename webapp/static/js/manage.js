@@ -69,7 +69,9 @@ document.addEventListener('DOMContentLoaded', () => {
         skills: [],
         levels: [],
         ongoing: [],
+        finished: [],
         pageIndex: 0,
+        finishedOpen: false,
     };
 
     function emptyProject() {
@@ -109,6 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
             project.skills = data.skills;
             project.levels = data.levels;
             project.ongoing = data.ongoing_projects;
+            project.finished = data.finished_projects;
             return data;
         } catch (error) {
             return null;
@@ -139,6 +142,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 `<option value="${esc(p.project_id)}"${p.project_id === project.state.project_id ? ' selected' : ''}>${esc(p.name)}</option>`
             ))).join('');
 
+        const finishedOptions = ['<option value="">（選択してください）</option>']
+            .concat(project.finished.map((p) => (
+                `<option value="${esc(p.project_id)}"${p.project_id === project.state.project_id ? ' selected' : ''}>${esc(p.name)}（${esc(p.start_year_month)}〜${esc(p.end_year_month)}）</option>`
+            ))).join('');
+
         root.innerHTML = `
             <div class="row">
                 <label>継続中の案件
@@ -146,6 +154,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 </label>
                 <button type="button" id="new-project">新規作成</button>
             </div>
+            <details class="finished-projects"${project.finishedOpen ? ' open' : ''}>
+                <summary>終了済みの案件を訂正する</summary>
+                <div class="row">
+                    <label>終了済みの案件
+                        <select id="finished-select">${finishedOptions}</select>
+                    </label>
+                </div>
+            </details>
             <div class="page-tabs" role="tablist">
                 ${list.map((p, i) => `<button type="button" role="tab" data-page="${i}" aria-selected="${i === project.pageIndex}">${esc(pageLabel(p))}</button>`).join('')}
             </div>
@@ -160,14 +176,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
         renderProjectPage(current);
 
-        root.querySelector('#ongoing-select').addEventListener('change', async (e) => {
-            if (!e.target.value) return;
-            const data = await guarded(() => api('GET', `${urls.projects}/${encodeURIComponent(e.target.value)}`));
-            if (data) {
-                project.state = fromServer(data);
-                project.pageIndex = 0;
-                renderProject();
-            }
+        // 継続中・終了済みのどちらのプルダウンも、選んだ案件を登録フォームへ読み込む。
+        [['#ongoing-select', false], ['#finished-select', true]].forEach(([selector, isFinished]) => {
+            root.querySelector(selector).addEventListener('change', async (e) => {
+                if (!e.target.value) return;
+                const data = await guarded(() => api('GET', `${urls.projects}/${encodeURIComponent(e.target.value)}`));
+                if (data) {
+                    project.state = fromServer(data);
+                    project.pageIndex = 0;
+                    project.finishedOpen = isFinished;
+                    renderProject();
+                }
+            });
+        });
+        root.querySelector('.finished-projects').addEventListener('toggle', (e) => {
+            project.finishedOpen = e.target.open;
         });
         root.querySelector('#new-project').addEventListener('click', () => {
             project.state = emptyProject();
