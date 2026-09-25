@@ -12,3 +12,9 @@ skillsheet
 
 # clasp のローカル接続設定（scriptId 等の環境固有情報のためコミットしない）
 .clasp.json
+
+# webapp（Django）のローカル生成物・機密設定
+webapp/.env
+webapp/staticfiles/
+webapp/.ruff_cache/
+webapp/db.sqlite3
