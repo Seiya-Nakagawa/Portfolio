@@ -8,12 +8,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const ageDisplay = document.getElementById('age-display');
     const header = document.querySelector('header');
 
+    // 静的ファイルの配信パスと API の URL は、テンプレートが body の data 属性で渡す。
+    const staticBase = document.body.dataset.staticBase;
+    const api = {
+        skills: document.body.dataset.apiSkills,
+        certifications: document.body.dataset.apiCertifications,
+        works: document.body.dataset.apiWorks,
+    };
+
     // --- Initialization ---
     applyLang();
     calculateAge();
-    loadAndRender('data/skills.json', 'skills-container', (data) => renderSkills(data.skills));
-    loadAndRender('data/certifications.json', 'certifications-container', renderCertifications);
-    loadAndRender('data/works.json', 'works-container', renderWorks);
+    loadAndRender(api.skills, 'skills-container', (data) => renderSkills(data.skills));
+    loadAndRender(api.certifications, 'certifications-container', renderCertifications);
+    loadAndRender(api.works, 'works-container', renderWorks);
     startTyping();
     initScrollEffects();
 
@@ -46,6 +54,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     container.innerHTML = '<p class="data-load-error">表示データの読み込みに失敗しました。</p>';
                 }
             });
+    }
+
+    // サムネイルのパスは静的ファイルの相対パスで保持しているため、配信パスを前置する。
+    function resolveThumbnail(path) {
+        const thumbnail = path || 'img/placeholder.png';
+        return /^(https?:)?\/\//.test(thumbnail) ? thumbnail : staticBase + thumbnail;
     }
 
     function applyLang() {
@@ -273,7 +287,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             el.innerHTML = `
                 <div class="work-img">
-                    <img src="${work.thumbnail || 'img/placeholder.png'}" alt="${work.title}" style="width: 100%; height: 100%; object-fit: cover;">
+                    <img src="${resolveThumbnail(work.thumbnail)}" alt="${work.title}" style="width: 100%; height: 100%; object-fit: cover;">
                 </div>
                 <div class="work-content">
                     <h3>${work.title}</h3>

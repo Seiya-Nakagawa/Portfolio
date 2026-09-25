@@ -21,7 +21,7 @@ infra-oci 基盤の Kubernetes 上にコンテナとして配置し、実績 DB�
 | パス | 内容 |
 | ---- | ---- |
 | `config/` | Django プロジェクト設定（`settings/` は base・development・production・test） |
-| `portfolio/` | アプリ本体。モデル（実績 DB のテーブル定義）、マイグレーション、経験年数の算出ロジック |
+| `portfolio/` | アプリ本体。モデル（実績 DB のテーブル定義）、マイグレーション、経験年数の算出ロジック、公開ページ・読み取り専用 API のビュー、資格・実績の投入元（`seed/`） |
 | `templates/` | ページ本体のテンプレート |
 | `static/` | 静的ファイル（css / js / img） |
 
@@ -29,6 +29,24 @@ infra-oci 基盤の Kubernetes 上にコンテナとして配置し、実績 DB�
 
 テーブル定義は `portfolio/models.py`、スキーマ変更は `portfolio/migrations/` で管理する。
 `levels`（習熟度 1〜5）の初期値はマイグレーション（`0002_insert_levels`）で投入する。
+
+## 公開ページ・読み取り専用 API
+
+認証不要で公開する（パスプレフィックス `/portfolio` は Ingress が除去して転送する）。
+
+| パス | 内容 |
+| ---- | ---- |
+| `/` | ポートフォリオサイトのページ本体 |
+| `/api/skills` | スキルデータ（案件実績から集計した経験年数・習熟度） |
+| `/api/certifications` | 資格データ |
+| `/api/works` | 実績データ |
+
+資格・実績の初期データは、マイグレーション適用後に次のコマンドで投入する
+（データがあるテーブルはスキップする）。
+
+```bash
+uv run python manage.py import_portfolio_data
+```
 
 ## 環境変数
 
