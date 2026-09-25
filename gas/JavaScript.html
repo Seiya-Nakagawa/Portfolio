@@ -1,0 +1,534 @@
+<script>
+(() => {
+  'use strict';
+
+  let projectWizard = null;
+
+  document.addEventListener('DOMContentLoaded', () => {
+    initTabs();
+    initProjectTab();
+    initSkillsTab();
+    initOutputTab();
+  });
+
+  // ---- タブ切り替え ----
+
+  function initTabs() {
+    document.querySelectorAll('.tab-button').forEach((button) => {
+      button.addEventListener('click', () => switchTab(button.dataset.tab));
+    });
+    switchTab('project');
+  }
+
+  function switchTab(tabName) {
+    document.querySelectorAll('.tab-panel').forEach((panel) => {
+      panel.hidden = panel.id !== `tab-${tabName}`;
+    });
+    document.querySelectorAll('.tab-button').forEach((button) => {
+      button.classList.toggle('active', button.dataset.tab === tabName);
+    });
+  }
+
+  function showToast(message, isError) {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.classList.toggle('toast-error', !!isError);
+    toast.hidden = false;
+    setTimeout(() => { toast.hidden = true; }, 4000);
+  }
+
+  function handleError(error) {
+    showToast(error.message || String(error), true);
+  }
+
+  function escapeHtml_(value) {
+    const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+    return String(value).replace(/[&<>"']/g, (ch) => map[ch]);
+  }
+
+  /**
+   * スキル項目のチェックボックスと、チェック時のみ入力可能なバージョン入力欄を1組にして返す。
+   */
+  function buildSkillCheckboxRow_(skillId, name) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'checkbox-item skill-item';
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.id = `wizard-skill-${skillId}`;
+    checkbox.value = skillId;
+
+    const label = document.createElement('label');
+    label.setAttribute('for', checkbox.id);
+    label.textContent = name;
+
+    const versionInput = document.createElement('input');
+    versionInput.type = 'text';
+    versionInput.className = 'version-input';
+    versionInput.id = `${checkbox.id}-version`;
+    versionInput.placeholder = 'バージョン（任意）';
+    versionInput.disabled = true;
+
+    checkbox.addEventListener('change', () => {
+      versionInput.disabled = !checkbox.checked;
+      if (!checkbox.checked) {
+        versionInput.value = '';
+      }
+    });
+
+    wrapper.appendChild(checkbox);
+    wrapper.appendChild(label);
+    wrapper.appendChild(versionInput);
+    return wrapper;
+  }
+
+  // ---- 案件登録（ページ送り） ----
+
+  function initProjectTab() {
+    document.getElementById('project-new').addEventListener('click', () => {
+      document.getElementById('project-select').selectedIndex = -1;
+      applyProjectToWizard_({});
+    });
+    document.getElementById('project-select').addEventListener('change', (event) => {
+      if (!event.target.value) {
+        return;
+      }
+      loadProjectDetail_(event.target.value);
+    });
+    document.getElementById('project-ongoing').addEventListener('change', (event) => {
+      document.getElementById('project-end').disabled = event.target.checked;
+    });
+    document.getElementById('wizard-prev').addEventListener('click', () => moveWizardStep_(-1));
+    document.getElementById('wizard-next').addEventListener('click', () => moveWizardStep_(1));
+    document.getElementById('wizard-save').addEventListener('click', saveProject_);
+    document.getElementById('wizard-delete').addEventListener('click', deleteCurrentProject_);
+    loadProjectRegistration_();
+  }
+
+  function loadProjectRegistration_() {
+    google.script.run
+      .withSuccessHandler((data) => {
+        buildWizardCategorySteps_(data.skillCategories);
+        renderOngoingProjectOptions_(data.ongoingProjects, data.initialProject ? data.initialProject.project_id : null);
+        applyProjectToWizard_(data.initialProject || {});
+      })
+      .withFailureHandler(handleError)
+      .getProjectRegistrationInitialData();
+  }
+
+  function renderOngoingProjectOptions_(projects, selectedId) {
+    const select = document.getElementById('project-select');
+    select.innerHTML = '';
+    if (projects.length === 0) {
+      const option = document.createElement('option');
+      option.value = '';
+      option.textContent = '継続中の案件はありません';
+      select.appendChild(option);
+      select.disabled = true;
+      return;
+    }
+    select.disabled = false;
+    projects.forEach((project) => {
+      const option = document.createElement('option');
+      option.value = project.project_id;
+      option.textContent = project.name;
+      option.selected = project.project_id === selectedId;
+      select.appendChild(option);
+    });
+  }
+
+  function loadProjectDetail_(projectId) {
+    google.script.run
+      .withSuccessHandler(applyProjectToWizard_)
+      .withFailureHandler(handleError)
+      .getProjectDetail(projectId);
+  }
+
+  /**
+   * category 単位のスキル項目チェックボックスをページとして構築し、
+   * 各ページへ直接移動できるタブもあわせて構築する。ページ数はカテゴリ数に応じて動的に決まる。
+   */
+  function buildWizardCategorySteps_(skillCategories) {
+    projectWizard = {
+      projectId: null,
+      categoryCount: skillCategories.length,
+      step: 0,
+    };
+
+    const container = document.getElementById('wizard-step-categories');
+    container.innerHTML = '';
+    skillCategories.forEach((group, index) => {
+      const stepEl = document.createElement('div');
+      stepEl.className = 'wizard-step';
+      stepEl.dataset.stepIndex = String(index + 1);
+      stepEl.hidden = true;
+
+      const heading = document.createElement('h3');
+      heading.textContent = group.category;
+      stepEl.appendChild(heading);
+
+      const list = document.createElement('div');
+      list.className = 'checkbox-list';
+      group.skills.forEach((skill) => {
+        list.appendChild(buildSkillCheckboxRow_(skill.skill_id, skill.name));
+      });
+      stepEl.appendChild(list);
+
+      container.appendChild(stepEl);
+    });
+
+    buildWizardTabs_(skillCategories);
+  }
+
+  /**
+   * 「戻る」「次へ」による前後移動に加え、任意のページへ直接移動できるタブを構築する。
+   */
+  function buildWizardTabs_(skillCategories) {
+    const nav = document.getElementById('wizard-tabs');
+    nav.innerHTML = '';
+    const labels = ['案件情報'].concat(skillCategories.map((group) => group.category), ['確認']);
+    labels.forEach((label, index) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'wizard-tab-button';
+      button.textContent = label;
+      button.addEventListener('click', () => {
+        projectWizard.step = index;
+        renderWizardStep_();
+      });
+      nav.appendChild(button);
+    });
+  }
+
+  function totalWizardSteps_() {
+    return projectWizard.categoryCount + 2; // 案件情報 + カテゴリ数 + 確認
+  }
+
+  function applyProjectToWizard_(project) {
+    projectWizard.projectId = project.project_id || null;
+    projectWizard.step = 0;
+
+    document.getElementById('project-name').value = project.name || '';
+    document.getElementById('project-start').value = project.start_year_month || '';
+    const ongoing = !project.end_year_month;
+    document.getElementById('project-ongoing').checked = ongoing;
+    document.getElementById('project-end').value = project.end_year_month || '';
+    document.getElementById('project-end').disabled = ongoing;
+
+    const selectedSkills = new Map((project.selectedSkills || []).map((skill) => [skill.skill_id, skill.version || '']));
+    document.querySelectorAll('#wizard-step-categories input[type=checkbox]').forEach((input) => {
+      const isSelected = selectedSkills.has(input.value);
+      input.checked = isSelected;
+      const versionInput = document.getElementById(`${input.id}-version`);
+      versionInput.disabled = !isSelected;
+      versionInput.value = isSelected ? selectedSkills.get(input.value) : '';
+    });
+
+    renderWizardStep_();
+  }
+
+  function validateProjectInfoStep_() {
+    if (!document.getElementById('project-name').value.trim()) {
+      showToast('案件名を入力してください。', true);
+      return false;
+    }
+    if (!document.getElementById('project-start').value) {
+      showToast('開始年月を入力してください。', true);
+      return false;
+    }
+    return true;
+  }
+
+  function moveWizardStep_(delta) {
+    if (delta > 0 && projectWizard.step === 0 && !validateProjectInfoStep_()) {
+      return;
+    }
+    const next = projectWizard.step + delta;
+    if (next < 0 || next >= totalWizardSteps_()) {
+      return;
+    }
+    projectWizard.step = next;
+    renderWizardStep_();
+  }
+
+  function renderWizardStep_() {
+    const total = totalWizardSteps_();
+    const isLast = projectWizard.step === total - 1;
+
+    document.getElementById('wizard-step-info').hidden = projectWizard.step !== 0;
+    document.querySelectorAll('#wizard-step-categories .wizard-step').forEach((el) => {
+      el.hidden = Number(el.dataset.stepIndex) !== projectWizard.step;
+    });
+    document.getElementById('wizard-step-confirm').hidden = !isLast;
+
+    document.getElementById('wizard-progress').textContent = `${projectWizard.step + 1} / ${total} ページ`;
+    document.getElementById('wizard-prev').disabled = projectWizard.step === 0;
+    document.getElementById('wizard-next').hidden = isLast;
+    document.getElementById('wizard-save').hidden = !isLast;
+    document.getElementById('wizard-delete').hidden = !(isLast && projectWizard.projectId);
+
+    document.querySelectorAll('#wizard-tabs .wizard-tab-button').forEach((button, index) => {
+      button.classList.toggle('active', index === projectWizard.step);
+    });
+
+    if (isLast) {
+      renderConfirmSummary_();
+    }
+  }
+
+  function collectSelectedSkills_() {
+    return Array.from(document.querySelectorAll('#wizard-step-categories input[type=checkbox]:checked'))
+      .map((input) => ({
+        skill_id: input.value,
+        name: input.closest('.skill-item').querySelector('label').textContent.trim(),
+        version: document.getElementById(`${input.id}-version`).value.trim(),
+      }));
+  }
+
+  function renderConfirmSummary_() {
+    const dl = document.getElementById('confirm-summary');
+    dl.innerHTML = '';
+
+    const ongoing = document.getElementById('project-ongoing').checked;
+    const end = ongoing ? '現在' : (document.getElementById('project-end').value || '未設定');
+    const skillLabels = collectSelectedSkills_()
+      .map((skill) => (skill.version ? `${skill.name} (${skill.version})` : skill.name));
+
+    appendSummaryRow_(dl, '案件名', document.getElementById('project-name').value.trim());
+    appendSummaryRow_(dl, '期間', `${document.getElementById('project-start').value} 〜 ${end}`);
+    appendSummaryRow_(dl, 'スキル項目', skillLabels.length > 0 ? skillLabels.join('、') : '（未選択）');
+  }
+
+  function appendSummaryRow_(dl, label, value) {
+    const dt = document.createElement('dt');
+    dt.textContent = label;
+    const dd = document.createElement('dd');
+    dd.textContent = value;
+    dl.appendChild(dt);
+    dl.appendChild(dd);
+  }
+
+  function saveProject_() {
+    if (!validateProjectInfoStep_()) {
+      projectWizard.step = 0;
+      renderWizardStep_();
+      return;
+    }
+
+    const ongoing = document.getElementById('project-ongoing').checked;
+    const project = {
+      project_id: projectWizard.projectId,
+      name: document.getElementById('project-name').value.trim(),
+      start_year_month: document.getElementById('project-start').value,
+      end_year_month: ongoing ? '' : document.getElementById('project-end').value,
+      skills: collectSelectedSkills_().map((skill) => ({ skill_id: skill.skill_id, version: skill.version })),
+    };
+
+    google.script.run
+      .withSuccessHandler(() => {
+        showToast('案件を保存しました。');
+        loadProjectRegistration_();
+      })
+      .withFailureHandler(handleError)
+      .saveProject(project);
+  }
+
+  function deleteCurrentProject_() {
+    if (!projectWizard.projectId) {
+      return;
+    }
+    if (!window.confirm('この案件を削除しますか？紐づく使用スキル実績も削除され、経験年数に影響します。')) {
+      return;
+    }
+    google.script.run
+      .withSuccessHandler(() => {
+        showToast('案件を削除しました。');
+        loadProjectRegistration_();
+      })
+      .withFailureHandler(handleError)
+      .deleteProject(projectWizard.projectId);
+  }
+
+  // ---- スキル項目管理 ----
+
+  function initSkillsTab() {
+    document.getElementById('skill-form').addEventListener('submit', (event) => {
+      event.preventDefault();
+      submitSkillForm_();
+    });
+    document.getElementById('skill-form-reset').addEventListener('click', resetSkillForm_);
+    loadLevelsAndSkills_();
+  }
+
+  function loadLevelsAndSkills_() {
+    google.script.run
+      .withSuccessHandler((levels) => {
+        renderLevelOptions_(levels);
+        loadSkills_();
+      })
+      .withFailureHandler(handleError)
+      .listLevels();
+  }
+
+  function renderLevelOptions_(levels) {
+    const select = document.getElementById('skill-level');
+    select.innerHTML = '';
+    levels.forEach((level) => {
+      const option = document.createElement('option');
+      option.value = level.level;
+      option.textContent = `${level.level}: ${level.portfolio_label}`;
+      select.appendChild(option);
+    });
+  }
+
+  function loadSkills_() {
+    google.script.run
+      .withSuccessHandler(renderSkillsTable_)
+      .withFailureHandler(handleError)
+      .listSkills();
+  }
+
+  function renderSkillsTable_(skills) {
+    const tbody = document.querySelector('#skills-table tbody');
+    tbody.innerHTML = '';
+    skills.forEach((skill) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${escapeHtml_(skill.category)}</td>
+        <td>${escapeHtml_(skill.name)}</td>
+        <td>${escapeHtml_(String(skill.level))}</td>
+        <td>${escapeHtml_(skill.remarks || '')}</td>
+        <td>${escapeHtml_(String(skill.sort_order))}</td>
+        <td>${escapeHtml_(skill.years || '-')}</td>
+      `;
+      const actionsTd = document.createElement('td');
+      const editButton = document.createElement('button');
+      editButton.type = 'button';
+      editButton.textContent = '編集';
+      editButton.addEventListener('click', () => fillSkillForm_(skill));
+      const deleteButton = document.createElement('button');
+      deleteButton.type = 'button';
+      deleteButton.textContent = '削除';
+      deleteButton.addEventListener('click', () => deleteSkill_(skill.skill_id));
+      actionsTd.appendChild(editButton);
+      actionsTd.appendChild(deleteButton);
+      tr.appendChild(actionsTd);
+      tbody.appendChild(tr);
+    });
+
+    const datalist = document.getElementById('skill-category-options');
+    datalist.innerHTML = '';
+    Array.from(new Set(skills.map((skill) => skill.category))).forEach((category) => {
+      const option = document.createElement('option');
+      option.value = category;
+      datalist.appendChild(option);
+    });
+  }
+
+  function fillSkillForm_(skill) {
+    document.getElementById('skill-form-mode').value = 'update';
+    document.getElementById('skill-id').value = skill.skill_id;
+    document.getElementById('skill-id').disabled = true;
+    document.getElementById('skill-category').value = skill.category;
+    document.getElementById('skill-name').value = skill.name;
+    document.getElementById('skill-level').value = skill.level;
+    document.getElementById('skill-remarks').value = skill.remarks || '';
+    document.getElementById('skill-sort-order').value = skill.sort_order;
+  }
+
+  function resetSkillForm_() {
+    document.getElementById('skill-form').reset();
+    document.getElementById('skill-form-mode').value = 'create';
+    document.getElementById('skill-id').disabled = false;
+  }
+
+  function submitSkillForm_() {
+    const mode = document.getElementById('skill-form-mode').value;
+    const skill = {
+      skill_id: document.getElementById('skill-id').value.trim(),
+      category: document.getElementById('skill-category').value.trim(),
+      name: document.getElementById('skill-name').value.trim(),
+      level: Number(document.getElementById('skill-level').value),
+      remarks: document.getElementById('skill-remarks').value.trim(),
+      sort_order: Number(document.getElementById('skill-sort-order').value),
+    };
+
+    const onSuccess = (skills) => {
+      renderSkillsTable_(skills);
+      resetSkillForm_();
+      showToast('スキル項目を保存しました。');
+      loadProjectRegistration_();
+    };
+
+    if (mode === 'update') {
+      google.script.run.withSuccessHandler(onSuccess).withFailureHandler(handleError).updateSkill(skill);
+    } else {
+      google.script.run.withSuccessHandler(onSuccess).withFailureHandler(handleError).createSkill(skill);
+    }
+  }
+
+  function deleteSkill_(skillId) {
+    if (!window.confirm('このスキル項目を削除しますか？')) {
+      return;
+    }
+    google.script.run
+      .withSuccessHandler((skills) => {
+        renderSkillsTable_(skills);
+        showToast('スキル項目を削除しました。');
+        loadProjectRegistration_();
+      })
+      .withFailureHandler(handleError)
+      .deleteSkill(skillId);
+  }
+
+  // ---- 出力 ----
+
+  function initOutputTab() {
+    document.getElementById('output-generate').addEventListener('click', generateOutputs_);
+    document.getElementById('output-json-copy').addEventListener('click', () => copyToClipboard_('output-json'));
+    document.getElementById('output-markdown-copy').addEventListener('click', () => copyToClipboard_('output-markdown'));
+    document.getElementById('output-json-download').addEventListener('click', () => {
+      download_('skills.json', document.getElementById('output-json').value, 'application/json');
+    });
+    document.getElementById('output-markdown-download').addEventListener('click', () => {
+      download_('skills.md', document.getElementById('output-markdown').value, 'text/markdown');
+    });
+  }
+
+  function generateOutputs_() {
+    google.script.run
+      .withSuccessHandler((result) => {
+        document.getElementById('output-json').value = result.json;
+        document.getElementById('output-markdown').value = result.markdown;
+        const warningsEl = document.getElementById('output-warnings');
+        if (result.warnings.length > 0) {
+          warningsEl.innerHTML = result.warnings.map((warning) => `<p>${escapeHtml_(warning)}</p>`).join('');
+          warningsEl.hidden = false;
+        } else {
+          warningsEl.hidden = true;
+        }
+      })
+      .withFailureHandler(handleError)
+      .generateOutputs();
+  }
+
+  function copyToClipboard_(elementId) {
+    const textarea = document.getElementById(elementId);
+    textarea.select();
+    document.execCommand('copy');
+    showToast('コピーしました。');
+  }
+
+  function download_(filename, content, mimeType) {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+})();
+</script>

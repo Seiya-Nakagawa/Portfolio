@@ -9,3 +9,6 @@ tools/skillsheet-builder/output/
 # 職務経歴書ローカル作業ディレクトリ（Googleドライブへのシンボリックリンク、実データは非公開）
 # 末尾にスラッシュを付けない: シンボリックリンクは trailing slash パターンにマッチしないため
 skillsheet
+
+# clasp のローカル接続設定（scriptId 等の環境固有情報のためコミットしない）
+.clasp.json
