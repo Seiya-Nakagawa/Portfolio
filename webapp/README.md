@@ -48,6 +48,19 @@ infra-oci 基盤の Kubernetes 上にコンテナとして配置し、実績 DB�
 uv run python manage.py import_portfolio_data
 ```
 
+## 登録画面
+
+`/manage/` に、案件登録・スキル項目管理・資格・実績管理・職務経歴書エクスポートの画面を持つ
+1 ページのアプリを配置する。本人のログインが必須で、未ログインの API 呼び出しは 401 を返す。
+入力値の検証はサーバー側（`portfolio/registry.py`）で行い、書き込みはトランザクション内で
+対象行をロックして排他制御する。
+
+ログインユーザーは初回のみ次のコマンドで作成する（パスワードはコマンドの対話入力で設定する）。
+
+```bash
+uv run python manage.py createsuperuser
+```
+
 ## 環境変数
 
 `.env.example` をコピーして `.env` を作成する（`.env` はコミットしない）。
@@ -60,6 +73,7 @@ uv run python manage.py import_portfolio_data
 | `DB_SOCKET_PATH` | 接続先の UNIX ソケット（本番のみ） | 既定値 `/var/run/mysqld/mysqld.sock` |
 | `ALLOWED_HOSTS` | 許可ホスト（本番のみ、カンマ区切り） | |
 | `FORCE_SCRIPT_NAME` | URL プレフィックス（本番のみ） | 既定値 `/portfolio` |
+| `CSRF_TRUSTED_ORIGINS` | CSRF を許可するオリジン（本番のみ、カンマ区切り。例: `https://example.com`） | 既定値 空 |
 
 本番の機密値は `k8s/vault-sync.yaml`（ExternalSecret）により OCI Vault から
 Kubernetes Secret（`portfolio-secrets`）へ同期し、環境変数として Pod に渡す。

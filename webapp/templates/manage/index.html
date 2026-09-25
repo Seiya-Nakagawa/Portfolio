@@ -1,0 +1,45 @@
+{% load static %}<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <title>スキル実績管理</title>
+    <link rel="stylesheet" href="{% static 'css/manage.css' %}" />
+  </head>
+  <body
+    data-api-bootstrap="{% url 'manage-api-bootstrap' %}"
+    data-api-projects="{% url 'manage-api-projects' %}"
+    data-api-skills="{% url 'manage-api-skills' %}"
+    data-api-certifications="{% url 'manage-api-certifications' %}"
+    data-api-works="{% url 'manage-api-works' %}"
+    data-api-export="{% url 'manage-api-export' %}"
+    data-export-download="{% url 'manage-export-download' %}"
+  >
+    <header class="app-header">
+      <h1>スキル実績管理</h1>
+      <form method="post" action="{% url 'logout' %}">
+        {% csrf_token %}
+        <button type="submit">ログアウト</button>
+      </form>
+    </header>
+
+    <nav class="tabs" id="main-tabs" role="tablist">
+      <button type="button" role="tab" data-tab="project">案件登録</button>
+      <button type="button" role="tab" data-tab="skills">スキル項目管理</button>
+      <button type="button" role="tab" data-tab="certworks">資格・実績管理</button>
+      <button type="button" role="tab" data-tab="export">職務経歴書エクスポート</button>
+    </nav>
+
+    <p id="message" class="message" role="status" hidden></p>
+
+    <main>
+      <section id="tab-project" hidden></section>
+      <section id="tab-skills" hidden></section>
+      <section id="tab-certworks" hidden></section>
+      <section id="tab-export" hidden></section>
+    </main>
+
+    <script src="{% static 'js/manage.js' %}"></script>
+  </body>
+</html>

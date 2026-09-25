@@ -26,3 +26,10 @@ DATABASES = {
         "OPTIONS": {"charset": "utf8mb4"},
     }
 }
+
+# 認証情報を含む Cookie は HTTPS でのみ送信する。
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+
+# Ingress で終端された HTTPS のオリジンからの POST を許可する（例: https://example.com）。
+CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])

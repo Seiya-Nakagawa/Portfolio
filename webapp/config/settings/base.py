@@ -33,6 +33,11 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
+# 本人のみがログインできる登録画面の認証。ユーザーは createsuperuser で作成する。
+LOGIN_URL = "login"
+LOGIN_REDIRECT_URL = "manage"
+LOGOUT_REDIRECT_URL = "index"
+
 ROOT_URLCONF = "config.urls"
 
 TEMPLATES = [
