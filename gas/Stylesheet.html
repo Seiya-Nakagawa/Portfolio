@@ -1,0 +1,291 @@
+<style>
+  :root {
+    color-scheme: light dark;
+    --color-bg: #1b1f24;
+    --color-surface: #262b33;
+    --color-border: #3a4048;
+    --color-text: #e6e9ef;
+    --color-muted: #9aa4b2;
+    --color-primary: #4f8cff;
+    --color-danger: #ff6b6b;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    padding: 0 16px 32px;
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-family: 'Hiragino Sans', 'Yu Gothic', sans-serif;
+  }
+
+  .app-header {
+    position: sticky;
+    top: 0;
+    background: var(--color-bg);
+    padding: 16px 0;
+    z-index: 10;
+  }
+
+  .app-header h1 {
+    margin: 0 0 12px;
+    font-size: 1.25rem;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .tab-button {
+    background: var(--color-surface);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    padding: 8px 14px;
+    cursor: pointer;
+  }
+
+  .tab-button.active {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: #fff;
+  }
+
+  .tab-panel h2 {
+    margin-top: 0;
+  }
+
+  .field-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+
+  .field-row select {
+    background: var(--color-surface);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    padding: 6px 8px;
+    min-width: 220px;
+  }
+
+  .status-text {
+    color: var(--color-muted);
+  }
+
+  .checkbox-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .project-wizard-panel {
+    max-width: 480px;
+    margin-top: 16px;
+  }
+
+  .wizard-step > label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.85rem;
+    color: var(--color-muted);
+    margin-bottom: 12px;
+    max-width: 320px;
+  }
+
+  .wizard-step > label.checkbox-item {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .skill-item {
+    gap: 8px;
+  }
+
+  .skill-item label {
+    flex: 1;
+  }
+
+  .version-input {
+    width: 140px;
+  }
+
+  .version-input:disabled {
+    opacity: 0.4;
+  }
+
+  .wizard-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+
+  .wizard-tab-button {
+    background: var(--color-surface);
+    color: var(--color-muted);
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    padding: 4px 12px;
+    font-size: 0.8rem;
+    cursor: pointer;
+  }
+
+  .wizard-tab-button.active {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: #fff;
+  }
+
+  .wizard-step input[type='text'],
+  .wizard-step input[type='month'] {
+    background: var(--color-surface);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    padding: 6px 8px;
+  }
+
+  .wizard-nav {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+  }
+
+  .confirm-summary {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 4px 12px;
+  }
+
+  .confirm-summary dt {
+    color: var(--color-muted);
+  }
+
+  .confirm-summary dd {
+    margin: 0;
+  }
+
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 16px;
+  }
+
+  .data-table th,
+  .data-table td {
+    border: 1px solid var(--color-border);
+    padding: 6px 8px;
+    text-align: left;
+    font-size: 0.9rem;
+  }
+
+  .entity-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: flex-end;
+  }
+
+  .entity-form label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.85rem;
+    color: var(--color-muted);
+  }
+
+  .entity-form input,
+  .entity-form select {
+    background: var(--color-surface);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    padding: 6px 8px;
+  }
+
+  .form-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  button {
+    font-family: inherit;
+  }
+
+  .primary-button {
+    background: var(--color-primary);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 16px;
+    cursor: pointer;
+  }
+
+  .secondary-button {
+    background: var(--color-surface);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    padding: 8px 16px;
+    cursor: pointer;
+  }
+
+  .danger-button {
+    background: transparent;
+    color: var(--color-danger);
+    border: 1px solid var(--color-danger);
+    border-radius: 6px;
+    padding: 8px 16px;
+    cursor: pointer;
+  }
+
+  .output-area {
+    width: 100%;
+    min-height: 200px;
+    background: var(--color-surface);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    font-family: monospace;
+    padding: 8px;
+  }
+
+  .warning-box {
+    background: rgba(255, 107, 107, 0.15);
+    border: 1px solid var(--color-danger);
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin: 12px 0;
+  }
+
+  .toast {
+    position: fixed;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    padding: 10px 16px;
+  }
+
+  .toast-error {
+    border-color: var(--color-danger);
+    color: var(--color-danger);
+  }
+</style>

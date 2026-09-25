@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <?!= include('Stylesheet'); ?>
+</head>
+<body>
+  <header class="app-header">
+    <h1>スキル実績管理</h1>
+    <nav class="tabs">
+      <button type="button" class="tab-button" data-tab="project">案件登録</button>
+      <button type="button" class="tab-button" data-tab="skills">スキル項目管理</button>
+      <button type="button" class="tab-button" data-tab="output">出力</button>
+    </nav>
+  </header>
+
+  <main>
+    <section id="tab-project" class="tab-panel">
+      <h2>案件登録</h2>
+      <div class="field-row">
+        <label for="project-select">継続中の案件</label>
+        <select id="project-select"></select>
+        <button type="button" id="project-new" class="secondary-button">新規作成</button>
+      </div>
+
+      <div class="project-wizard-panel">
+        <nav id="wizard-tabs" class="wizard-tabs"></nav>
+        <p id="wizard-progress" class="status-text"></p>
+
+        <div id="wizard-step-info" class="wizard-step">
+          <h3>案件情報</h3>
+          <label>案件名
+            <input type="text" id="project-name" required>
+          </label>
+          <label>開始年月
+            <input type="month" id="project-start" required>
+          </label>
+          <label class="checkbox-item">
+            <input type="checkbox" id="project-ongoing" checked>
+            継続中（終了年月未設定）
+          </label>
+          <label>終了年月
+            <input type="month" id="project-end" disabled>
+          </label>
+        </div>
+
+        <div id="wizard-step-categories"></div>
+
+        <div id="wizard-step-confirm" class="wizard-step" hidden>
+          <h3>確認</h3>
+          <dl id="confirm-summary" class="confirm-summary"></dl>
+        </div>
+
+        <div class="wizard-nav">
+          <button type="button" id="wizard-prev" class="secondary-button">戻る</button>
+          <button type="button" id="wizard-next" class="primary-button">次へ</button>
+          <button type="button" id="wizard-save" class="primary-button" hidden>保存</button>
+          <button type="button" id="wizard-delete" class="danger-button" hidden>この案件を削除</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-skills" class="tab-panel" hidden>
+      <h2>スキル項目管理</h2>
+      <table id="skills-table" class="data-table">
+        <thead>
+          <tr>
+            <th>種類</th>
+            <th>項目</th>
+            <th>レベル</th>
+            <th>補足</th>
+            <th>表示順</th>
+            <th>経験年数</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+
+      <h3>追加・変更</h3>
+      <form id="skill-form" class="entity-form">
+        <input type="hidden" id="skill-form-mode" value="create">
+        <label>スキルID
+          <input type="text" id="skill-id" required>
+        </label>
+        <label>種類
+          <input type="text" id="skill-category" list="skill-category-options" required>
+        </label>
+        <datalist id="skill-category-options"></datalist>
+        <label>項目名
+          <input type="text" id="skill-name" required>
+        </label>
+        <label>習熟度レベル
+          <select id="skill-level" required></select>
+        </label>
+        <label>補足
+          <input type="text" id="skill-remarks">
+        </label>
+        <label>表示順
+          <input type="number" id="skill-sort-order" required>
+        </label>
+        <div class="form-actions">
+          <button type="submit" class="primary-button">保存</button>
+          <button type="button" id="skill-form-reset">クリア</button>
+        </div>
+      </form>
+    </section>
+
+    <section id="tab-output" class="tab-panel" hidden>
+      <h2>出力</h2>
+      <button type="button" id="output-generate" class="primary-button">出力内容を生成</button>
+      <div id="output-warnings" class="warning-box" hidden></div>
+
+      <h3>ポートフォリオ用 JSON</h3>
+      <textarea id="output-json" class="output-area" readonly></textarea>
+      <div class="form-actions">
+        <button type="button" id="output-json-copy">コピー</button>
+        <button type="button" id="output-json-download">ダウンロード (skills.json)</button>
+      </div>
+
+      <h3>職務経歴書用 Markdown</h3>
+      <textarea id="output-markdown" class="output-area" readonly></textarea>
+      <div class="form-actions">
+        <button type="button" id="output-markdown-copy">コピー</button>
+        <button type="button" id="output-markdown-download">ダウンロード (skills.md)</button>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <?!= include('JavaScript'); ?>
+</body>
+</html>
