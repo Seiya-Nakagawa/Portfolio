@@ -12,19 +12,9 @@
 
 ### 1.2. 構成図
 
-```mermaid
-flowchart LR
-    Browser["閲覧者のブラウザ"] -->|HTTPS| Api["ポートフォリオアプリ\n(OCI 基盤 / 共有Ingress)"]
-    Browser -->|お問い合わせ| GForm["Google フォーム"]
-    Browser -->|プロフィール参照| GitHub["GitHub プロフィール"]
+[別紙: システム構成図](99.appendix/別紙_システム構成図.drawio.svg)
 
-    Owner["本人"] -->|ログインして登録操作| Api
-    Api <-->|読み書き| Db["実績DB\n(OCI 基盤 MySQL)"]
-    Api -->|職務経歴書用Markdown出力| Md["職務経歴書用 Markdown"]
-    Md -->|読み込み| Builder["職務経歴書ビルダー\n(ローカル実行)"]
-    Resume["職務経歴書マスタ\n(ローカル管理)"] -->|読み込み| Builder
-    Builder --> Pdf["職務経歴書 PDF"]
-```
+![システム構成図](99.appendix/別紙_システム構成図.drawio.svg)
 
 閲覧者のブラウザは、ポートフォリオサイトのページ・表示データ（スキル・資格・実績）のいずれも
 同一のポートフォリオアプリから取得する。ページ本体とデータ取得用 API が同一オリジンとなるため、
