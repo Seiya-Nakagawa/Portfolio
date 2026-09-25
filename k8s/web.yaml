@@ -1,0 +1,103 @@
+# Web Pod。hostPath でホストの /var/run/mysqld を共有し、UNIX ドメインソケット経由で
+# MySQL へ接続する。
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: portfolio-web
+  namespace: app-prod
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: portfolio-web
+  template:
+    metadata:
+      labels:
+        app: portfolio-web
+    spec:
+      # ソケットファイルの再生成（mysqld 再起動）に追随するため、
+      # ソケット単体ではなくディレクトリごとマウントする。
+      volumes:
+        - name: mysqld-socket-dir
+          hostPath:
+            path: /var/run/mysqld
+            type: Directory
+      initContainers:
+        # root 権限・最小構成イメージでソケットファイルのパーミッションを調整し、
+        # 非 root のアプリケーションコンテナから読み書きできるようにする。
+        - name: fix-mysqld-socket-permission
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              until [ -S /var/run/mysqld/mysqld.sock ]; do
+                echo "waiting for mysqld.sock..."
+                sleep 1
+              done
+              chmod 666 /var/run/mysqld/mysqld.sock
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - name: mysqld-socket-dir
+              mountPath: /var/run/mysqld
+      containers:
+        - name: web
+          image: portfolio:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: portfolio-config
+            - secretRef:
+                name: portfolio-secrets
+          volumeMounts:
+            - name: mysqld-socket-dir
+              mountPath: /var/run/mysqld
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+          readinessProbe:
+            # ALLOWED_HOSTS が technohonesty.com のみのため、Host ヘッダーが必要。
+            # httpGet + httpHeaders での Host 上書きは kubelet との組み合わせで 404 になる
+            # 事象が kakeibo で確認されているため、コンテナ内から自分自身へ HTTP
+            # リクエストを送る exec プローブとする。
+            exec:
+              command:
+                - python
+                - -c
+                - |
+                  import http.client
+                  import sys
+
+                  conn = http.client.HTTPConnection("127.0.0.1", 8000, timeout=3)
+                  conn.request("GET", "/", headers={"Host": "technohonesty.com"})
+                  status = conn.getresponse().status
+                  sys.exit(0 if status < 400 else 1)
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: portfolio-web
+  namespace: app-prod
+spec:
+  selector:
+    app: portfolio-web
+  ports:
+    - port: 80
+      targetPort: 8000

@@ -1,0 +1,13 @@
+# 機密情報を含まない設定値のみを保持する。機密情報は OCI Vault から同期する
+# portfolio-secrets で供給する（k8s/vault-sync.yaml）。
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: portfolio-config
+  namespace: app-prod
+data:
+  ALLOWED_HOSTS: "technohonesty.com"
+  FORCE_SCRIPT_NAME: "/portfolio"
+  DB_SOCKET_PATH: "/var/run/mysqld/mysqld.sock"
+  # 登録画面（ログイン・CSRF）が Ingress で終端された HTTPS のオリジンを許可するために必要。
+  CSRF_TRUSTED_ORIGINS: "https://technohonesty.com"
