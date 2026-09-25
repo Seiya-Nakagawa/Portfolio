@@ -1,0 +1,31 @@
+# OCI Vault のシークレットを portfolio-secrets へ同期する。
+# 接続定義は infra-oci 側で構築済みの ClusterSecretStore（oci-vault、Instance Principal 認証）を
+# 参照する。remoteRef.key は Vault 上のシークレット名（portfolio-*）である。
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: portfolio-secrets
+  namespace: app-prod
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: oci-vault
+    kind: ClusterSecretStore
+  target:
+    name: portfolio-secrets
+    creationPolicy: Owner
+    # ExternalSecret を誤って削除しても、稼働中の Pod が参照する Secret は残す。
+    deletionPolicy: Retain
+  data:
+    - secretKey: SECRET_KEY
+      remoteRef:
+        key: portfolio-secret-key
+    - secretKey: DB_NAME
+      remoteRef:
+        key: portfolio-db-name
+    - secretKey: DB_USER
+      remoteRef:
+        key: portfolio-db-user
+    - secretKey: DB_PASSWORD
+      remoteRef:
+        key: portfolio-db-password

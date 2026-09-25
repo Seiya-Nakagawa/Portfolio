@@ -600,5 +600,5 @@ Portfolio/
     │   └── REQUIREMENTS.md
     ├── 02.design/               # 基本設計
     │   └── DESIGN.md
-    └── 04.procedures/           # 構築・運用手順書
+    └── 04.build/                # 構築手順書
 ```
