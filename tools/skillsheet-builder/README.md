@@ -14,7 +14,7 @@ tools/skillsheet-builder/
 ├── requirements.txt    # Python 依存パッケージ
 ├── sample/
 │   ├── master.md        # サンプルデータ（架空の職務経歴書）
-│   └── gas_output.txt   # 実績シート出力のサンプル（--gas-output の動作確認用）
+│   └── export.md        # ポートフォリオアプリのエクスポートのサンプル（--export の動作確認用）
 └── README.md
 ```
 
@@ -57,21 +57,21 @@ python build_pdf.py --input /path/to/your/master.md --output /path/to/output.pdf
 
 `sample/master.md` の見出し構成（`■職務概要` / `■職務経歴 概略` / `■開発経歴` / `■テクニカルスキル` 等）をそのまま踏襲すれば、独自のマスターデータとして利用できる。Markdown の表・箇条書き・見出しがそのまま PDF のレイアウトに反映される。
 
-## 実績シート（GAS ウェブアプリ）の出力との統合
+## ポートフォリオアプリのエクスポートとの統合
 
-`--gas-output` に、実績シート（GAS ウェブアプリ）の出力タブでコピーした Markdown を保存したファイルを指定すると、PDF 生成時にマスターデータの以下の箇所を出力内容へ差し替える。マスターデータ自体は書き換えない。
+`--export` に、ポートフォリオアプリの職務経歴書エクスポート画面で出力した Markdown（ダウンロードまたはコピーして保存したファイル）を指定すると、PDF 生成時にマスターデータの以下の箇所をエクスポートの内容へ差し替える。マスターデータ自体は書き換えない。
 
 - `■テクニカルスキル` の表全体
 - `■開発経歴`・`■副業` などの案件見出し行（`**期間｜案件名**`）の期間部分のみ。案件名の一致で対応付けるため、体制・案件概要・業務内容等の本文は変更しない
 
 ```bash
-python build_pdf.py --gas-output /path/to/gas_output.md
+python build_pdf.py --export /path/to/export.md
 ```
 
-出力内容に対応する見出しがマスターデータに見つからない案件がある場合、標準エラー出力に警告を表示する（PDF 生成自体は継続する）。`sample/gas_output.txt` を使うと、この警告を含めた動作を確認できる。
+エクスポートの案件名に対応する見出しがマスターデータに見つからない案件がある場合、標準エラー出力に警告を表示する（PDF 生成自体は継続する）。`sample/export.md` を使うと、この警告を含めた動作を確認できる。
 
 ```bash
-python build_pdf.py --gas-output sample/gas_output.txt
+python build_pdf.py --export sample/export.md
 ```
 
 ## 実データの取り扱いについて

@@ -15,15 +15,15 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 DEFAULT_INPUT = SCRIPT_DIR / "sample" / "master.md"
 DEFAULT_OUTPUT = SCRIPT_DIR / "output" / "職務経歴書.pdf"
 
-# 実績シート（GAS ウェブアプリ）が出力する案件期間の行（例: **2025年04月〜現在｜案件名**）
+# ポートフォリオアプリのエクスポートが出力する案件期間の行（例: **2025年04月〜現在｜案件名**）
 PROJECT_PERIOD_LINE = re.compile(r'^\*\*(?P<period>[^\n｜]+)｜(?P<name>[^\n*]+)\*\*', re.MULTILINE)
 
 
-def parse_gas_output(gas_text: str) -> tuple[str, dict[str, str]]:
-    """実績シート出力の Markdown を、スキル表と案件ごとの期間に分解する。"""
-    parts = gas_text.strip().split("\n\n", 1)
+def parse_export(export_text: str) -> tuple[str, dict[str, str]]:
+    """ポートフォリオアプリのエクスポート（Markdown）を、スキル表と案件ごとの期間に分解する。"""
+    parts = export_text.strip().split("\n\n", 1)
     if len(parts) != 2:
-        raise ValueError("実績シート出力の Markdown 形式が想定と異なります（スキル表・案件期間の区切りが見つかりません）")
+        raise ValueError("エクスポートの Markdown 形式が想定と異なります（スキル表・案件期間の区切りが見つかりません）")
 
     skill_table_md, project_block = parts
     project_periods = {}
@@ -35,7 +35,7 @@ def parse_gas_output(gas_text: str) -> tuple[str, dict[str, str]]:
 
 
 def replace_skill_table(master_text: str, skill_table_md: str) -> str:
-    """`■テクニカルスキル` 見出し直下の内容を、実績シート出力の表に差し替える。"""
+    """`■テクニカルスキル` 見出し直下の内容を、エクスポートの表に差し替える。"""
     pattern = re.compile(r"(?P<head>^## ■テクニカルスキル\n\n).*?(?=\n## |\Z)", re.DOTALL | re.MULTILINE)
     new_text, count = pattern.subn(lambda m: m.group("head") + skill_table_md + "\n", master_text)
     if count != 1:
@@ -59,9 +59,9 @@ def replace_project_periods(master_text: str, project_periods: dict) -> tuple[st
     return new_text, unmatched
 
 
-def apply_gas_output(master_text: str, gas_text: str) -> tuple[str, list]:
-    """職務経歴書マスタへ、実績シート出力（スキル表・案件期間）を差し替えて反映する。"""
-    skill_table_md, project_periods = parse_gas_output(gas_text)
+def apply_export(master_text: str, export_text: str) -> tuple[str, list]:
+    """職務経歴書マスタへ、エクスポート（スキル表・案件期間）を差し替えて反映する。"""
+    skill_table_md, project_periods = parse_export(export_text)
     merged_text = replace_skill_table(master_text, skill_table_md)
     merged_text, unmatched = replace_project_periods(merged_text, project_periods)
     return merged_text, unmatched
@@ -95,15 +95,15 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 """
 
 
-def build_html(markdown_path: Path, gas_output_path: Optional[Path] = None) -> str:
+def build_html(markdown_path: Path, export_path: Optional[Path] = None) -> str:
     text = markdown_path.read_text(encoding="utf-8")
 
-    if gas_output_path is not None:
-        gas_text = gas_output_path.read_text(encoding="utf-8")
-        text, unmatched = apply_gas_output(text, gas_text)
+    if export_path is not None:
+        export_text = export_path.read_text(encoding="utf-8")
+        text, unmatched = apply_export(text, export_text)
         if unmatched:
             print(
-                "警告: 実績シート出力に対応する見出しが見つからない案件があります: " + "、".join(unmatched),
+                "警告: エクスポートに対応する見出しが見つからない案件があります: " + "、".join(unmatched),
                 file=sys.stderr,
             )
 
@@ -111,8 +111,8 @@ def build_html(markdown_path: Path, gas_output_path: Optional[Path] = None) -> s
     return HTML_TEMPLATE.format(body=body)
 
 
-def build_pdf(markdown_path: Path, pdf_path: Path, gas_output_path: Optional[Path] = None) -> None:
-    html = build_html(markdown_path, gas_output_path)
+def build_pdf(markdown_path: Path, pdf_path: Path, export_path: Optional[Path] = None) -> None:
+    html = build_html(markdown_path, export_path)
     pdf_path.parent.mkdir(parents=True, exist_ok=True)
 
     with tempfile.NamedTemporaryFile(
@@ -144,10 +144,10 @@ def main() -> int:
     parser.add_argument("--input", type=Path, default=DEFAULT_INPUT)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument(
-        "--gas-output",
+        "--export",
         type=Path,
         default=None,
-        help="実績シート（GAS ウェブアプリ）の出力タブで生成した Markdown を保存したファイル。"
+        help="ポートフォリオアプリの職務経歴書エクスポートで出力した Markdown を保存したファイル。"
         "指定すると ■テクニカルスキル 表と ■開発経歴 の案件期間を差し替える",
     )
     args = parser.parse_args()
@@ -156,11 +156,11 @@ def main() -> int:
         print(f"入力ファイルが見つかりません: {args.input}", file=sys.stderr)
         return 1
 
-    if args.gas_output is not None and not args.gas_output.exists():
-        print(f"実績シート出力ファイルが見つかりません: {args.gas_output}", file=sys.stderr)
+    if args.export is not None and not args.export.exists():
+        print(f"エクスポートファイルが見つかりません: {args.export}", file=sys.stderr)
         return 1
 
-    build_pdf(args.input, args.output, args.gas_output)
+    build_pdf(args.input, args.output, args.export)
     print(f"PDF を生成しました: {args.output}")
     return 0
 
