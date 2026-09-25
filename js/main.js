@@ -11,9 +11,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Initialization ---
     applyLang();
     calculateAge();
-    renderSkills();
-    renderCertifications();
-    renderWorks();
+    loadAndRender('data/skills.json', 'skills-container', (data) => renderSkills(data.skills));
+    loadAndRender('data/certifications.json', 'certifications-container', renderCertifications);
+    loadAndRender('data/works.json', 'works-container', renderWorks);
     startTyping();
     initScrollEffects();
 
@@ -29,6 +29,24 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- Functions ---
+
+    function loadAndRender(url, containerId, onLoaded) {
+        fetch(url)
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(onLoaded)
+            .catch((error) => {
+                console.error(`表示データの読み込みに失敗しました: ${url}`, error);
+                const container = document.getElementById(containerId);
+                if (container) {
+                    container.innerHTML = '<p class="data-load-error">表示データの読み込みに失敗しました。</p>';
+                }
+            });
+    }
 
     function applyLang() {
         document.querySelectorAll('[data-i18n]').forEach(el => {
@@ -57,7 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ageDisplay.textContent = age;
     }
 
-    function renderSkills() {
+    function renderSkills(skillsData) {
         const container = document.getElementById('skills-container');
         container.innerHTML = '';
         container.className = 'skills-grid-container'; // Use a class for easier styling if needed, or just inline for now
@@ -150,13 +168,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     stars += `<i class="${iconClass} fa-star" style="color: ${color}; margin-right: 2px;"></i>`;
                 }
 
-                const yearsDisplay = typeof skill.years === 'number'
-                    ? (currentLang === 'ja' ? `${skill.years}年` : `${skill.years} Years`)
-                    : skill.years;
-
                 row.innerHTML = `
                     <div style="font-weight: bold;">${skill.name}</div>
-                    <div style="text-align: center;">${yearsDisplay}</div>
+                    <div style="text-align: center;">${skill.years}</div>
                     <div style="text-align: center; white-space: nowrap;">
                         ${stars}
                     </div>
@@ -186,7 +200,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function renderCertifications() {
+    function renderCertifications(certificationsData) {
         const container = document.getElementById('certifications-container');
         if (!container) return;
         container.innerHTML = '';
@@ -245,7 +259,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    function renderWorks() {
+    function renderWorks(worksData) {
         const container = document.getElementById('works-container');
         container.innerHTML = '';
 
