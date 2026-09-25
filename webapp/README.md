@@ -61,6 +61,15 @@ uv run python manage.py import_portfolio_data
 uv run python manage.py createsuperuser
 ```
 
+## 旧実績シートの移行
+
+旧実績シートの CSV（`skills.csv`・`projects.csv`・`project_skills.csv`）を実績 DB へ移行する。
+実データは個人の職歴を含むためリポジトリには置かない。既存データがある場合は何も変更しない。
+
+```bash
+uv run python manage.py import_skill_sheet /path/to/csv
+```
+
 ## 環境変数
 
 `.env.example` をコピーして `.env` を作成する（`.env` はコミットしない）。
