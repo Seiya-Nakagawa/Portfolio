@@ -51,7 +51,7 @@ class Command(BaseCommand):
         directory: Path = options["directory"]
         skill_rows = read_rows(
             directory / SKILLS_FILE,
-            ["skill_id", "category", "name", "level", "sort_order"],
+            ["skill_id", "category", "name", "level"],
         )
         project_rows = read_rows(
             directory / PROJECTS_FILE,
@@ -67,14 +67,16 @@ class Command(BaseCommand):
 
         levels = set(Level.objects.values_list("level", flat=True))
         skills = []
-        for row in skill_rows:
+        # 表示順は CSV の行順で 1 から通し番号を振る。シートの sort_order はカテゴリごとに
+        # 振り直されており、カテゴリ間の並び（各カテゴリの sort_order 最小値の昇順）を
+        # 表現できないため、行の並びをカテゴリ順・カテゴリ内の順としてそのまま引き継ぐ。
+        for sort_order, row in enumerate(skill_rows, start=1):
             label = f"skills.csv skill_id={row['skill_id']}"
             try:
                 level = int(row["level"])
-                sort_order = int(row["sort_order"])
             except ValueError:
                 raise CommandError(
-                    f"{label}: level・sort_order は整数で指定してください。"
+                    f"{label}: level は整数で指定してください。"
                 ) from None
             if level not in levels:
                 raise CommandError(f"{label}: 存在しないレベルです: {level}")

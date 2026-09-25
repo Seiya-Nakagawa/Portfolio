@@ -42,6 +42,28 @@ class ImportSkillSheetTests(TestCase):
             "Ubuntu 26.04",
         )
 
+    def test_表示順はCSVの行順で通し番号になる(self):
+        # シートの sort_order はカテゴリごとに 1 から始まるため、値は使わず行順を引き継ぐ。
+        skills = (
+            "skill_id,category,name,level,remarks,sort_order\n"
+            "linux,OS,Linux,3,,1\n"
+            "ec2,AWS,EC2,5,,1\n"
+            "s3,AWS,S3,5,,2\n"
+        )
+        self._run(
+            self._dir(
+                skills=skills, projects=PROJECTS, usages="project_id,skill_id,version\n"
+            )
+        )
+        self.assertEqual(
+            list(
+                Skill.objects.order_by("sort_order").values_list(
+                    "skill_id", "sort_order"
+                )
+            ),
+            [("linux", 1), ("ec2", 2), ("s3", 3)],
+        )
+
     def test_既存データがあれば何も変更しない(self):
         Skill.objects.create(
             skill_id="x", category="c", name="n", level_id=1, sort_order=1
