@@ -1,4 +1,4 @@
-﻿<!doctype html>
+{% load static %}<!doctype html>
 <html lang="ja">
   <head>
     <meta charset="UTF-8" />
@@ -20,9 +20,14 @@
     />
 
     <!-- Styles -->
-    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="{% static 'css/style.css' %}" />
   </head>
-  <body>
+  <body
+    data-static-base="{% static '' %}"
+    data-api-skills="{% url 'api-skills' %}"
+    data-api-certifications="{% url 'api-certifications' %}"
+    data-api-works="{% url 'api-works' %}"
+  >
     <header>
       <nav class="container">
         <div class="logo">SN</div>
@@ -173,7 +178,7 @@
     </footer>
 
     <!-- Scripts -->
-    <script src="js/i18n.js"></script>
-    <script src="js/main.js"></script>
+    <script src="{% static 'js/i18n.js' %}"></script>
+    <script src="{% static 'js/main.js' %}"></script>
   </body>
 </html>
