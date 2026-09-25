@@ -1,0 +1,32 @@
+[
+  {
+    "name": "Google Cloud Certified - Associate Cloud Engineer",
+    "date": "Jul 2025",
+    "org": "Google Cloud"
+  },
+  {
+    "name": "AWS Certified Solutions Architect – Professional",
+    "date": "Jul 2024",
+    "org": "Amazon Web Services (AWS)"
+  },
+  {
+    "name": "LinuC LEVEL2",
+    "date": "Sep 2020",
+    "org": "LPI-Japan"
+  },
+  {
+    "name": "AWS Certified Solutions Architect – Associate",
+    "date": "Sep 2020",
+    "org": "Amazon Web Services (AWS)"
+  },
+  {
+    "name": "Oracle Master Bronze 12c",
+    "date": "Jul 2018",
+    "org": "Oracle"
+  },
+  {
+    "name": "LinuC LEVEL1",
+    "date": "Feb 2018",
+    "org": "LPI-Japan"
+  }
+]

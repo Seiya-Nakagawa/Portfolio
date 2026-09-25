@@ -53,8 +53,8 @@ curl -s -o /dev/null -w "%{http_code}" https://seiya-nakagawa.github.io/Portfoli
 ```
 
 - トップページが HTTP 200 で応答することを確認する
-- `css/style.css`、`js/i18n.js`、`js/data.js`、`js/main.js` など主要な静的アセットが
-  それぞれ HTTP 200 で読み込めることを確認する
+- `css/style.css`、`js/i18n.js`、`js/main.js`、`data/skills.json`、`data/certifications.json`、
+  `data/works.json` など主要な静的アセットがそれぞれ HTTP 200 で読み込めることを確認する
 - ブラウザで公開 URL にアクセスし、About / Skills / Certifications / Works / Contact の
   各セクションが正しく描画されることを確認する
 - 日本語 / 英語の言語切替が正常に動作することを確認する
