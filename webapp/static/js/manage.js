@@ -64,6 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const PAGE_INFO = 'info';
     const SUB_OTHER = 'その他';
+    const SUB_ALL = 'すべて';
 
     const project = {
         state: null, // { project_id, name, start_year_month, end_year_month, selected: {skill_id: version} }
@@ -319,25 +320,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const categoryItems = project.skills.filter((sk) => sk.category === page);
         const subs = subcategoriesOf(categoryItems);
-        let items = categoryItems;
-        let subTabsHtml = '';
-        if (subs.length > 0) {
-            const activeSub = subs.includes(project.subTabs[page]) ? project.subTabs[page] : subs[0];
-            project.subTabs[page] = activeSub;
-            items = categoryItems.filter((sk) => (sk.subcategory || SUB_OTHER) === activeSub);
-            subTabsHtml = `<div class="sub-tabs" role="tablist">${subs.map((sub, i) => `<button type="button" role="tab" data-sub="${i}" aria-selected="${sub === activeSub}">${esc(sub)}</button>`).join('')}</div>`;
-        }
-        body.innerHTML = subTabsHtml + items.map((sk) => {
+        const skillHtml = (sk) => {
             const checked = sk.skill_id in s.selected;
             return `
                 <div class="skill-check">
                     <label><input type="checkbox" data-skill="${esc(sk.skill_id)}"${checked ? ' checked' : ''} />${esc(sk.name)}</label>
                     <input type="text" data-version="${esc(sk.skill_id)}" placeholder="バージョン（任意）" maxlength="64" value="${esc(s.selected[sk.skill_id] ?? '')}"${checked ? '' : ' hidden'} />
                 </div>`;
-        }).join('');
+        };
+        const tabs = subs.length > 0 ? [SUB_ALL, ...subs] : [];
+        let contentHtml = categoryItems.map(skillHtml).join('');
+        let subTabsHtml = '';
+        if (tabs.length > 0) {
+            // 既定は「すべて」。「すべて」ではサブカテゴリのセクション単位で表示する。
+            const activeSub = tabs.includes(project.subTabs[page]) ? project.subTabs[page] : SUB_ALL;
+            project.subTabs[page] = activeSub;
+            const inSub = (sub) => categoryItems.filter((sk) => (sk.subcategory || SUB_OTHER) === sub);
+            contentHtml = activeSub === SUB_ALL
+                ? subs.map((sub) => `<div class="sub-section"><h3>${esc(sub)}</h3>${inSub(sub).map(skillHtml).join('')}</div>`).join('')
+                : inSub(activeSub).map(skillHtml).join('');
+            subTabsHtml = `<div class="sub-tabs" role="tablist">${tabs.map((sub, i) => `<button type="button" role="tab" data-sub="${i}" aria-selected="${sub === activeSub}">${esc(sub)}</button>`).join('')}</div>`;
+        }
+        body.innerHTML = subTabsHtml + contentHtml;
         body.querySelectorAll('.sub-tabs button').forEach((button) => {
             button.addEventListener('click', () => {
-                project.subTabs[page] = subs[Number(button.dataset.sub)];
+                project.subTabs[page] = tabs[Number(button.dataset.sub)];
                 renderProjectPage(page);
             });
         });
