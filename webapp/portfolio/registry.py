@@ -7,11 +7,13 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 
 from portfolio.models import (
+    SITE_INFO_ID,
     YEAR_MONTH_VALIDATOR,
     Certification,
     Level,
     Project,
     ProjectSkill,
+    SiteInfo,
     Skill,
     Work,
 )
@@ -252,3 +254,36 @@ def delete_work(work_id: int) -> None:
         deleted, _ = Work.objects.filter(pk=work_id).delete()
         if not deleted:
             raise NotFound("実績が見つかりません。")
+
+
+SITE_INFO_TEXT_FIELDS = [
+    "name",
+    "catchphrase",
+    "intro",
+    "job",
+    "education",
+    "location",
+    "hobby",
+    "github_url",
+    "contact_message",
+    "contact_form_url",
+]
+
+
+def save_site_info(payload: dict) -> SiteInfo:
+    """サイト情報（1 行のみ）を保存する。未登録の場合は作成する。"""
+    with transaction.atomic():
+        info = SiteInfo.objects.select_for_update().filter(pk=SITE_INFO_ID).first()
+        if info is None:
+            info = SiteInfo(site_info_id=SITE_INFO_ID)
+        for name in SITE_INFO_TEXT_FIELDS:
+            setattr(info, name, str(payload.get(name) or "").strip())
+        info.typing_titles = _clean_tags(payload.get("typing_titles"))
+        if not info.typing_titles:
+            raise ValidationFailed(["肩書き: 1 件以上入力してください。"])
+        info.birth_date = str(payload.get("birth_date") or "").strip() or None
+        info.copyright_start_year = _to_int(
+            payload.get("copyright_start_year"), "著作権の開始年"
+        )
+        _save_model(info)
+    return info

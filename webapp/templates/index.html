@@ -27,6 +27,7 @@
     data-api-skills="{% url 'api-skills' %}"
     data-api-certifications="{% url 'api-certifications' %}"
     data-api-works="{% url 'api-works' %}"
+    data-api-site="{% url 'api-site' %}"
   >
     <header>
       <nav class="container">
@@ -51,14 +52,15 @@
     </header>
 
     <main>
+      <div id="site-error"></div>
       <!-- Hero Section -->
       <section id="hero" class="hero">
         <div class="hero-content">
-          <h1 data-i18n="hero.name">Seiya Nakagawa</h1>
+          <h1 id="site-name"></h1>
           <h2>
             <span id="typing-text"></span><span class="typing-cursor">|</span>
           </h2>
-          <p data-i18n="hero.desc">ポートフォリオサイトへようこそ。</p>
+          <p id="site-catchphrase"></p>
         </div>
       </section>
 
@@ -67,9 +69,7 @@
         <h2 class="section-title" data-i18n="nav.about">About</h2>
         <div class="about-grid glass-panel" style="padding: 2rem">
           <div class="about-text">
-            <p data-i18n="about.intro">
-              クラウドアーキテクトエンジニアとして、AWS等のパブリッククラウドにおけるアーキテクチャ設計、IaC導入、CI/CDパイプライン構築を得意としております。また、フロントエンドからバックエンドまで幅広い開発経験を持ち、領域を問わず柔軟に対応できる点が強みです。常に最新技術のキャッチアップを心がけ、クライアントにとって最善の提案を行うことを重視して活動しています。
-            </p>
+            <p id="about-intro"></p>
             <table class="profile-table">
               <tr>
                 <th data-i18n="profile.age">年齢</th>
@@ -77,33 +77,24 @@
               </tr>
               <tr>
                 <th data-i18n="profile.job">職業</th>
-                <td data-i18n="profile.job_val">
-                  インフラ（クラウド）エンジニア
-                </td>
+                <td id="about-job"></td>
               </tr>
               <tr>
                 <th data-i18n="profile.education">学歴</th>
-                <td data-i18n="profile.education_val">
-                  東海大学工学部 生命化学科卒
-                </td>
+                <td id="about-education"></td>
               </tr>
               <tr>
                 <th data-i18n="profile.location">居住地</th>
-                <td data-i18n="profile.location_val">神奈川県綾瀬市在住</td>
+                <td id="about-location"></td>
               </tr>
               <tr>
                 <th data-i18n="profile.hobby">趣味</th>
-                <td data-i18n="profile.hobby_val">サウナ、サッカー観戦</td>
+                <td id="about-hobby"></td>
               </tr>
               <tr>
                 <th data-i18n="profile.github">GitHub URL</th>
                 <td>
-                  <a
-                    href="https://github.com/Seiya-Nakagawa"
-                    target="_blank"
-                    data-i18n="profile.github_val"
-                    >https://github.com/Seiya-Nakagawa</a
-                  >
+                  <a id="about-github" target="_blank" rel="noopener"></a>
                 </td>
               </tr>
             </table>
@@ -141,16 +132,12 @@
       <section id="contact" class="container">
         <h2 class="section-title" data-i18n="nav.contact">Contact</h2>
         <div class="contact-container glass-panel">
-          <p data-i18n="contact.msg">
-            ご興味を持っていただけましたら、下記ボタンよりお気軽にお問い合わせください。<br />
-            副業での案件も積極的に対応しております！
-          </p>
+          <p id="contact-message"></p>
           <div
             class="contact-actions"
             style="display: flex; justify-content: center; margin-top: 2rem"
           >
             <a
-              href="https://docs.google.com/forms/d/e/1FAIpQLScCgs4OVyQwGBpTlb-ItbBG3FZriWsf3s42h0QUPyaCq_xNIQ/viewform?usp=sharing&ouid=102622625500046231898"
               target="_blank"
               class="btn-primary"
               data-i18n="contact.btn"
@@ -161,7 +148,7 @@
           </div>
           <div class="social-links" style="margin-top: 2rem">
             <a
-              href="https://github.com/Seiya-Nakagawa"
+              id="contact-github"
               target="_blank"
               class="icon-btn"
               style="font-size: 2rem"
@@ -174,7 +161,7 @@
     </main>
 
     <footer style="text-align: center; padding: 2rem; color: var(--text-muted)">
-      <p>&copy; 2024 Seiya Nakagawa. All rights reserved.</p>
+      <p>&copy; <span id="footer-copyright"></span> <span id="footer-name"></span>. All rights reserved.</p>
     </footer>
 
     <!-- Scripts -->

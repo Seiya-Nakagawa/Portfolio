@@ -6,7 +6,7 @@ from pathlib import Path
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
-from portfolio.models import Certification, Work
+from portfolio.models import SITE_INFO_ID, Certification, SiteInfo, Work
 
 SEED_DIR = Path(__file__).resolve().parent.parent.parent / "seed"
 
@@ -42,17 +42,20 @@ def load_works(path: Path) -> list[Work]:
     ]
 
 
+def load_site_info(path: Path) -> list[SiteInfo]:
+    item = json.loads(path.read_text(encoding="utf-8"))
+    return [SiteInfo(site_info_id=SITE_INFO_ID, **item)]
+
+
 class Command(BaseCommand):
-    help = (
-        "資格・実績の JSON を実績 DB へ投入する。既にデータがあるテーブルは変更しない。"
-    )
+    help = "資格・実績・サイト情報の JSON を実績 DB へ投入する。既にデータがあるテーブルは変更しない。"
 
     def add_arguments(self, parser):
         parser.add_argument(
             "--seed-dir",
             type=Path,
             default=SEED_DIR,
-            help="certifications.json / works.json を置いたディレクトリ",
+            help="certifications.json / works.json / site_info.json を置いたディレクトリ",
         )
 
     def handle(self, *args, **options):
@@ -60,6 +63,7 @@ class Command(BaseCommand):
         targets = [
             (Certification, seed_dir / "certifications.json", load_certifications),
             (Work, seed_dir / "works.json", load_works),
+            (SiteInfo, seed_dir / "site_info.json", load_site_info),
         ]
         for _, path, _ in targets:
             if not path.is_file():

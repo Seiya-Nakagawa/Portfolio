@@ -182,3 +182,37 @@ class Work(models.Model):
 
     def __str__(self) -> str:
         return self.title
+
+
+# サイト情報は常に 1 行のみとし、この固定値の主キーで参照する。
+SITE_INFO_ID = 1
+
+
+class SiteInfo(models.Model):
+    """サイト全体の表示情報（Hero・About・Contact・フッター）。1 行のみ。"""
+
+    site_info_id = models.PositiveSmallIntegerField(
+        "サイト情報ID", primary_key=True, default=SITE_INFO_ID, editable=False
+    )
+    name = models.CharField("氏名", max_length=255)
+    # Hero のタイピングアニメーションに表示する肩書きの一覧（JSON 配列）。
+    typing_titles = models.JSONField("肩書き", default=list)
+    catchphrase = models.CharField("キャッチコピー", max_length=255)
+    intro = models.TextField("自己紹介文")
+    birth_date = models.DateField("生年月日")
+    job = models.CharField("職業", max_length=255)
+    education = models.CharField("学歴", max_length=255)
+    location = models.CharField("居住地", max_length=255)
+    hobby = models.CharField("趣味", max_length=255)
+    github_url = models.URLField("GitHub URL", max_length=255)
+    contact_message = models.TextField("Contact の案内文")
+    contact_form_url = models.URLField("問い合わせフォーム URL", max_length=1024)
+    copyright_start_year = models.PositiveSmallIntegerField("著作権の開始年")
+
+    class Meta:
+        db_table = "site_info"
+        verbose_name = "サイト情報"
+        verbose_name_plural = "サイト情報"
+
+    def __str__(self) -> str:
+        return self.name

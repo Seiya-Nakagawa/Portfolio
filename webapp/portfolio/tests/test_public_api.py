@@ -10,6 +10,7 @@ from django.core.management.base import CommandError
 from django.test import TestCase
 from django.urls import reverse
 
+from portfolio.management.commands.import_portfolio_data import SEED_DIR
 from portfolio.models import Certification, Project, ProjectSkill, Skill, Work
 
 TODAY = date(2026, 9, 25)
@@ -143,6 +144,11 @@ class ImportPortfolioDataTests(TestCase):
         )
         (path / "works.json").write_text(
             json.dumps([{"title": "W", "desc_ja": "d", "tags": ["a"]}]),
+            encoding="utf-8",
+        )
+        # サイト情報は実物のシードを流用する。
+        (path / "site_info.json").write_text(
+            (SEED_DIR / "site_info.json").read_text(encoding="utf-8"),
             encoding="utf-8",
         )
         return path

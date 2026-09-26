@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
         skills: document.body.dataset.apiSkills,
         certifications: document.body.dataset.apiCertifications,
         works: document.body.dataset.apiWorks,
+        site: document.body.dataset.apiSite,
         export: document.body.dataset.apiExport,
         exportDownload: document.body.dataset.exportDownload,
     };
@@ -480,11 +481,12 @@ document.addEventListener('DOMContentLoaded', () => {
         },
     });
 
-    // 資格・実績管理。1 つのタブに 2 つの一覧を並べる。
+    // 資格・実績・サイト情報管理。1 つのタブに 2 つの一覧とサイト情報のフォームを並べる。
     const certworksRoot = document.getElementById('tab-certworks');
     const certificationsRoot = document.createElement('div');
     const worksRoot = document.createElement('div');
-    certworksRoot.append(certificationsRoot, worksRoot);
+    const siteRoot = document.createElement('div');
+    certworksRoot.append(certificationsRoot, worksRoot, siteRoot);
 
     const certificationsPanel = crudPanel(certificationsRoot, {
         key: 'cert',
@@ -527,6 +529,54 @@ document.addEventListener('DOMContentLoaded', () => {
             { name: 'sort_order', label: '表示順', type: 'number' },
         ],
     });
+
+    // サイト情報（1 行のみ）。一覧・追加・削除は持たず、現在の内容を変更する。
+    const SITE_FIELDS = [
+        { name: 'name', label: '氏名' },
+        { name: 'typing_titles', label: 'Hero の肩書き（1 行に 1 件）', type: 'lines' },
+        { name: 'catchphrase', label: 'Hero のキャッチコピー' },
+        { name: 'intro', label: 'About の自己紹介文', type: 'textarea' },
+        { name: 'birth_date', label: '生年月日', type: 'date' },
+        { name: 'job', label: '職業' },
+        { name: 'education', label: '学歴' },
+        { name: 'location', label: '居住地' },
+        { name: 'hobby', label: '趣味' },
+        { name: 'github_url', label: 'GitHub URL', type: 'url' },
+        { name: 'contact_message', label: 'Contact の案内文', type: 'textarea' },
+        { name: 'contact_form_url', label: '問い合わせフォーム URL', type: 'url' },
+        { name: 'copyright_start_year', label: 'フッターの著作権の開始年', type: 'number' },
+    ];
+
+    function renderSiteField(field, value) {
+        if (field.type === 'textarea') {
+            return `<label>${esc(field.label)}<textarea name="${field.name}" rows="4">${esc(value)}</textarea></label>`;
+        }
+        if (field.type === 'lines') {
+            return `<label>${esc(field.label)}<textarea name="${field.name}" rows="4">${esc((value || []).join('\n'))}</textarea></label>`;
+        }
+        return `<label>${esc(field.label)}<input type="${field.type || 'text'}" name="${field.name}" value="${esc(value)}" /></label>`;
+    }
+
+    async function loadSiteInfo() {
+        const data = await guarded(() => api('GET', urls.site));
+        if (!data) return;
+        siteRoot.innerHTML = `
+            <h2>サイト情報</h2>
+            <form>
+                ${SITE_FIELDS.map((f) => renderSiteField(f, data[f.name])).join('')}
+                <div class="actions"><button type="submit" class="primary">更新</button></div>
+            </form>`;
+        siteRoot.querySelector('form').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const payload = {};
+            SITE_FIELDS.forEach((f) => {
+                const value = event.target.elements[f.name].value;
+                payload[f.name] = f.type === 'lines' ? value.split('\n').map((t) => t.trim()).filter(Boolean) : value;
+            });
+            const saved = await guarded(() => api('PUT', urls.site, payload));
+            if (saved) showMessage('保存しました。');
+        });
+    }
 
     // --- エクスポート ---
 
@@ -571,6 +621,7 @@ document.addEventListener('DOMContentLoaded', () => {
         certworks: async () => {
             await certificationsPanel.load();
             await worksPanel.load();
+            await loadSiteInfo();
         },
         export: loadExport,
     };
