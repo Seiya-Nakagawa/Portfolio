@@ -210,7 +210,6 @@ class SkillApiTests(LoggedInTestCase):
             "skill_id": "ec2",
             "category": "AWS",
             "name": "EC2",
-            "sort_order": 10,
         }
         payload.update(overrides)
         return payload
@@ -245,13 +244,43 @@ class SkillApiTests(LoggedInTestCase):
             "skill_id の形式": self._payload(skill_id="EC 2"),
             "skill_id の重複": self._payload(),
             "種類なし": self._payload(skill_id="vpc", category=""),
-            "表示順が整数でない": self._payload(skill_id="vpc", sort_order="a"),
         }
         for label, payload in cases.items():
             with self.subTest(label):
                 response = self.call("post", "manage-api-skills", payload)
                 self.assertEqual(response.status_code, 400, response.content)
         self.assertEqual(Skill.objects.count(), 1)
+
+    def test_追加した項目は種類内でサブカテゴリ_表示名の昇順に採番される(self):
+        for skill_id, sub, name in [
+            ("s3", "Storage", "S3"),
+            ("ec2", "Compute", "EC2"),
+            ("lambda", "Compute", "Lambda"),
+            ("other", "", "Other"),
+        ]:
+            self.call(
+                "post",
+                "manage-api-skills",
+                self._payload(skill_id=skill_id, subcategory=sub, name=name),
+            )
+        rows = self.call("get", "manage-api-skills").json()
+        self.assertEqual(
+            [r["skill_id"] for r in rows], ["ec2", "lambda", "s3", "other"]
+        )
+
+    def test_種類単位で並び替えできる(self):
+        _skill("ec2", "AWS", "EC2", 10)
+        _skill("py", "言語", "Python", 20)
+        _skill("go", "言語", "Go", 30)
+        response = self.call(
+            "post", "manage-api-skill-order", {"categories": ["言語", "AWS"]}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([r["skill_id"] for r in response.json()], ["go", "py", "ec2"])
+
+    def test_種類の並び順の形式が不正なら400(self):
+        response = self.call("post", "manage-api-skill-order", {"categories": "AWS"})
+        self.assertEqual(response.status_code, 400)
 
     def test_使用実績のない項目は削除できる(self):
         _skill("ec2", "AWS", "EC2", 10)
@@ -288,7 +317,6 @@ class CertificationAndWorkApiTests(LoggedInTestCase):
             "name": "資格A",
             "acquired_on": "Jul 2024",
             "org": "団体",
-            "sort_order": 1,
         }
         rows = self.call("post", "manage-api-certifications", payload).json()
         certification_id = rows[0]["certification_id"]
@@ -304,11 +332,31 @@ class CertificationAndWorkApiTests(LoggedInTestCase):
         ).json()
         self.assertEqual(rows, [])
 
+    def test_資格は取得日の新しい順に並ぶ(self):
+        for name, acquired_on in [
+            ("古い", "Sep 2020"),
+            ("新しい", "Jul 2024"),
+            ("中間", "Dec 2022"),
+        ]:
+            self.call(
+                "post",
+                "manage-api-certifications",
+                {"name": name, "acquired_on": acquired_on, "org": "団体"},
+            )
+        rows = self.call("get", "manage-api-certifications").json()
+        self.assertEqual([r["name"] for r in rows], ["新しい", "中間", "古い"])
+
+    def test_実績は登録の新しい順に並ぶ(self):
+        for title in ["先", "後"]:
+            self.call("post", "manage-api-works", {"title": title, "desc_ja": "d"})
+        rows = self.call("get", "manage-api-works").json()
+        self.assertEqual([r["title"] for r in rows], ["後", "先"])
+
     def test_資格の必須項目が空ならエラー(self):
         response = self.call(
             "post",
             "manage-api-certifications",
-            {"name": "", "acquired_on": "", "org": "", "sort_order": 1},
+            {"name": "", "acquired_on": "", "org": ""},
         )
         self.assertEqual(response.status_code, 400)
         self.assertEqual(Certification.objects.count(), 0)
@@ -322,7 +370,6 @@ class CertificationAndWorkApiTests(LoggedInTestCase):
             "thumbnail": "",
             "github_url": "https://github.com/x/y",
             "live_url": "",
-            "sort_order": 1,
         }
         rows = self.call("post", "manage-api-works", payload).json()
         self.assertEqual(rows[0]["tags"], ["Python", "AWS"])
@@ -336,7 +383,7 @@ class CertificationAndWorkApiTests(LoggedInTestCase):
         )
 
     def test_実績の入力値検証(self):
-        base = {"title": "T", "desc_ja": "d", "sort_order": 1}
+        base = {"title": "T", "desc_ja": "d"}
         cases = {
             "URL の形式": {**base, "github_url": "not-a-url"},
             "タグの形式": {**base, "tags": "Python"},

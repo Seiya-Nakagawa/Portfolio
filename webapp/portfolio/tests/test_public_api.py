@@ -75,43 +75,38 @@ class SkillsApiTests(TestCase):
 
 
 class CertificationsApiTests(TestCase):
-    def test_sort_order順でキーはname_date_org(self):
-        Certification.objects.create(
-            name="B", acquired_on="Jul 2024", org="X", sort_order=2
-        )
-        Certification.objects.create(
-            name="A", acquired_on="Sep 2020", org="Y", sort_order=1
-        )
+    def test_取得日の新しい順でキーはname_date_org(self):
+        Certification.objects.create(name="A", acquired_on="Sep 2020", org="Y")
+        Certification.objects.create(name="B", acquired_on="Jul 2024", org="X")
         response = self.client.get(reverse("api-certifications"))
         self.assertEqual(
             response.json(),
             [
-                {"name": "A", "date": "Sep 2020", "org": "Y"},
                 {"name": "B", "date": "Jul 2024", "org": "X"},
+                {"name": "A", "date": "Sep 2020", "org": "Y"},
             ],
         )
 
 
 class WorksApiTests(TestCase):
-    def test_sort_order順で未設定の任意項目は省略する(self):
-        Work.objects.create(title="後", desc_ja="d2", sort_order=2)
+    def test_登録の新しい順で未設定の任意項目は省略する(self):
+        Work.objects.create(title="先", desc_ja="d1")
         Work.objects.create(
-            title="先",
-            desc_ja="d1",
-            desc_en="e1",
+            title="後",
+            desc_ja="d2",
+            desc_en="e2",
             tags=["Python"],
             thumbnail="img/a.png",
             github_url="https://github.com/x/y",
-            sort_order=1,
         )
         body = self.client.get(reverse("api-works")).json()
-        self.assertEqual([w["title"] for w in body], ["先", "後"])
+        self.assertEqual([w["title"] for w in body], ["後", "先"])
         self.assertEqual(
             body[0],
             {
-                "title": "先",
-                "desc_ja": "d1",
-                "desc_en": "e1",
+                "title": "後",
+                "desc_ja": "d2",
+                "desc_en": "e2",
                 "tags": ["Python"],
                 "thumbnail": "img/a.png",
                 "github_url": "https://github.com/x/y",

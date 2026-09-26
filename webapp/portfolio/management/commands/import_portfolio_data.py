@@ -13,20 +13,16 @@ SEED_DIR = Path(__file__).resolve().parent.parent.parent / "seed"
 
 def load_certifications(path: Path) -> list[Certification]:
     items = json.loads(path.read_text(encoding="utf-8"))
-    # JSON の並び順をそのまま表示順とする。
+    # 表示順は取得日の降順で自動的に決まる。
     return [
-        Certification(
-            name=item["name"],
-            acquired_on=item["date"],
-            org=item["org"],
-            sort_order=index,
-        )
-        for index, item in enumerate(items, start=1)
+        Certification(name=item["name"], acquired_on=item["date"], org=item["org"])
+        for item in items
     ]
 
 
 def load_works(path: Path) -> list[Work]:
     items = json.loads(path.read_text(encoding="utf-8"))
+    # 表示順は登録の新しい順（採番の降順）のため、JSON の先頭が最後に採番されるよう逆順で投入する。
     return [
         Work(
             title=item["title"],
@@ -36,9 +32,8 @@ def load_works(path: Path) -> list[Work]:
             thumbnail=item.get("thumbnail", ""),
             github_url=item.get("github_url", ""),
             live_url=item.get("live_url", ""),
-            sort_order=index,
         )
-        for index, item in enumerate(items, start=1)
+        for item in reversed(items)
     ]
 
 

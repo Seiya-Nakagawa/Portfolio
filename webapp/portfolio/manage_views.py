@@ -12,7 +12,12 @@ from django.views.decorators.http import require_http_methods
 
 from portfolio import export, registry
 from portfolio.models import Certification, Project, SiteInfo, Skill, Work
-from portfolio.services import build_skill_rows, ordered_skills
+from portfolio.services import (
+    build_skill_rows,
+    ordered_certifications,
+    ordered_skills,
+    ordered_works,
+)
 
 EXPORT_FILENAME = "skillsheet_output.md"
 
@@ -60,7 +65,6 @@ def _skill_dict(skill: Skill, years: str = "") -> dict:
         "category": skill.category,
         "subcategory": skill.subcategory,
         "name": skill.name,
-        "sort_order": skill.sort_order,
         "years": years,
     }
 
@@ -84,7 +88,6 @@ def _certification_dict(c: Certification) -> dict:
         "name": c.name,
         "acquired_on": c.acquired_on,
         "org": c.org,
-        "sort_order": c.sort_order,
     }
 
 
@@ -98,7 +101,6 @@ def _work_dict(w: Work) -> dict:
         "thumbnail": w.thumbnail,
         "github_url": w.github_url,
         "live_url": w.live_url,
-        "sort_order": w.sort_order,
     }
 
 
@@ -180,6 +182,13 @@ def api_skills(request):
     return _json(_skills_with_years())
 
 
+@api_view("POST")
+def api_skill_order(request):
+    """種類単位の並び順を保存する。"""
+    registry.reorder_skill_categories(_body(request))
+    return _json(_skills_with_years())
+
+
 @api_view("PUT", "DELETE")
 def api_skill(request, skill_id):
     if request.method == "DELETE":
@@ -190,7 +199,7 @@ def api_skill(request, skill_id):
 
 
 def _certifications() -> list[dict]:
-    return [_certification_dict(c) for c in Certification.objects.all()]
+    return [_certification_dict(c) for c in ordered_certifications()]
 
 
 @api_view("GET", "POST")
@@ -210,7 +219,7 @@ def api_certification(request, certification_id):
 
 
 def _works() -> list[dict]:
-    return [_work_dict(w) for w in Work.objects.all()]
+    return [_work_dict(w) for w in ordered_works()]
 
 
 @api_view("GET", "POST")

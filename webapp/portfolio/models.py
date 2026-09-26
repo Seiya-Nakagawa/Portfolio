@@ -126,13 +126,12 @@ class Certification(models.Model):
     # 表示用の文言（年月の粒度。例: Jul 2024）。
     acquired_on = models.CharField("取得日", max_length=32)
     org = models.CharField("発行団体", max_length=255)
-    sort_order = models.PositiveIntegerField("表示順")
 
     class Meta:
         db_table = "certifications"
         verbose_name = "資格"
         verbose_name_plural = "資格"
-        ordering = ["sort_order"]
+        ordering = ["-certification_id"]
 
     def __str__(self) -> str:
         return self.name
@@ -150,13 +149,12 @@ class Work(models.Model):
     thumbnail = models.CharField("サムネイル", max_length=255, blank=True, default="")
     github_url = models.URLField("GitHub URL", max_length=255, blank=True, default="")
     live_url = models.URLField("公開 URL", max_length=255, blank=True, default="")
-    sort_order = models.PositiveIntegerField("表示順")
 
     class Meta:
         db_table = "works"
         verbose_name = "実績"
         verbose_name_plural = "実績"
-        ordering = ["sort_order"]
+        ordering = ["-work_id"]
 
     def __str__(self) -> str:
         return self.title

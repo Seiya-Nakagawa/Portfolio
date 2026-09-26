@@ -1,5 +1,6 @@
 """公開 API・エクスポートが共有する、実績 DB からの表示データ生成ロジック。"""
 
+import re
 from dataclasses import dataclass
 from datetime import date
 
@@ -58,6 +59,58 @@ def ordered_skills() -> list[Skill]:
     )
 
 
+# 資格の取得日（表示用の文言）から年月を読み取るための月名。
+MONTH_NUMBERS = {
+    name: number
+    for number, name in enumerate(
+        [
+            "jan",
+            "feb",
+            "mar",
+            "apr",
+            "may",
+            "jun",
+            "jul",
+            "aug",
+            "sep",
+            "oct",
+            "nov",
+            "dec",
+        ],
+        start=1,
+    )
+}
+MONTH_NAME_PATTERN = re.compile(r"([A-Za-z]{3})[A-Za-z]*\.?\s+(\d{4})")
+YEAR_MONTH_PATTERN = re.compile(r"(\d{4})\s*(?:-|/|年)\s*(\d{1,2})")
+YEAR_PATTERN = re.compile(r"\d{4}")
+
+
+def acquired_on_sort_key(acquired_on: str) -> tuple[int, int]:
+    """取得日の文言（例: Jul 2024、2024-07、2024年7月）を (年, 月) に変換する。読み取れない場合は最古扱い。"""
+    match = MONTH_NAME_PATTERN.search(acquired_on)
+    if match and match.group(1).lower() in MONTH_NUMBERS:
+        return int(match.group(2)), MONTH_NUMBERS[match.group(1).lower()]
+    match = YEAR_MONTH_PATTERN.search(acquired_on)
+    if match:
+        return int(match.group(1)), int(match.group(2))
+    match = YEAR_PATTERN.search(acquired_on)
+    return (int(match.group()), 0) if match else (0, 0)
+
+
+def ordered_certifications() -> list[Certification]:
+    """取得日の新しい順（同じ取得日は登録の新しい順）で返す。"""
+    return sorted(
+        Certification.objects.all(),
+        key=lambda c: (*acquired_on_sort_key(c.acquired_on), c.certification_id),
+        reverse=True,
+    )
+
+
+def ordered_works() -> list[Work]:
+    """登録の新しい順で返す。実績は日付を持たないため、採番の降順を新しい順とみなす。"""
+    return list(Work.objects.order_by("-work_id"))
+
+
 def build_skill_rows(today: date) -> list[SkillRow]:
     """使用実績のあるスキル項目を表示順に集計して返す。"""
     projects = [
@@ -108,14 +161,14 @@ def build_skills_payload(today: date) -> dict:
 def build_certifications_payload() -> list[dict]:
     return [
         {"name": c.name, "date": c.acquired_on, "org": c.org}
-        for c in Certification.objects.order_by("sort_order", "certification_id")
+        for c in ordered_certifications()
     ]
 
 
 def build_works_payload() -> list[dict]:
     """実績 API のレスポンス。未設定の任意項目（サムネイル・リンク）はキーごと省略する。"""
     payload = []
-    for work in Work.objects.order_by("sort_order", "work_id"):
+    for work in ordered_works():
         item = {
             "title": work.title,
             "desc_ja": work.desc_ja,

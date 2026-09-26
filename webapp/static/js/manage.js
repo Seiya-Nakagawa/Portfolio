@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
         bootstrap: document.body.dataset.apiBootstrap,
         projects: document.body.dataset.apiProjects,
         skills: document.body.dataset.apiSkills,
+        skillOrder: document.body.dataset.apiSkillOrder,
         certifications: document.body.dataset.apiCertifications,
         works: document.body.dataset.apiWorks,
         site: document.body.dataset.apiSite,
@@ -196,6 +197,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const list = pages();
         const current = list[project.pageIndex];
         const isLastPage = project.pageIndex === list.length - 1;
+        const onInfoPage = current === PAGE_INFO;
+        const categoryList = list.slice(1);
         const hasId = project.state.project_id !== '';
         const options = ['<option value="">（選択してください）</option>']
             .concat(project.ongoing.map((p) => (
@@ -222,15 +225,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     </label>
                 </div>
             </details>
-            <div class="page-tabs" role="tablist">
-                ${list.map((p, i) => `<button type="button" role="tab" data-page="${i}" aria-selected="${i === project.pageIndex}">${esc(pageLabel(p))}</button>`).join('')}
-            </div>
+            ${onInfoPage ? '' : `<div class="page-tabs" role="tablist">
+                ${categoryList.map((p, i) => `<button type="button" role="tab" data-page="${i + 1}" aria-selected="${i + 1 === project.pageIndex}">${esc(pageLabel(p))}</button>`).join('')}
+            </div>`}
             <div id="project-page"></div>
             <div class="actions">
-                <button type="button" id="prev-page"${project.pageIndex === 0 ? ' disabled' : ''}>戻る</button>
+                <button type="button" id="prev-page"${project.pageIndex === 0 ? ' disabled' : ''}>${project.pageIndex === 1 ? '案件情報へ戻る' : '戻る'}</button>
                 ${isLastPage
         ? '<button type="button" class="primary" id="next-page">確認へ</button>'
-        : '<button type="button" id="next-page">次へ</button><button type="button" class="primary" id="confirm-page">確認へ</button>'}
+        : `<button type="button" id="next-page">次へ</button>${onInfoPage ? '' : '<button type="button" class="primary" id="confirm-page">確認へ</button>'}`}
                 <span class="spacer"></span>
                 ${hasId ? '<button type="button" class="danger" id="delete-project">削除</button>' : ''}
             </div>`;
@@ -398,6 +401,32 @@ document.addEventListener('DOMContentLoaded', () => {
         showMessage('削除しました。');
     }
 
+    // --- 追加・更新前の確認画面（スキル項目・資格・実績・サイト情報で共通） ---
+
+    // 入力欄のラベルから、確認画面に表示する項目名（括弧書きの補足を除いたもの）を取り出す。
+    function confirmLabel(label) {
+        return label.split('（')[0];
+    }
+
+    function confirmValue(value) {
+        return Array.isArray(value) ? value.join(', ') : String(value ?? '');
+    }
+
+    function renderConfirmScreen(root, { title, rows, saveLabel, onBack, onSave }) {
+        root.innerHTML = `
+            <h2>${esc(title)}の確認</h2>
+            <div class="table-wrap"><table>
+                ${rows.map(([label, value]) => `<tr><th>${esc(label)}</th><td class="pre-line">${esc(confirmValue(value))}</td></tr>`).join('')}
+            </table></div>
+            <div class="actions">
+                <button type="button" data-confirm-back>入力に戻る</button>
+                <span class="spacer"></span>
+                <button type="button" class="primary" data-confirm-save>${esc(saveLabel)}</button>
+            </div>`;
+        root.querySelector('[data-confirm-back]').addEventListener('click', onBack);
+        root.querySelector('[data-confirm-save]').addEventListener('click', onSave);
+    }
+
     // --- 一覧・追加・変更・削除の共通画面（スキル項目・資格・実績） ---
 
     function crudPanel(root, config) {
@@ -405,15 +434,22 @@ document.addEventListener('DOMContentLoaded', () => {
         let editing = null; // 編集中の行。追加時は null
         let inEditScreen = false; // separateEdit 指定時に、一覧ではなく編集画面を表示中か
         let filterValue = ''; // filter 指定時に、絞り込み中の値（空は絞り込みなし）
+        let draft = null; // 入力済みで確認待ちの内容。入力に戻る場合はフォームへ再表示する
+        let confirming = false; // true の間は保存前の確認画面を表示する
 
         function fieldValue(row, field) {
             const value = row ? row[field.name] : '';
             return Array.isArray(value) ? value.join(', ') : (value ?? '');
         }
 
+        // フォームの初期値は、確認画面から戻った場合は入力途中の内容、それ以外は編集対象の行とする。
+        function formSource() {
+            return draft || editing;
+        }
+
         function renderField(field, row) {
             const value = esc(fieldValue(row, field));
-            const readonly = row && field.readonlyOnEdit ? ' disabled' : '';
+            const readonly = editing && field.readonlyOnEdit ? ' disabled' : '';
             if (field.type === 'select') {
                 const options = field.options().map((o) => `<option value="${esc(o.value)}"${String(o.value) === String(fieldValue(row, field)) ? ' selected' : ''}>${esc(o.label)}</option>`).join('');
                 return `<label>${esc(field.label)}<select name="${field.name}">${options}</select></label>`;
@@ -432,9 +468,9 @@ document.addEventListener('DOMContentLoaded', () => {
             return `
                 <h2>${editing ? '変更' : '追加'}</h2>
                 <form>
-                    ${config.fields.map((f) => renderField(f, editing)).join('')}
+                    ${config.fields.map((f) => renderField(f, formSource())).join('')}
                     <div class="actions">
-                        <button type="submit" class="primary">${editing ? '更新' : '追加'}</button>
+                        <button type="submit" class="primary">確認へ</button>
                         ${editing || config.separateEdit ? '<button type="button" data-cancel>キャンセル</button>' : ''}
                     </div>
                 </form>`;
@@ -447,8 +483,42 @@ document.addEventListener('DOMContentLoaded', () => {
             return `<label class="list-filter">${esc(config.filter.label)}<select data-filter>${options}</select></label>`;
         }
 
+        function renderCategoryOrder() {
+            if (!config.categoryOrder) return '';
+            const order = [...new Set(rows.map((r) => r.category))];
+            return `
+                <h2>種類の並び替え</h2>
+                <ul class="category-order">
+                    ${order.map((c, i) => `<li>${esc(c)}
+                        <button type="button" data-move="${i}" data-dir="-1"${i === 0 ? ' disabled' : ''}>↑</button>
+                        <button type="button" data-move="${i}" data-dir="1"${i === order.length - 1 ? ' disabled' : ''}>↓</button></li>`).join('')}
+                </ul>`;
+        }
+
+        async function moveCategory(index, direction) {
+            const order = [...new Set(rows.map((r) => r.category))];
+            const target = index + direction;
+            [order[index], order[target]] = [order[target], order[index]];
+            const result = await guarded(() => api('POST', config.categoryOrder.url, { categories: order }));
+            if (result) {
+                rows = result;
+                render();
+                showMessage(config.afterSave ? config.afterSave() : '保存しました。');
+            }
+        }
+
         function render() {
             const showEditScreen = config.separateEdit && inEditScreen;
+            if (confirming) {
+                renderConfirmScreen(root, {
+                    title: config.title,
+                    saveLabel: editing ? '更新' : '追加',
+                    rows: config.fields.map((f) => [confirmLabel(f.label), draft[f.name]]),
+                    onBack: () => { confirming = false; render(); },
+                    onSave: save,
+                });
+                return;
+            }
             if (showEditScreen) {
                 root.innerHTML = renderForm();
             } else {
@@ -459,6 +529,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <h2>${esc(config.title)}</h2>
                     ${renderFilter()}
                     ${config.separateEdit ? '<div class="actions"><button type="button" class="primary" data-add>追加</button></div>' : ''}
+                    ${renderCategoryOrder()}
                     <div class="table-wrap"><table>
                         <tr>${config.columns.map((c) => `<th>${esc(c.label)}</th>`).join('')}<th></th></tr>
                         ${visible.map((row) => `<tr>${config.columns.map((c) => `<td>${esc(c.value(row))}</td>`).join('')}
@@ -469,33 +540,45 @@ document.addEventListener('DOMContentLoaded', () => {
 
             root.querySelectorAll('[data-edit]').forEach((b) => b.addEventListener('click', () => {
                 editing = rows[Number(b.dataset.edit)];
+                draft = null;
                 inEditScreen = true;
                 render();
             }));
+            root.querySelectorAll('[data-move]').forEach((b) => b.addEventListener('click', () => moveCategory(Number(b.dataset.move), Number(b.dataset.dir))));
             root.querySelectorAll('[data-delete]').forEach((b) => b.addEventListener('click', () => remove(rows[Number(b.dataset.delete)])));
             const add = root.querySelector('[data-add]');
-            if (add) add.addEventListener('click', () => { editing = null; inEditScreen = true; render(); });
+            if (add) add.addEventListener('click', () => { editing = null; draft = null; inEditScreen = true; render(); });
             const filter = root.querySelector('[data-filter]');
             if (filter) filter.addEventListener('change', () => { filterValue = filter.value; render(); });
             const cancel = root.querySelector('[data-cancel]');
-            if (cancel) cancel.addEventListener('click', () => { editing = null; inEditScreen = false; render(); });
+            if (cancel) cancel.addEventListener('click', () => { editing = null; draft = null; inEditScreen = false; render(); });
             const form = root.querySelector('form');
             if (form) form.addEventListener('submit', submit);
         }
 
-        async function submit(event) {
+        // 入力内容を確認画面へ渡す。保存は確認画面で承認した場合のみ行う。
+        function submit(event) {
             event.preventDefault();
             const payload = {};
             config.fields.forEach((f) => {
                 const value = event.target.elements[f.name].value;
                 payload[f.name] = f.type === 'tags' ? value.split(',').map((t) => t.trim()).filter(Boolean) : value;
             });
+            showMessage('');
+            draft = payload;
+            confirming = true;
+            render();
+        }
+
+        async function save() {
             const method = editing ? 'PUT' : 'POST';
             const url = editing ? `${config.url}/${encodeURIComponent(editing[config.idKey])}` : config.url;
-            const result = await guarded(() => api(method, url, payload));
+            const result = await guarded(() => api(method, url, draft));
             if (result) {
                 rows = result;
                 editing = null;
+                draft = null;
+                confirming = false;
                 inEditScreen = false;
                 render();
                 showMessage(config.afterSave ? config.afterSave() : '保存しました。');
@@ -530,6 +613,7 @@ document.addEventListener('DOMContentLoaded', () => {
         title: 'スキル項目',
         separateEdit: true,
         filter: { label: '種類', values: () => categories(), value: (r) => r.category },
+        categoryOrder: { url: urls.skillOrder },
         url: urls.skills,
         idKey: 'skill_id',
         label: (row) => row.name,
@@ -538,14 +622,12 @@ document.addEventListener('DOMContentLoaded', () => {
             { label: 'サブカテゴリ', value: (r) => r.subcategory },
             { label: '項目', value: (r) => r.name },
             { label: '経験年数', value: (r) => r.years },
-            { label: '表示順', value: (r) => r.sort_order },
         ],
         fields: [
             { name: 'skill_id', label: 'skill_id（半角英小文字・数字・ハイフン。登録後は変更不可）', readonlyOnEdit: true },
             { name: 'category', label: '種類', datalist: () => categories() },
             { name: 'subcategory', label: 'サブカテゴリ（任意。案件登録でサブタブに分ける）', datalist: () => subcategories() },
             { name: 'name', label: '表示名' },
-            { name: 'sort_order', label: '表示順', type: 'number' },
         ],
         afterSave: () => {
             // 案件登録画面のカテゴリ・スキル項目にも反映する。
@@ -554,12 +636,10 @@ document.addEventListener('DOMContentLoaded', () => {
         },
     });
 
-    // 資格・実績・サイト情報管理。1 つのタブに 2 つの一覧とサイト情報のフォームを並べる。
-    const certworksRoot = document.getElementById('tab-certworks');
-    const certificationsRoot = document.createElement('div');
-    const worksRoot = document.createElement('div');
-    const siteRoot = document.createElement('div');
-    certworksRoot.append(certificationsRoot, worksRoot, siteRoot);
+    // 資格・実績・サイト情報は、それぞれ別のタブで管理する。表示順は入力せず、サーバー側で自動的に並べる。
+    const certificationsRoot = document.getElementById('tab-certifications');
+    const worksRoot = document.getElementById('tab-works');
+    const siteRoot = document.getElementById('tab-site');
 
     const certificationsPanel = crudPanel(certificationsRoot, {
         key: 'cert',
@@ -571,13 +651,11 @@ document.addEventListener('DOMContentLoaded', () => {
             { label: '資格名', value: (r) => r.name },
             { label: '取得日', value: (r) => r.acquired_on },
             { label: '発行団体', value: (r) => r.org },
-            { label: '表示順', value: (r) => r.sort_order },
         ],
         fields: [
             { name: 'name', label: '資格名' },
             { name: 'acquired_on', label: '取得日（例: Jul 2024）' },
             { name: 'org', label: '発行団体' },
-            { name: 'sort_order', label: '表示順', type: 'number' },
         ],
     });
     const worksPanel = crudPanel(worksRoot, {
@@ -589,7 +667,6 @@ document.addEventListener('DOMContentLoaded', () => {
         columns: [
             { label: 'タイトル', value: (r) => r.title },
             { label: '使用技術', value: (r) => r.tags.join(', ') },
-            { label: '表示順', value: (r) => r.sort_order },
         ],
         fields: [
             { name: 'title', label: 'タイトル' },
@@ -599,7 +676,6 @@ document.addEventListener('DOMContentLoaded', () => {
             { name: 'thumbnail', label: 'サムネイル（例: img/portfolio.png）' },
             { name: 'github_url', label: 'GitHub URL', type: 'url' },
             { name: 'live_url', label: '公開 URL', type: 'url' },
-            { name: 'sort_order', label: '表示順', type: 'number' },
         ],
     });
 
@@ -630,25 +706,44 @@ document.addEventListener('DOMContentLoaded', () => {
         return `<label>${esc(field.label)}<input type="${field.type || 'text'}" name="${field.name}" value="${esc(value)}" /></label>`;
     }
 
-    async function loadSiteInfo() {
-        const data = await guarded(() => api('GET', urls.site));
-        if (!data) return;
+    // 保存前に確認画面を表示する。入力に戻る場合は入力途中の内容をフォームへ再表示する。
+    function renderSiteForm(values) {
         siteRoot.innerHTML = `
             <h2>サイト情報</h2>
             <form>
-                ${SITE_FIELDS.map((f) => renderSiteField(f, data[f.name])).join('')}
-                <div class="actions"><button type="submit" class="primary">更新</button></div>
+                ${SITE_FIELDS.map((f) => renderSiteField(f, values[f.name])).join('')}
+                <div class="actions"><button type="submit" class="primary">確認へ</button></div>
             </form>`;
-        siteRoot.querySelector('form').addEventListener('submit', async (event) => {
+        siteRoot.querySelector('form').addEventListener('submit', (event) => {
             event.preventDefault();
             const payload = {};
             SITE_FIELDS.forEach((f) => {
                 const value = event.target.elements[f.name].value;
                 payload[f.name] = f.type === 'lines' ? value.split('\n').map((t) => t.trim()).filter(Boolean) : value;
             });
-            const saved = await guarded(() => api('PUT', urls.site, payload));
-            if (saved) showMessage('保存しました。');
+            showMessage('');
+            renderSiteConfirm(payload);
         });
+    }
+
+    function renderSiteConfirm(payload) {
+        renderConfirmScreen(siteRoot, {
+            title: 'サイト情報',
+            saveLabel: '更新',
+            rows: SITE_FIELDS.map((f) => [f.label, payload[f.name]]),
+            onBack: () => renderSiteForm(payload),
+            onSave: async () => {
+                const saved = await guarded(() => api('PUT', urls.site, payload));
+                if (!saved) return;
+                renderSiteForm(saved);
+                showMessage('保存しました。');
+            },
+        });
+    }
+
+    async function loadSiteInfo() {
+        const data = await guarded(() => api('GET', urls.site));
+        if (data) renderSiteForm(data);
     }
 
     // --- エクスポート ---
@@ -688,11 +783,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (project.skills.length === 0) await refreshMaster();
             await skillsPanel.load();
         },
-        certworks: async () => {
-            await certificationsPanel.load();
-            await worksPanel.load();
-            await loadSiteInfo();
-        },
+        certifications: () => certificationsPanel.load(),
+        works: () => worksPanel.load(),
+        site: loadSiteInfo,
         export: loadExport,
     };
 
