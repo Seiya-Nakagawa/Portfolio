@@ -76,14 +76,14 @@ class SkillsApiTests(TestCase):
 
 class CertificationsApiTests(TestCase):
     def test_取得日の新しい順でキーはname_date_org(self):
-        Certification.objects.create(name="A", acquired_on="Sep 2020", org="Y")
-        Certification.objects.create(name="B", acquired_on="Jul 2024", org="X")
+        Certification.objects.create(name="A", acquired_on=date(2020, 9, 1), org="Y")
+        Certification.objects.create(name="B", acquired_on=date(2024, 7, 1), org="X")
         response = self.client.get(reverse("api-certifications"))
         self.assertEqual(
             response.json(),
             [
-                {"name": "B", "date": "Jul 2024", "org": "X"},
-                {"name": "A", "date": "Sep 2020", "org": "Y"},
+                {"name": "B", "date": "2024年07月", "org": "X"},
+                {"name": "A", "date": "2020年09月", "org": "Y"},
             ],
         )
 
@@ -132,7 +132,7 @@ class ImportPortfolioDataTests(TestCase):
         self.addCleanup(tmp.cleanup)
         path = Path(tmp.name)
         (path / "certifications.json").write_text(
-            json.dumps([{"name": "A", "date": "Jul 2024", "org": "X"}]),
+            json.dumps([{"name": "A", "date": "2024-07", "org": "X"}]),
             encoding="utf-8",
         )
         (path / "works.json").write_text(
@@ -150,7 +150,7 @@ class ImportPortfolioDataTests(TestCase):
         seed = self._seed_dir()
         call_command("import_portfolio_data", seed_dir=seed, stdout=StringIO())
         call_command("import_portfolio_data", seed_dir=seed, stdout=StringIO())
-        self.assertEqual(Certification.objects.get().acquired_on, "Jul 2024")
+        self.assertEqual(Certification.objects.get().acquired_on, date(2024, 7, 1))
         self.assertEqual(Work.objects.get().tags, ["a"])
 
     def test_同梱の投入元を読み込める(self):

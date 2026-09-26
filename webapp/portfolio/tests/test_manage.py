@@ -315,7 +315,7 @@ class CertificationAndWorkApiTests(LoggedInTestCase):
     def test_資格の追加_変更_削除(self):
         payload = {
             "name": "資格A",
-            "acquired_on": "Jul 2024",
+            "acquired_on": "2024-07",
             "org": "団体",
         }
         rows = self.call("post", "manage-api-certifications", payload).json()
@@ -334,9 +334,9 @@ class CertificationAndWorkApiTests(LoggedInTestCase):
 
     def test_資格は取得日の新しい順に並ぶ(self):
         for name, acquired_on in [
-            ("古い", "Sep 2020"),
-            ("新しい", "Jul 2024"),
-            ("中間", "Dec 2022"),
+            ("古い", "2020-09"),
+            ("新しい", "2024-07"),
+            ("中間", "2022-12"),
         ]:
             self.call(
                 "post",
@@ -347,10 +347,19 @@ class CertificationAndWorkApiTests(LoggedInTestCase):
         self.assertEqual([r["name"] for r in rows], ["新しい", "中間", "古い"])
 
     def test_実績は登録の新しい順に並ぶ(self):
-        for title in ["先", "後"]:
-            self.call("post", "manage-api-works", {"title": title, "desc_ja": "d"})
+        for title, achieved_on in [
+            ("古", "2023-01"),
+            ("新", "2024-06"),
+            ("中", "2023-12"),
+        ]:
+            self.call(
+                "post",
+                "manage-api-works",
+                {"title": title, "desc_ja": "d", "achieved_on": achieved_on},
+            )
         rows = self.call("get", "manage-api-works").json()
-        self.assertEqual([r["title"] for r in rows], ["後", "先"])
+        self.assertEqual([r["title"] for r in rows], ["新", "中", "古"])
+        self.assertEqual(rows[0]["achieved_on"], "2024-06")
 
     def test_資格の必須項目が空ならエラー(self):
         response = self.call(
@@ -366,6 +375,7 @@ class CertificationAndWorkApiTests(LoggedInTestCase):
             "title": "実績A",
             "desc_ja": "説明",
             "desc_en": "",
+            "achieved_on": "2024-05",
             "tags": ["Python", " ", "AWS"],
             "thumbnail": "",
             "github_url": "https://github.com/x/y",
@@ -383,11 +393,13 @@ class CertificationAndWorkApiTests(LoggedInTestCase):
         )
 
     def test_実績の入力値検証(self):
-        base = {"title": "T", "desc_ja": "d"}
+        base = {"title": "T", "desc_ja": "d", "achieved_on": "2024-05"}
         cases = {
             "URL の形式": {**base, "github_url": "not-a-url"},
             "タグの形式": {**base, "tags": "Python"},
             "タイトルなし": {**base, "title": ""},
+            "実績年月なし": {**base, "achieved_on": ""},
+            "実績年月の形式": {**base, "achieved_on": "2024/05"},
         }
         for label, payload in cases.items():
             with self.subTest(label):

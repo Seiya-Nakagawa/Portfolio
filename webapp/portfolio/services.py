@@ -1,8 +1,9 @@
 """公開 API・エクスポートが共有する、実績 DB からの表示データ生成ロジック。"""
 
-import re
 from dataclasses import dataclass
 from datetime import date
+
+from django.db.models import F
 
 from portfolio.experience import (
     ProjectPeriod,
@@ -59,56 +60,21 @@ def ordered_skills() -> list[Skill]:
     )
 
 
-# 資格の取得日（表示用の文言）から年月を読み取るための月名。
-MONTH_NUMBERS = {
-    name: number
-    for number, name in enumerate(
-        [
-            "jan",
-            "feb",
-            "mar",
-            "apr",
-            "may",
-            "jun",
-            "jul",
-            "aug",
-            "sep",
-            "oct",
-            "nov",
-            "dec",
-        ],
-        start=1,
-    )
-}
-MONTH_NAME_PATTERN = re.compile(r"([A-Za-z]{3})[A-Za-z]*\.?\s+(\d{4})")
-YEAR_MONTH_PATTERN = re.compile(r"(\d{4})\s*(?:-|/|年)\s*(\d{1,2})")
-YEAR_PATTERN = re.compile(r"\d{4}")
-
-
-def acquired_on_sort_key(acquired_on: str) -> tuple[int, int]:
-    """取得日の文言（例: Jul 2024、2024-07、2024年7月）を (年, 月) に変換する。読み取れない場合は最古扱い。"""
-    match = MONTH_NAME_PATTERN.search(acquired_on)
-    if match and match.group(1).lower() in MONTH_NUMBERS:
-        return int(match.group(2)), MONTH_NUMBERS[match.group(1).lower()]
-    match = YEAR_MONTH_PATTERN.search(acquired_on)
-    if match:
-        return int(match.group(1)), int(match.group(2))
-    match = YEAR_PATTERN.search(acquired_on)
-    return (int(match.group()), 0) if match else (0, 0)
+def format_year_month(value: date) -> str:
+    """年月の表示形式（YYYY年MM月）に整形する。"""
+    return f"{value.year}年{value.month:02d}月"
 
 
 def ordered_certifications() -> list[Certification]:
-    """取得日の新しい順（同じ取得日は登録の新しい順）で返す。"""
-    return sorted(
-        Certification.objects.all(),
-        key=lambda c: (*acquired_on_sort_key(c.acquired_on), c.certification_id),
-        reverse=True,
-    )
+    """取得年月の新しい順（同じ取得年月は登録の新しい順）で返す。"""
+    return list(Certification.objects.order_by("-acquired_on", "-certification_id"))
 
 
 def ordered_works() -> list[Work]:
-    """登録の新しい順で返す。実績は日付を持たないため、採番の降順を新しい順とみなす。"""
-    return list(Work.objects.order_by("-work_id"))
+    """実績年月の新しい順（未設定は末尾。同じ年月は登録の新しい順）で返す。"""
+    return list(
+        Work.objects.order_by(F("achieved_on").desc(nulls_last=True), "-work_id")
+    )
 
 
 def build_skill_rows(today: date) -> list[SkillRow]:
@@ -160,7 +126,7 @@ def build_skills_payload(today: date) -> dict:
 
 def build_certifications_payload() -> list[dict]:
     return [
-        {"name": c.name, "date": c.acquired_on, "org": c.org}
+        {"name": c.name, "date": format_year_month(c.acquired_on), "org": c.org}
         for c in ordered_certifications()
     ]
 
@@ -175,6 +141,8 @@ def build_works_payload() -> list[dict]:
             "desc_en": work.desc_en,
             "tags": work.tags,
         }
+        if work.achieved_on:
+            item["date"] = format_year_month(work.achieved_on)
         for key in ("thumbnail", "github_url", "live_url"):
             value = getattr(work, key)
             if value:

@@ -3,6 +3,8 @@
 書き込みはトランザクション内で対象行をロックし、複数タブからの同時操作による不整合を防ぐ。
 """
 
+from datetime import date
+
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
@@ -156,6 +158,20 @@ def _save_model(instance) -> None:
     instance.save()
 
 
+def _year_month_to_date(payload: dict, key: str, label: str) -> date:
+    """画面の年月（YYYY-MM）を、その月の 1 日の日付に変換する。"""
+    value = str(payload.get(key) or "").strip()
+    if not value:
+        raise ValidationFailed([f"{label}を入力してください。"])
+    try:
+        YEAR_MONTH_VALIDATOR(value)
+    except ValidationError:
+        raise ValidationFailed(
+            [f"{label}は YYYY-MM 形式で入力してください。"]
+        ) from None
+    return date(int(value[:4]), int(value[5:7]), 1)
+
+
 def _apply(instance, payload: dict, text_fields: list[str]) -> None:
     for name in text_fields:
         setattr(instance, name, str(payload.get(name) or "").strip())
@@ -253,7 +269,10 @@ def save_certification(
                 )
             except Certification.DoesNotExist:
                 raise NotFound("資格が見つかりません。") from None
-        _apply(certification, payload, ["name", "acquired_on", "org"])
+        _apply(certification, payload, ["name", "org"])
+        certification.acquired_on = _year_month_to_date(
+            payload, "acquired_on", "取得年月"
+        )
         _save_model(certification)
     return certification
 
@@ -287,6 +306,7 @@ def save_work(payload: dict, work_id: int | None = None) -> Work:
             payload,
             ["title", "desc_ja", "desc_en", "thumbnail", "github_url", "live_url"],
         )
+        work.achieved_on = _year_month_to_date(payload, "achieved_on", "実績年月")
         work.tags = _clean_tags(payload.get("tags"))
         _save_model(work)
     return work

@@ -164,7 +164,7 @@ AWS のサービスは、他の `category`（コンテナ・データベース�
 | ---- | -- | ---- | ---- |
 | `certification_id` | 整数 | ○ | 資格の識別子。サーバー側で自動採番する |
 | `name` | 文字列 | ○ | 資格名 |
-| `acquired_on` | 文字列 | ○ | 取得日（表示用の文言。年月の粒度。例: `Jul 2024`）。表示順はこの日付の降順とする |
+| `acquired_on` | 日付 | ○ | 取得年月。年月の粒度で管理し、その月の 1 日を保持する。表示は `YYYY年MM月` に整形する。表示順はこの日付の降順とする |
 | `org` | 文字列 | ○ | 発行団体 |
 
 ### 4.7. `works`（実績）
@@ -178,9 +178,10 @@ AWS のサービスは、他の `category`（コンテナ・データベース�
 | `tags` | 文字列（JSON 配列） | - | 使用技術タグの一覧 |
 | `thumbnail` | 文字列 | - | サムネイル画像のパス（省略時は既定のプレースホルダーを使う） |
 | `github_url` | 文字列 | - | GitHub リポジトリへのリンク |
+| `achieved_on` | 日付 | ○ | 実績年月。年月の粒度で管理し、その月の 1 日を保持する。表示は `YYYY年MM月` に整形する。日付の導入前に登録した行は未設定を許容し、更新時に入力を必須とする |
 | `live_url` | 文字列 | - | 公開 URL へのリンク |
 
-実績は日付の列を持たないため、表示順は登録の新しい順（`work_id` の降順）とする。
+表示順は `achieved_on` の降順（未設定は末尾）、同じ年月は登録の新しい順（`work_id` の降順）とする。
 
 ### 4.8. `site_info`（サイト全体の表示情報）
 
@@ -392,9 +393,9 @@ flowchart LR
 
 | 項目 | 内容 |
 | ---- | ---- |
-| 資格の一覧・追加・変更・削除 | 資格タブ。`acquired_on` の新しい順に自動で並べて一覧表示し、`name`・`acquired_on`・`org` を入力する（表示順は入力しない） |
-| 実績の一覧・追加・変更・削除 | 実績タブ。登録の新しい順に自動で並べて一覧表示し、`title`・`desc_ja`・`desc_en`・`tags`・`thumbnail`・`github_url`・`live_url` を入力する（表示順は入力しない） |
-| サイト情報の表示・変更 | サイト情報タブ。 現在の `site_info` の内容をフォームに表示し、`name`・`typing_titles`（1 行 1 件で入力）・`catchphrase`・`intro`・`birth_date`・`job`・`education`・`location`・`hobby`・`github_url`・`contact_message`・`contact_form_url`・`copyright_start_year` を変更して保存する。行は常に 1 件のみで、追加・削除の操作は持たない |
+| 資格の一覧・追加・変更・削除 | 資格タブ。`acquired_on` の新しい順に自動で並べて一覧表示し、`name`・`acquired_on`（月の入力欄。一覧・確認画面では `YYYY年MM月` で表示）・`org` を入力する（表示順は入力しない） |
+| 実績の一覧・追加・変更・削除 | 実績タブ。`achieved_on` の新しい順に自動で並べて一覧表示し、`title`・`achieved_on`（月の入力欄。一覧・確認画面では `YYYY年MM月` で表示）・`desc_ja`・`desc_en`・`tags`・`thumbnail`・`github_url`・`live_url` を入力する（表示順は入力しない） |
+| サイト情報の表示・変更 | サイト情報タブ。現在の `site_info` の内容をフォームに表示し、`name`・`typing_titles`（1 行 1 件で入力）・`catchphrase`・`intro`・`birth_date`・`job`・`education`・`location`・`hobby`・`github_url`・`contact_message`・`contact_form_url`・`copyright_start_year` を変更して保存する。行は常に 1 件のみで、追加・削除の操作は持たない |
 
 ##### 追加・更新時の確認画面
 
@@ -466,7 +467,7 @@ flowchart LR
 [
   {
     "name": "AWS Certified Solutions Architect – Professional",
-    "date": "Jul 2024",
+    "date": "2024年07月",
     "org": "Amazon Web Services (AWS)"
   }
 ]
@@ -475,13 +476,14 @@ flowchart LR
 | キー | 内容 |
 | ---- | ---- |
 | `name` | 資格名 |
-| `date` | 取得日（表示用の文言。年月の粒度） |
+| `date` | 取得年月（`YYYY年MM月` 形式に整形した表示用の文言） |
 | `org` | 発行団体 |
 
 ```json
 [
   {
     "title": "Portfolio",
+    "date": "2025年01月",
     "desc_ja": "当ポートフォリオサイト",
     "desc_en": "Renewal project of this portfolio website.",
     "tags": ["HTML", "CSS", "JS"],
@@ -494,6 +496,7 @@ flowchart LR
 | キー | 内容 |
 | ---- | ---- |
 | `title` | 実績タイトル |
+| `date` | 実績年月（`YYYY年MM月` 形式に整形した表示用の文言。任意。未設定の場合は省略する） |
 | `desc_ja` | 説明文（日本語） |
 | `desc_en` | 説明文（英語） |
 | `tags` | 使用技術タグの一覧 |
@@ -537,7 +540,7 @@ flowchart LR
 
 - 案件に関する情報は含めない
 - 配列の順序は、`skills` は `sort_order`、`certifications` は `acquired_on` の降順、
-  `works` は `work_id` の降順とする
+  `works` は `achieved_on` の降順（未設定は末尾。同じ年月は `work_id` の降順）とする
 - ページ本体（`/portfolio/`）と本 API は同一オリジンのため、CORS の許可設定は不要とする
 - ポートフォリオサイトは、`data/skills.json` 相当のローカルファイルを持たず、
   `js/main.js` が上記 API を `fetch` して各セクションを描画する。いずれかの読み込みに失敗した

@@ -86,7 +86,7 @@ def _certification_dict(c: Certification) -> dict:
     return {
         "certification_id": c.certification_id,
         "name": c.name,
-        "acquired_on": c.acquired_on,
+        "acquired_on": c.acquired_on.strftime("%Y-%m"),
         "org": c.org,
     }
 
@@ -95,6 +95,7 @@ def _work_dict(w: Work) -> dict:
     return {
         "work_id": w.work_id,
         "title": w.title,
+        "achieved_on": w.achieved_on.strftime("%Y-%m") if w.achieved_on else "",
         "desc_ja": w.desc_ja,
         "desc_en": w.desc_en,
         "tags": w.tags,

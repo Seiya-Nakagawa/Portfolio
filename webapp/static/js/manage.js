@@ -401,6 +401,12 @@ document.addEventListener('DOMContentLoaded', () => {
         showMessage('削除しました。');
     }
 
+    // 年月（YYYY-MM）を表示用の YYYY年MM月に整形する。未設定は空欄とする。
+    function formatYearMonth(value) {
+        const match = /^(\d{4})-(\d{2})$/.exec(value || '');
+        return match ? `${match[1]}年${match[2]}月` : '';
+    }
+
     // --- 追加・更新前の確認画面（スキル項目・資格・実績・サイト情報で共通） ---
 
     // 入力欄のラベルから、確認画面に表示する項目名（括弧書きの補足を除いたもの）を取り出す。
@@ -513,7 +519,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderConfirmScreen(root, {
                     title: config.title,
                     saveLabel: editing ? '更新' : '追加',
-                    rows: config.fields.map((f) => [confirmLabel(f.label), draft[f.name]]),
+                    rows: config.fields.map((f) => [confirmLabel(f.label), f.format ? f.format(draft[f.name]) : draft[f.name]]),
                     onBack: () => { confirming = false; render(); },
                     onSave: save,
                 });
@@ -649,12 +655,12 @@ document.addEventListener('DOMContentLoaded', () => {
         label: (row) => row.name,
         columns: [
             { label: '資格名', value: (r) => r.name },
-            { label: '取得日', value: (r) => r.acquired_on },
+            { label: '取得年月', value: (r) => formatYearMonth(r.acquired_on) },
             { label: '発行団体', value: (r) => r.org },
         ],
         fields: [
             { name: 'name', label: '資格名' },
-            { name: 'acquired_on', label: '取得日（例: Jul 2024）' },
+            { name: 'acquired_on', label: '取得年月', type: 'month', format: formatYearMonth },
             { name: 'org', label: '発行団体' },
         ],
     });
@@ -666,10 +672,12 @@ document.addEventListener('DOMContentLoaded', () => {
         label: (row) => row.title,
         columns: [
             { label: 'タイトル', value: (r) => r.title },
+            { label: '実績年月', value: (r) => formatYearMonth(r.achieved_on) },
             { label: '使用技術', value: (r) => r.tags.join(', ') },
         ],
         fields: [
             { name: 'title', label: 'タイトル' },
+            { name: 'achieved_on', label: '実績年月', type: 'month', format: formatYearMonth },
             { name: 'desc_ja', label: '説明文（日本語）', type: 'textarea' },
             { name: 'desc_en', label: '説明文（英語）', type: 'textarea' },
             { name: 'tags', label: '使用技術タグ（カンマ区切り）', type: 'tags' },

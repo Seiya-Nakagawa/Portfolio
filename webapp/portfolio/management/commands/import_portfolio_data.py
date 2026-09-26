@@ -1,6 +1,7 @@
 """表示データの JSON（資格・実績）を実績 DB へ投入する。"""
 
 import json
+from datetime import date
 from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
@@ -11,11 +12,20 @@ from portfolio.models import SITE_INFO_ID, Certification, SiteInfo, Work
 SEED_DIR = Path(__file__).resolve().parent.parent.parent / "seed"
 
 
+def _month_start(year_month: str) -> date:
+    """JSON の年月（YYYY-MM）を、その月の 1 日の日付に変換する。"""
+    return date.fromisoformat(f"{year_month}-01")
+
+
 def load_certifications(path: Path) -> list[Certification]:
     items = json.loads(path.read_text(encoding="utf-8"))
     # 表示順は取得日の降順で自動的に決まる。
     return [
-        Certification(name=item["name"], acquired_on=item["date"], org=item["org"])
+        Certification(
+            name=item["name"],
+            acquired_on=_month_start(item["date"]),
+            org=item["org"],
+        )
         for item in items
     ]
 
@@ -32,6 +42,7 @@ def load_works(path: Path) -> list[Work]:
             thumbnail=item.get("thumbnail", ""),
             github_url=item.get("github_url", ""),
             live_url=item.get("live_url", ""),
+            achieved_on=_month_start(item["date"]) if item.get("date") else None,
         )
         for item in reversed(items)
     ]
