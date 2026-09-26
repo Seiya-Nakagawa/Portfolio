@@ -31,16 +31,27 @@ class SkillRow:
 
 
 def ordered_skills() -> list[Skill]:
-    """カテゴリ内は sort_order 順、カテゴリ間は各カテゴリの sort_order 最小値の昇順で返す。"""
+    """種類 → サブカテゴリ → 表示順の順で返す。
+
+    種類間は各種類の sort_order 最小値の昇順、種類内のサブカテゴリ間は各サブカテゴリの
+    sort_order 最小値の昇順とし、サブカテゴリ未設定の項目は種類内の末尾に置く。
+    """
     skills = list(Skill.objects.order_by("sort_order"))
     category_order: dict[str, int] = {}
+    subcategory_order: dict[tuple[str, str], int] = {}
     for skill in skills:
         category_order.setdefault(skill.category, skill.sort_order)
+        subcategory_order.setdefault(
+            (skill.category, skill.subcategory), skill.sort_order
+        )
     return sorted(
         skills,
         key=lambda s: (
             category_order[s.category],
             s.category,
+            s.subcategory == "",
+            subcategory_order[(s.category, s.subcategory)],
+            s.subcategory,
             s.sort_order,
             s.skill_id,
         ),
