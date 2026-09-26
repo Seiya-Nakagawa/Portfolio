@@ -55,3 +55,26 @@ class ProjectSkillTests(TestCase):
         )
         with self.assertRaises(ValidationError):
             skill.full_clean()
+
+
+class OrderedSkillsTests(TestCase):
+    def test_種類の次にサブカテゴリ順で並ぶ(self):
+        from portfolio.services import ordered_skills
+
+        rows = [
+            ("a1", "AWS", "", 1),
+            ("a2", "AWS", "Compute", 2),
+            ("a3", "AWS", "Storage", 3),
+            ("a4", "AWS", "Compute", 4),
+            ("l1", "言語", "", 5),
+        ]
+        for skill_id, category, sub, order in rows:
+            Skill.objects.create(
+                skill_id=skill_id,
+                category=category,
+                subcategory=sub,
+                name=skill_id,
+                sort_order=order,
+            )
+        ids = [s.skill_id for s in ordered_skills()]
+        self.assertEqual(ids, ["a2", "a4", "a3", "a1", "l1"])
