@@ -229,6 +229,16 @@ class SkillApiTests(LoggedInTestCase):
         skill = Skill.objects.get()
         self.assertEqual((skill.skill_id, skill.name), ("ec2", "EC2 (変更)"))
 
+    def test_サブカテゴリを保存して一覧に含む(self):
+        self.call("post", "manage-api-skills", self._payload(subcategory="Compute"))
+        self.assertEqual(Skill.objects.get().subcategory, "Compute")
+        rows = self.call("get", "manage-api-skills").json()
+        self.assertEqual(rows[0]["subcategory"], "Compute")
+
+    def test_サブカテゴリは省略できる(self):
+        self.call("post", "manage-api-skills", self._payload())
+        self.assertEqual(Skill.objects.get().subcategory, "")
+
     def test_入力値の検証エラー(self):
         _skill("ec2", "AWS", "EC2", 10)
         cases = {

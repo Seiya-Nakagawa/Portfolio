@@ -35,6 +35,9 @@ class Skill(models.Model):
         validators=[SKILL_ID_VALIDATOR],
     )
     category = models.CharField("種類", max_length=64)
+    subcategory = models.CharField(
+        "サブカテゴリ", max_length=64, blank=True, default=""
+    )
     name = models.CharField("表示名", max_length=128)
     sort_order = models.PositiveIntegerField("表示順")
 

@@ -71,6 +71,28 @@ h2 {
   margin-bottom: 1rem;
 }
 
+.sub-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+}
+
+.sub-tabs button {
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--panel);
+  color: var(--muted);
+  padding: 0.25rem 0.75rem;
+  cursor: pointer;
+}
+
+.sub-tabs button[aria-selected='true'] {
+  border-color: var(--primary);
+  color: var(--primary);
+  font-weight: 700;
+}
+
 .tabs button[aria-selected='true'],
 .page-tabs button[aria-selected='true'] {
   border-bottom-color: var(--panel);

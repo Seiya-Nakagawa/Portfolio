@@ -58,6 +58,7 @@ def _skill_dict(skill: Skill, years: str = "") -> dict:
     return {
         "skill_id": skill.skill_id,
         "category": skill.category,
+        "subcategory": skill.subcategory,
         "name": skill.name,
         "sort_order": skill.sort_order,
         "years": years,

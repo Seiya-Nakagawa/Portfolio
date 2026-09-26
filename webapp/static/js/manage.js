@@ -63,6 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 案件登録 ---
 
     const PAGE_INFO = 'info';
+    const SUB_OTHER = 'その他';
 
     const project = {
         state: null, // { project_id, name, start_year_month, end_year_month, selected: {skill_id: version} }
@@ -72,6 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
         pageIndex: 0,
         confirming: false, // true の間は入力ページとは別の確認画面を表示する
         finishedOpen: false,
+        subTabs: {}, // カテゴリごとに選択中のサブカテゴリ { category: subcategory }
     };
 
     function emptyProject() {
@@ -88,6 +90,18 @@ document.addEventListener('DOMContentLoaded', () => {
     // カテゴリページの順序は、各カテゴリの sort_order 最小値の昇順（サーバーの並び順に従う）。
     function categories() {
         return [...new Set(project.skills.map((s) => s.category))];
+    }
+
+    // サブカテゴリの候補（種類フィルタと同様、既存の値から選べるようにする）。
+    function subcategories() {
+        return [...new Set(project.skills.map((s) => s.subcategory).filter((v) => v !== ''))];
+    }
+
+    // カテゴリ内のサブカテゴリを sort_order 最小値の昇順で返す。未設定の項目は末尾の「その他」にまとめる。
+    function subcategoriesOf(items) {
+        const named = [...new Set(items.map((s) => s.subcategory).filter((v) => v !== ''))];
+        if (named.length === 0) return [];
+        return items.some((s) => s.subcategory === '') ? [...named, SUB_OTHER] : named;
     }
 
     function pages() {
@@ -303,8 +317,17 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const items = project.skills.filter((sk) => sk.category === page);
-        body.innerHTML = items.map((sk) => {
+        const categoryItems = project.skills.filter((sk) => sk.category === page);
+        const subs = subcategoriesOf(categoryItems);
+        let items = categoryItems;
+        let subTabsHtml = '';
+        if (subs.length > 0) {
+            const activeSub = subs.includes(project.subTabs[page]) ? project.subTabs[page] : subs[0];
+            project.subTabs[page] = activeSub;
+            items = categoryItems.filter((sk) => (sk.subcategory || SUB_OTHER) === activeSub);
+            subTabsHtml = `<div class="sub-tabs" role="tablist">${subs.map((sub, i) => `<button type="button" role="tab" data-sub="${i}" aria-selected="${sub === activeSub}">${esc(sub)}</button>`).join('')}</div>`;
+        }
+        body.innerHTML = subTabsHtml + items.map((sk) => {
             const checked = sk.skill_id in s.selected;
             return `
                 <div class="skill-check">
@@ -312,6 +335,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     <input type="text" data-version="${esc(sk.skill_id)}" placeholder="バージョン（任意）" maxlength="64" value="${esc(s.selected[sk.skill_id] ?? '')}"${checked ? '' : ' hidden'} />
                 </div>`;
         }).join('');
+        body.querySelectorAll('.sub-tabs button').forEach((button) => {
+            button.addEventListener('click', () => {
+                project.subTabs[page] = subs[Number(button.dataset.sub)];
+                renderProjectPage(page);
+            });
+        });
         body.querySelectorAll('input[data-skill]').forEach((check) => {
             const versionInput = body.querySelector(`input[data-version="${CSS.escape(check.dataset.skill)}"]`);
             check.addEventListener('change', () => {
@@ -499,6 +528,7 @@ document.addEventListener('DOMContentLoaded', () => {
         label: (row) => row.name,
         columns: [
             { label: '種類', value: (r) => r.category },
+            { label: 'サブカテゴリ', value: (r) => r.subcategory },
             { label: '項目', value: (r) => r.name },
             { label: '経験年数', value: (r) => r.years },
             { label: '表示順', value: (r) => r.sort_order },
@@ -506,6 +536,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fields: [
             { name: 'skill_id', label: 'skill_id（半角英小文字・数字・ハイフン。登録後は変更不可）', readonlyOnEdit: true },
             { name: 'category', label: '種類', datalist: () => categories() },
+            { name: 'subcategory', label: 'サブカテゴリ（任意。案件登録でサブタブに分ける）', datalist: () => subcategories() },
             { name: 'name', label: '表示名' },
             { name: 'sort_order', label: '表示順', type: 'number' },
         ],
