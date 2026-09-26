@@ -55,7 +55,7 @@ class SkillsApiTests(TestCase):
                 "name": "Python",
                 "months": 12,
                 "years": "1年",
-                "level": 4,
+                "stars": 3,
             },
         )
 

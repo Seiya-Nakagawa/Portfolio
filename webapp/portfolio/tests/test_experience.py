@@ -6,6 +6,7 @@ from portfolio.experience import (
     ProjectPeriod,
     SkillUsage,
     aggregate_skill_experience,
+    calculate_stars,
     expand_months,
     format_experience,
     to_month_index,
@@ -111,3 +112,22 @@ class AggregateSkillExperienceTests(SimpleTestCase):
         result = aggregate_skill_experience(projects, usages, TODAY)
 
         self.assertEqual(result["go"].months, 2)
+
+
+class CalculateStarsTests(SimpleTestCase):
+    def test_境界値ごとの星の段階(self):
+        cases = {
+            1: 1,
+            5: 1,
+            6: 2,
+            11: 2,
+            12: 3,
+            35: 3,
+            36: 4,
+            59: 4,
+            60: 5,
+            120: 5,
+        }
+        for months, stars in cases.items():
+            with self.subTest(months=months):
+                self.assertEqual(calculate_stars(months), stars)
