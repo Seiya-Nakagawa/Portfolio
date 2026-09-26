@@ -62,7 +62,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 案件登録 ---
 
     const PAGE_INFO = 'info';
-    const PAGE_CONFIRM = 'confirm';
 
     const project = {
         state: null, // { project_id, name, start_year_month, end_year_month, selected: {skill_id: version} }
@@ -71,6 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ongoing: [],
         finished: [],
         pageIndex: 0,
+        confirming: false, // true の間は入力ページとは別の確認画面を表示する
         finishedOpen: false,
     };
 
@@ -91,12 +91,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function pages() {
-        return [PAGE_INFO, ...categories(), PAGE_CONFIRM];
+        return [PAGE_INFO, ...categories()];
     }
 
     function pageLabel(page) {
         if (page === PAGE_INFO) return '案件情報';
-        if (page === PAGE_CONFIRM) return '確認';
         return page;
     }
 
@@ -132,10 +131,45 @@ document.addEventListener('DOMContentLoaded', () => {
         renderProject();
     }
 
+    // 入力内容の確認画面。入力ページのタブ・案件選択は表示せず、登録か入力への戻りのみを選べる。
+    function renderConfirm() {
+        const root = document.getElementById('tab-project');
+        const s = project.state;
+        const chosen = project.skills.filter((sk) => sk.skill_id in s.selected);
+        root.innerHTML = `
+            <h2>入力内容の確認</h2>
+            <table>
+                <tr><th>案件名</th><td>${esc(s.name)}</td></tr>
+                <tr><th>開始年月</th><td>${esc(s.start_year_month)}</td></tr>
+                <tr><th>終了年月</th><td>${s.end_year_month ? esc(s.end_year_month) : '継続中'}</td></tr>
+            </table>
+            <h2>選択したスキル項目（${chosen.length}件）</h2>
+            <div class="table-wrap"><table>
+                <tr><th>種類</th><th>項目</th><th>バージョン</th></tr>
+                ${chosen.map((sk) => `<tr><td>${esc(sk.category)}</td><td>${esc(sk.name)}</td><td>${esc(s.selected[sk.skill_id])}</td></tr>`).join('')}
+            </table></div>
+            <div class="actions">
+                <button type="button" id="back-to-input">入力に戻る</button>
+                <span class="spacer"></span>
+                <button type="button" class="primary" id="save-project">登録</button>
+            </div>`;
+        root.querySelector('#back-to-input').addEventListener('click', () => {
+            project.confirming = false;
+            showMessage('');
+            renderProject();
+        });
+        root.querySelector('#save-project').addEventListener('click', saveProject);
+    }
+
     function renderProject() {
+        if (project.confirming) {
+            renderConfirm();
+            return;
+        }
         const root = document.getElementById('tab-project');
         const list = pages();
         const current = list[project.pageIndex];
+        const isLastPage = project.pageIndex === list.length - 1;
         const hasId = project.state.project_id !== '';
         const options = ['<option value="">（選択してください）</option>']
             .concat(project.ongoing.map((p) => (
@@ -168,9 +202,10 @@ document.addEventListener('DOMContentLoaded', () => {
             <div id="project-page"></div>
             <div class="actions">
                 <button type="button" id="prev-page"${project.pageIndex === 0 ? ' disabled' : ''}>戻る</button>
-                <button type="button" id="next-page"${current === PAGE_CONFIRM ? ' disabled' : ''}>次へ</button>
+                ${isLastPage
+        ? '<button type="button" class="primary" id="next-page">確認へ</button>'
+        : '<button type="button" id="next-page">次へ</button>'}
                 <span class="spacer"></span>
-                ${current === PAGE_CONFIRM ? '<button type="button" class="primary" id="save-project">保存</button>' : ''}
                 ${hasId ? '<button type="button" class="danger" id="delete-project">削除</button>' : ''}
             </div>`;
 
@@ -215,11 +250,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             showMessage('');
-            project.pageIndex = Math.min(list.length - 1, project.pageIndex + 1);
+            if (isLastPage) {
+                // 最後のページからは、案件情報を検証したうえで確認画面へ遷移する。
+                if (!infoIsValid()) {
+                    project.pageIndex = 0;
+                    renderProject();
+                    showMessage('案件名と開始年月を入力してください。', 'error');
+                    return;
+                }
+                project.confirming = true;
+            } else {
+                project.pageIndex += 1;
+            }
             renderProject();
         });
-        const saveButton = root.querySelector('#save-project');
-        if (saveButton) saveButton.addEventListener('click', saveProject);
         const deleteButton = root.querySelector('#delete-project');
         if (deleteButton) deleteButton.addEventListener('click', deleteProject);
     }
@@ -252,22 +296,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        if (page === PAGE_CONFIRM) {
-            const chosen = project.skills.filter((sk) => sk.skill_id in s.selected);
-            body.innerHTML = `
-                <table>
-                    <tr><th>案件名</th><td>${esc(s.name)}</td></tr>
-                    <tr><th>開始年月</th><td>${esc(s.start_year_month)}</td></tr>
-                    <tr><th>終了年月</th><td>${s.end_year_month ? esc(s.end_year_month) : '継続中'}</td></tr>
-                </table>
-                <h2>選択したスキル項目（${chosen.length}件）</h2>
-                <div class="table-wrap"><table>
-                    <tr><th>種類</th><th>項目</th><th>バージョン</th></tr>
-                    ${chosen.map((sk) => `<tr><td>${esc(sk.category)}</td><td>${esc(sk.name)}</td><td>${esc(s.selected[sk.skill_id])}</td></tr>`).join('')}
-                </table></div>`;
-            return;
-        }
-
         const items = project.skills.filter((sk) => sk.category === page);
         body.innerHTML = items.map((sk) => {
             const checked = sk.skill_id in s.selected;
@@ -297,6 +325,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const s = project.state;
         // 保存時は必ず案件情報の必須項目を確認し、未入力なら案件情報ページへ戻す。
         if (!infoIsValid()) {
+            project.confirming = false;
             project.pageIndex = 0;
             renderProject();
             showMessage('案件名と開始年月を入力してください。', 'error');
@@ -311,6 +340,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }));
         if (!saved) return;
         project.state = fromServer(saved);
+        project.confirming = false;
+        project.pageIndex = 0;
         await loadProjectTab(false);
         showMessage('保存しました。');
     }
