@@ -3,24 +3,7 @@ from django.db import IntegrityError, transaction
 from django.db.models import ProtectedError
 from django.test import TestCase
 
-from portfolio.models import Level, Project, ProjectSkill, Skill
-
-
-class LevelInitialDataTests(TestCase):
-    def test_初期値として1から5が登録されている(self):
-        self.assertEqual(
-            list(Level.objects.order_by("level").values_list("level", flat=True)),
-            [1, 2, 3, 4, 5],
-        )
-
-    def test_レベル5のラベル(self):
-        level = Level.objects.get(level=5)
-        self.assertEqual(
-            level.portfolio_label, "スペシャリスト (広範な知識と高い専門性)"
-        )
-        self.assertEqual(
-            level.resume_label, "広範な知識と高い専門性をもって技術選定・標準化ができる"
-        )
+from portfolio.models import Project, ProjectSkill, Skill
 
 
 class ProjectTests(TestCase):
@@ -45,7 +28,6 @@ class ProjectSkillTests(TestCase):
             skill_id="python",
             category="言語",
             name="Python",
-            level=Level.objects.get(level=3),
             sort_order=1,
         )
 
@@ -69,7 +51,6 @@ class ProjectSkillTests(TestCase):
             skill_id="Bad_ID",
             category="言語",
             name="X",
-            level=Level.objects.get(level=1),
             sort_order=1,
         )
         with self.assertRaises(ValidationError):

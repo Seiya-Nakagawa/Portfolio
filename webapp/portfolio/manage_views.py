@@ -11,7 +11,7 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods
 
 from portfolio import export, registry
-from portfolio.models import Certification, Level, Project, SiteInfo, Skill, Work
+from portfolio.models import Certification, Project, SiteInfo, Skill, Work
 from portfolio.services import build_skill_rows, ordered_skills
 
 EXPORT_FILENAME = "skillsheet_output.md"
@@ -59,7 +59,6 @@ def _skill_dict(skill: Skill, years: str = "") -> dict:
         "skill_id": skill.skill_id,
         "category": skill.category,
         "name": skill.name,
-        "level": skill.level_id,
         "remarks": skill.remarks,
         "sort_order": skill.sort_order,
         "years": years,
@@ -140,10 +139,6 @@ def api_bootstrap(request):
     return _json(
         {
             "skills": _skills_with_years(),
-            "levels": [
-                {"level": lv.level, "label": lv.portfolio_label}
-                for lv in Level.objects.all()
-            ],
             "ongoing_projects": [
                 {"project_id": p.project_id, "name": p.name} for p in ongoing
             ],

@@ -16,12 +16,11 @@ from portfolio.models import Certification, Project, ProjectSkill, Skill, Work
 TODAY = date(2026, 9, 25)
 
 
-def _create_skill(skill_id, category, name, level, sort_order, remarks=""):
+def _create_skill(skill_id, category, name, sort_order, remarks=""):
     return Skill.objects.create(
         skill_id=skill_id,
         category=category,
         name=name,
-        level_id=level,
         remarks=remarks,
         sort_order=sort_order,
     )
@@ -30,10 +29,10 @@ def _create_skill(skill_id, category, name, level, sort_order, remarks=""):
 class SkillsApiTests(TestCase):
     def setUp(self):
         # 表示順の検証のため、カテゴリ名の辞書順と sort_order の順が食い違うよう登録する。
-        self.lang_java = _create_skill("java", "言語", "Java", 3, 20)
-        self.lang_py = _create_skill("python", "言語", "Python", 4, 10)
-        self.os_linux = _create_skill("linux", "OS", "Linux", 3, 30)
-        self.unused = _create_skill("cobol", "言語", "COBOL", 1, 40)
+        self.lang_java = _create_skill("java", "言語", "Java", 20)
+        self.lang_py = _create_skill("python", "言語", "Python", 10)
+        self.os_linux = _create_skill("linux", "OS", "Linux", 30)
+        self.unused = _create_skill("cobol", "言語", "COBOL", 40)
         project = Project.objects.create(
             name="案件A", start_year_month="2025-01", end_year_month="2025-12"
         )

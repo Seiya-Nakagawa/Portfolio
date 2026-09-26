@@ -25,23 +25,6 @@ def generate_project_id() -> str:
     return f"{PROJECT_ID_PREFIX}{uuid.uuid4().hex[:PROJECT_ID_HEX_LENGTH]}"
 
 
-class Level(models.Model):
-    """習熟度レベル定義。"""
-
-    level = models.PositiveSmallIntegerField("レベル", primary_key=True)
-    portfolio_label = models.CharField("ポートフォリオ凡例", max_length=100)
-    resume_label = models.CharField("職務経歴書レベル文言", max_length=100)
-
-    class Meta:
-        db_table = "levels"
-        verbose_name = "習熟度レベル"
-        verbose_name_plural = "習熟度レベル"
-        ordering = ["-level"]
-
-    def __str__(self) -> str:
-        return f"{self.level}: {self.portfolio_label}"
-
-
 class Skill(models.Model):
     """スキル項目マスタ。"""
 
@@ -53,13 +36,6 @@ class Skill(models.Model):
     )
     category = models.CharField("種類", max_length=64)
     name = models.CharField("表示名", max_length=128)
-    level = models.ForeignKey(
-        Level,
-        verbose_name="習熟度",
-        on_delete=models.PROTECT,
-        db_column="level",
-        related_name="skills",
-    )
     remarks = models.CharField("補足", max_length=255, blank=True, default="")
     sort_order = models.PositiveIntegerField("表示順")
 

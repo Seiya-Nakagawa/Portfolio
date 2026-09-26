@@ -10,7 +10,6 @@ from portfolio.models import (
     SITE_INFO_ID,
     YEAR_MONTH_VALIDATOR,
     Certification,
-    Level,
     Project,
     ProjectSkill,
     SiteInfo,
@@ -177,10 +176,6 @@ def save_skill(payload: dict, skill_id: str | None = None) -> Skill:
                 raise NotFound("スキル項目が見つかりません。") from None
 
         _apply(skill, payload, ["category", "name", "remarks"])
-        level = _to_int(payload.get("level"), "レベル")
-        if not Level.objects.filter(pk=level).exists():
-            raise ValidationFailed([f"存在しないレベルです: {level}"])
-        skill.level_id = level
         _save_model(skill)
     return skill
 

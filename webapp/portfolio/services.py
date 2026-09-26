@@ -32,7 +32,7 @@ class SkillRow:
 
 def ordered_skills() -> list[Skill]:
     """カテゴリ内は sort_order 順、カテゴリ間は各カテゴリの sort_order 最小値の昇順で返す。"""
-    skills = list(Skill.objects.select_related("level").order_by("sort_order"))
+    skills = list(Skill.objects.order_by("sort_order"))
     category_order: dict[str, int] = {}
     for skill in skills:
         category_order.setdefault(skill.category, skill.sort_order)
