@@ -124,6 +124,8 @@ erDiagram
 設けず、サービス単位の項目のみを管理する。
 AWS のように項目数が多い提供元は、`subcategory` に AWS 公式のサービスカテゴリ（Compute・
 Networking & Content Delivery 等）を設定して区分する。
+AWS のサービスは、他の `category`（コンテナ・データベース等）には登録せず、すべて `category` が AWS の
+スキル項目に集約する。
 
 ### 4.4. `projects`（案件実績）
 
