@@ -177,8 +177,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Stars generation
                 let stars = '';
                 for (let i = 1; i <= 5; i++) {
-                    const color = i <= skill.level ? 'gold' : 'var(--text-muted)';
-                    const iconClass = i <= skill.level ? 'fas' : 'far';
+                    const color = i <= skill.stars ? 'gold' : 'var(--text-muted)';
+                    const iconClass = i <= skill.stars ? 'fas' : 'far';
                     stars += `<i class="${iconClass} fa-star" style="color: ${color}; margin-right: 2px;"></i>`;
                 }
 

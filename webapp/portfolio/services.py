@@ -7,6 +7,7 @@ from portfolio.experience import (
     ProjectPeriod,
     SkillUsage,
     aggregate_skill_experience,
+    calculate_stars,
     format_experience,
 )
 from portfolio.models import Certification, Project, ProjectSkill, Skill, Work
@@ -79,7 +80,7 @@ def build_skills_payload(today: date) -> dict:
                 "name": row.skill.name,
                 "months": row.months,
                 "years": row.years,
-                "level": row.skill.level_id,
+                "stars": calculate_stars(row.months),
             }
             for row in build_skill_rows(today)
         ],

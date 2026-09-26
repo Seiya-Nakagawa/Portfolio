@@ -57,6 +57,18 @@ def expand_months(start_year_month: str, end_year_month: str, today: date) -> se
     return set(range(start, end + 1))
 
 
+# 星の段階の下限ユニーク月数。(下限月数, 星) を星の大きい順に並べる。
+STAR_THRESHOLDS = ((60, 5), (36, 4), (12, 3), (6, 2), (0, 1))
+
+
+def calculate_stars(months: int) -> int:
+    """ユニーク月数から経験年数に基づく星の段階（1〜5）を返す。"""
+    for lower_bound, stars in STAR_THRESHOLDS:
+        if months >= lower_bound:
+            return stars
+    return 1
+
+
 def format_experience(months: int) -> str | None:
     """ユニーク月数を表記に変換する。0 ヶ月の場合は出力対象外として None を返す。"""
     if months <= 0:
