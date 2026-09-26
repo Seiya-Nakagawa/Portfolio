@@ -162,6 +162,18 @@ document.addEventListener('DOMContentLoaded', () => {
         root.querySelector('#save-project').addEventListener('click', saveProject);
     }
 
+    function goToConfirm() {
+        showMessage('');
+        if (!infoIsValid()) {
+            project.pageIndex = 0;
+            renderProject();
+            showMessage('案件名と開始年月を入力してください。', 'error');
+            return;
+        }
+        project.confirming = true;
+        renderProject();
+    }
+
     function renderProject() {
         if (project.confirming) {
             renderConfirm();
@@ -205,7 +217,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <button type="button" id="prev-page"${project.pageIndex === 0 ? ' disabled' : ''}>戻る</button>
                 ${isLastPage
         ? '<button type="button" class="primary" id="next-page">確認へ</button>'
-        : '<button type="button" id="next-page">次へ</button>'}
+        : '<button type="button" id="next-page">次へ</button><button type="button" class="primary" id="confirm-page">確認へ</button>'}
                 <span class="spacer"></span>
                 ${hasId ? '<button type="button" class="danger" id="delete-project">削除</button>' : ''}
             </div>`;
@@ -252,19 +264,15 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             showMessage('');
             if (isLastPage) {
-                // 最後のページからは、案件情報を検証したうえで確認画面へ遷移する。
-                if (!infoIsValid()) {
-                    project.pageIndex = 0;
-                    renderProject();
-                    showMessage('案件名と開始年月を入力してください。', 'error');
-                    return;
-                }
-                project.confirming = true;
-            } else {
-                project.pageIndex += 1;
+                goToConfirm();
+                return;
             }
+            project.pageIndex += 1;
             renderProject();
         });
+        // 最後以外のページからも、案件情報を検証したうえで確認画面へ遷移する。
+        const confirmButton = root.querySelector('#confirm-page');
+        if (confirmButton) confirmButton.addEventListener('click', goToConfirm);
         const deleteButton = root.querySelector('#delete-project');
         if (deleteButton) deleteButton.addEventListener('click', deleteProject);
     }
