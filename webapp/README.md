@@ -28,7 +28,6 @@ infra-oci 基盤の Kubernetes 上にコンテナとして配置し、実績 DB�
 ## 実績 DB
 
 テーブル定義は `portfolio/models.py`、スキーマ変更は `portfolio/migrations/` で管理する。
-`levels`（習熟度 1〜5）の初期値はマイグレーション（`0002_insert_levels`）で投入する。
 
 ## 公開ページ・読み取り専用 API
 
@@ -37,7 +36,7 @@ infra-oci 基盤の Kubernetes 上にコンテナとして配置し、実績 DB�
 | パス | 内容 |
 | ---- | ---- |
 | `/` | ポートフォリオサイトのページ本体 |
-| `/api/skills` | スキルデータ（案件実績から集計した経験年数・習熟度） |
+| `/api/skills` | スキルデータ（案件実績から集計した経験年数） |
 | `/api/certifications` | 資格データ |
 | `/api/works` | 実績データ |
 | `/api/site` | サイト情報データ（Hero・About・Contact・フッター） |

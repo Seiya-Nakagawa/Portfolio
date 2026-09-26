@@ -11,13 +11,11 @@ from portfolio.models import Certification, Project, ProjectSkill, Skill, Work
 TODAY = date(2026, 9, 25)
 
 
-def _skill(skill_id, category, name, level, sort_order, remarks=""):
+def _skill(skill_id, category, name, sort_order):
     return Skill.objects.create(
         skill_id=skill_id,
         category=category,
         name=name,
-        level_id=level,
-        remarks=remarks,
         sort_order=sort_order,
     )
 
@@ -84,8 +82,8 @@ class AuthenticationTests(TestCase):
 class ProjectApiTests(LoggedInTestCase):
     def setUp(self):
         super().setUp()
-        self.java = _skill("java", "言語", "Java", 3, 10)
-        self.python = _skill("python", "言語", "Python", 4, 20)
+        self.java = _skill("java", "言語", "Java", 10)
+        self.python = _skill("python", "言語", "Python", 20)
 
     def _payload(self, **overrides):
         payload = {
@@ -187,7 +185,6 @@ class ProjectApiTests(LoggedInTestCase):
             [p["name"] for p in body["ongoing_projects"]], ["継続中・新", "継続中・古"]
         )
         self.assertEqual(body["initial_project"]["name"], "継続中・新")
-        self.assertEqual([lv["level"] for lv in body["levels"]], [5, 4, 3, 2, 1])
 
     def test_終了済み案件は終了年月の降順で返す(self):
         Project.objects.create(
@@ -213,8 +210,6 @@ class SkillApiTests(LoggedInTestCase):
             "skill_id": "ec2",
             "category": "AWS",
             "name": "EC2",
-            "level": 4,
-            "remarks": "",
             "sort_order": 10,
         }
         payload.update(overrides)
@@ -227,21 +222,18 @@ class SkillApiTests(LoggedInTestCase):
         response = self.call(
             "put",
             "manage-api-skill",
-            self._payload(name="EC2 (変更)", skill_id="ignored", level=5),
+            self._payload(name="EC2 (変更)", skill_id="ignored"),
             skill_id="ec2",
         )
         self.assertEqual(response.status_code, 200)
         skill = Skill.objects.get()
-        self.assertEqual(
-            (skill.skill_id, skill.name, skill.level_id), ("ec2", "EC2 (変更)", 5)
-        )
+        self.assertEqual((skill.skill_id, skill.name), ("ec2", "EC2 (変更)"))
 
     def test_入力値の検証エラー(self):
-        _skill("ec2", "AWS", "EC2", 4, 10)
+        _skill("ec2", "AWS", "EC2", 10)
         cases = {
             "skill_id の形式": self._payload(skill_id="EC 2"),
             "skill_id の重複": self._payload(),
-            "存在しないレベル": self._payload(skill_id="vpc", level=9),
             "種類なし": self._payload(skill_id="vpc", category=""),
             "表示順が整数でない": self._payload(skill_id="vpc", sort_order="a"),
         }
@@ -252,14 +244,14 @@ class SkillApiTests(LoggedInTestCase):
         self.assertEqual(Skill.objects.count(), 1)
 
     def test_使用実績のない項目は削除できる(self):
-        _skill("ec2", "AWS", "EC2", 4, 10)
+        _skill("ec2", "AWS", "EC2", 10)
         self.assertEqual(
             self.call("delete", "manage-api-skill", skill_id="ec2").status_code, 200
         )
         self.assertEqual(Skill.objects.count(), 0)
 
     def test_使用実績のある項目は削除できない(self):
-        skill = _skill("ec2", "AWS", "EC2", 4, 10)
+        skill = _skill("ec2", "AWS", "EC2", 10)
         project = Project.objects.create(name="A", start_year_month="2025-01")
         ProjectSkill.objects.create(project=project, skill=skill)
         response = self.call("delete", "manage-api-skill", skill_id="ec2")
@@ -267,8 +259,8 @@ class SkillApiTests(LoggedInTestCase):
         self.assertEqual(Skill.objects.count(), 1)
 
     def test_一覧に経験年数を含む(self):
-        skill = _skill("ec2", "AWS", "EC2", 4, 10)
-        _skill("vpc", "AWS", "VPC", 4, 20)
+        skill = _skill("ec2", "AWS", "EC2", 10)
+        _skill("vpc", "AWS", "VPC", 20)
         project = Project.objects.create(
             name="A", start_year_month="2025-01", end_year_month="2025-12"
         )
@@ -362,9 +354,9 @@ class CertificationAndWorkApiTests(LoggedInTestCase):
 class ExportTests(LoggedInTestCase):
     def setUp(self):
         super().setUp()
-        java = _skill("java", "言語", "Java", 3, 10, remarks="保守中心")
-        python = _skill("python", "言語", "Python", 5, 20)
-        _skill("cobol", "言語", "COBOL", 1, 30)
+        java = _skill("java", "言語", "Java", 10)
+        python = _skill("python", "言語", "Python", 20)
+        _skill("cobol", "言語", "COBOL", 30)
         old = Project.objects.create(
             name="旧案件", start_year_month="2023-07", end_year_month="2025-03"
         )
@@ -382,9 +374,9 @@ class ExportTests(LoggedInTestCase):
         self.assertEqual(
             table.splitlines()[:3],
             [
-                "| 種類 | 項目 | 開始年 | 使用期間 | レベル |",
-                "| --- | --- | --- | --- | --- |",
-                "| 言語 | Java | 2023年 | 1年9ヶ月 | 一人称で設計・開発ができる（保守中心） |",
+                "| 種類 | 項目 | 開始年 | 使用期間 |",
+                "| --- | --- | --- | --- |",
+                "| 言語 | Java | 2023年 | 1年9ヶ月 |",
             ],
         )
         self.assertEqual(
@@ -401,7 +393,6 @@ class ExportTests(LoggedInTestCase):
     def test_警告に出力対象外の件数を含む(self):
         warnings = self._get("manage-api-export").json()["warnings"]
         self.assertEqual(warnings["unused_skill_count"], 1)
-        self.assertEqual(warnings["invalid_level_skills"], [])
 
     def test_ダウンロード(self):
         response = self._get("manage-export-download")

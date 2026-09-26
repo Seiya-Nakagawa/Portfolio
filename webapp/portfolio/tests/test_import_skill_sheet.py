@@ -8,7 +8,7 @@ from django.test import TestCase
 
 from portfolio.models import Project, ProjectSkill, Skill
 
-SKILLS = "skill_id,category,name,level,remarks,sort_order\nec2,AWS,EC2,5,,1\nlinux,OS,Linux,3,,1\n"
+SKILLS = "skill_id,category,name,sort_order\nec2,AWS,EC2,1\nlinux,OS,Linux,1\n"
 PROJECTS = (
     "project_id,name,sort_order,start_year_month,end_year_month\n"
     "proj-a,案件A,1,2025-01,2025-06\n"
@@ -45,10 +45,10 @@ class ImportSkillSheetTests(TestCase):
     def test_表示順はCSVの行順で通し番号になる(self):
         # シートの sort_order はカテゴリごとに 1 から始まるため、値は使わず行順を引き継ぐ。
         skills = (
-            "skill_id,category,name,level,remarks,sort_order\n"
-            "linux,OS,Linux,3,,1\n"
-            "ec2,AWS,EC2,5,,1\n"
-            "s3,AWS,S3,5,,2\n"
+            "skill_id,category,name,sort_order\n"
+            "linux,OS,Linux,1\n"
+            "ec2,AWS,EC2,1\n"
+            "s3,AWS,S3,2\n"
         )
         self._run(
             self._dir(
@@ -65,18 +65,13 @@ class ImportSkillSheetTests(TestCase):
         )
 
     def test_既存データがあれば何も変更しない(self):
-        Skill.objects.create(
-            skill_id="x", category="c", name="n", level_id=1, sort_order=1
-        )
+        Skill.objects.create(skill_id="x", category="c", name="n", sort_order=1)
         self.assertIn("既存データがある", self._run(self._dir()))
         self.assertEqual(Skill.objects.count(), 1)
         self.assertEqual(Project.objects.count(), 0)
 
     def test_不正な入力はエラーで何も登録しない(self):
         cases = {
-            "存在しないレベル": {
-                "skills": SKILLS.replace("ec2,AWS,EC2,5", "ec2,AWS,EC2,9")
-            },
             "skill_id の形式": {"skills": SKILLS.replace("ec2,", "EC 2,", 1)},
             "年月の形式": {"projects": PROJECTS.replace("2025-01", "2025/01")},
             "存在しない案件": {"usages": USAGES + "nothing,ec2,\n"},

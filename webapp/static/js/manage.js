@@ -67,7 +67,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const project = {
         state: null, // { project_id, name, start_year_month, end_year_month, selected: {skill_id: version} }
         skills: [],
-        levels: [],
         ongoing: [],
         finished: [],
         pageIndex: 0,
@@ -104,12 +103,11 @@ document.addEventListener('DOMContentLoaded', () => {
         return project.state.name.trim() !== '' && project.state.start_year_month !== '';
     }
 
-    // スキル項目・レベル・継続中案件を取得する。失敗時は null を返し、メッセージは表示しない。
+    // スキル項目・継続中案件を取得する。失敗時は null を返し、メッセージは表示しない。
     async function refreshMaster() {
         try {
             const data = await api('GET', urls.bootstrap);
             project.skills = data.skills;
-            project.levels = data.levels;
             project.ongoing = data.ongoing_projects;
             project.finished = data.finished_projects;
             return data;
@@ -502,8 +500,6 @@ document.addEventListener('DOMContentLoaded', () => {
         columns: [
             { label: '種類', value: (r) => r.category },
             { label: '項目', value: (r) => r.name },
-            { label: 'レベル', value: (r) => r.level },
-            { label: '補足', value: (r) => r.remarks },
             { label: '経験年数', value: (r) => r.years },
             { label: '表示順', value: (r) => r.sort_order },
         ],
@@ -511,8 +507,6 @@ document.addEventListener('DOMContentLoaded', () => {
             { name: 'skill_id', label: 'skill_id（半角英小文字・数字・ハイフン。登録後は変更不可）', readonlyOnEdit: true },
             { name: 'category', label: '種類', datalist: () => categories() },
             { name: 'name', label: '表示名' },
-            { name: 'level', label: 'レベル', type: 'select', options: () => project.levels.map((l) => ({ value: l.level, label: `${l.level}: ${l.label}` })) },
-            { name: 'remarks', label: '補足（職務経歴書のレベル列に付記）' },
             { name: 'sort_order', label: '表示順', type: 'number' },
         ],
         afterSave: () => {
@@ -629,9 +623,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (data.warnings.unused_skill_count > 0) {
             warnings.push(`使用実績がなく出力対象外のスキル項目: ${data.warnings.unused_skill_count}件`);
         }
-        if (data.warnings.invalid_level_skills.length > 0) {
-            warnings.push(`レベルが未定義のスキル項目: ${data.warnings.invalid_level_skills.join('、')}`);
-        }
         root.innerHTML = `
             ${warnings.map((w) => `<p class="message warning">${esc(w)}</p>`).join('')}
             <div class="actions">
@@ -656,7 +647,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const tabLoaders = {
         project: () => loadProjectTab(project.state === null),
         skills: async () => {
-            if (project.levels.length === 0) await refreshMaster();
+            if (project.skills.length === 0) await refreshMaster();
             await skillsPanel.load();
         },
         certworks: async () => {

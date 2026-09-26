@@ -10,7 +10,7 @@ from django.core.exceptions import ValidationError
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
-from portfolio.models import Level, Project, ProjectSkill, Skill
+from portfolio.models import Project, ProjectSkill, Skill
 
 SKILLS_FILE = "skills.csv"
 PROJECTS_FILE = "projects.csv"
@@ -51,7 +51,7 @@ class Command(BaseCommand):
         directory: Path = options["directory"]
         skill_rows = read_rows(
             directory / SKILLS_FILE,
-            ["skill_id", "category", "name", "level"],
+            ["skill_id", "category", "name"],
         )
         project_rows = read_rows(
             directory / PROJECTS_FILE,
@@ -65,27 +65,16 @@ class Command(BaseCommand):
             self.stdout.write("既存データがあるため移行しませんでした。")
             return
 
-        levels = set(Level.objects.values_list("level", flat=True))
         skills = []
         # 表示順は CSV の行順で 1 から通し番号を振る。シートの sort_order はカテゴリごとに
         # 振り直されており、カテゴリ間の並び（各カテゴリの sort_order 最小値の昇順）を
         # 表現できないため、行の並びをカテゴリ順・カテゴリ内の順としてそのまま引き継ぐ。
         for sort_order, row in enumerate(skill_rows, start=1):
             label = f"skills.csv skill_id={row['skill_id']}"
-            try:
-                level = int(row["level"])
-            except ValueError:
-                raise CommandError(
-                    f"{label}: level は整数で指定してください。"
-                ) from None
-            if level not in levels:
-                raise CommandError(f"{label}: 存在しないレベルです: {level}")
             skill = Skill(
                 skill_id=row["skill_id"],
                 category=row["category"],
                 name=row["name"],
-                level_id=level,
-                remarks=row.get("remarks", ""),
                 sort_order=sort_order,
             )
             full_clean_or_raise(skill, label)
