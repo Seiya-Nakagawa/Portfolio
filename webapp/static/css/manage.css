@@ -93,6 +93,12 @@ h2 {
   font-weight: 700;
 }
 
+.sub-section h3 {
+  margin: 1rem 0 0.25rem;
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+
 .tabs button[aria-selected='true'],
 .page-tabs button[aria-selected='true'] {
   border-bottom-color: var(--panel);
