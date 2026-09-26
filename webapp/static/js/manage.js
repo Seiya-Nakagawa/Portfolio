@@ -369,6 +369,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function crudPanel(root, config) {
         let rows = [];
         let editing = null; // 編集中の行。追加時は null
+        let inEditScreen = false; // separateEdit 指定時に、一覧ではなく編集画面を表示中か
+        let filterValue = ''; // filter 指定時に、絞り込み中の値（空は絞り込みなし）
 
         function fieldValue(row, field) {
             const value = row ? row[field.name] : '';
@@ -392,31 +394,59 @@ document.addEventListener('DOMContentLoaded', () => {
             return `<label>${esc(field.label)}<input type="${field.type || 'text'}" name="${field.name}" value="${value}"${list}${readonly} />${dl}</label>`;
         }
 
-        function render() {
-            root.innerHTML = `
-                <h2>${esc(config.title)}</h2>
-                <div class="table-wrap"><table>
-                    <tr>${config.columns.map((c) => `<th>${esc(c.label)}</th>`).join('')}<th></th></tr>
-                    ${rows.map((row, i) => `<tr>${config.columns.map((c) => `<td>${esc(c.value(row))}</td>`).join('')}
-                        <td><button type="button" data-edit="${i}">編集</button> <button type="button" class="danger" data-delete="${i}">削除</button></td></tr>`).join('')}
-                </table></div>
+        function renderForm() {
+            return `
                 <h2>${editing ? '変更' : '追加'}</h2>
                 <form>
                     ${config.fields.map((f) => renderField(f, editing)).join('')}
                     <div class="actions">
                         <button type="submit" class="primary">${editing ? '更新' : '追加'}</button>
-                        ${editing ? '<button type="button" data-cancel>キャンセル</button>' : ''}
+                        ${editing || config.separateEdit ? '<button type="button" data-cancel>キャンセル</button>' : ''}
                     </div>
                 </form>`;
+        }
+
+        function renderFilter() {
+            if (!config.filter) return '';
+            const options = ['', ...config.filter.values()]
+                .map((v) => `<option value="${esc(v)}"${v === filterValue ? ' selected' : ''}>${esc(v || 'すべて')}</option>`).join('');
+            return `<label class="list-filter">${esc(config.filter.label)}<select data-filter>${options}</select></label>`;
+        }
+
+        function render() {
+            const showEditScreen = config.separateEdit && inEditScreen;
+            if (showEditScreen) {
+                root.innerHTML = renderForm();
+            } else {
+                const visible = config.filter && filterValue
+                    ? rows.filter((r) => config.filter.value(r) === filterValue)
+                    : rows;
+                root.innerHTML = `
+                    <h2>${esc(config.title)}</h2>
+                    ${renderFilter()}
+                    ${config.separateEdit ? '<div class="actions"><button type="button" class="primary" data-add>追加</button></div>' : ''}
+                    <div class="table-wrap"><table>
+                        <tr>${config.columns.map((c) => `<th>${esc(c.label)}</th>`).join('')}<th></th></tr>
+                        ${visible.map((row) => `<tr>${config.columns.map((c) => `<td>${esc(c.value(row))}</td>`).join('')}
+                            <td><button type="button" data-edit="${rows.indexOf(row)}">編集</button> <button type="button" class="danger" data-delete="${rows.indexOf(row)}">削除</button></td></tr>`).join('')}
+                    </table></div>
+                    ${config.separateEdit ? '' : renderForm()}`;
+            }
 
             root.querySelectorAll('[data-edit]').forEach((b) => b.addEventListener('click', () => {
                 editing = rows[Number(b.dataset.edit)];
+                inEditScreen = true;
                 render();
             }));
             root.querySelectorAll('[data-delete]').forEach((b) => b.addEventListener('click', () => remove(rows[Number(b.dataset.delete)])));
+            const add = root.querySelector('[data-add]');
+            if (add) add.addEventListener('click', () => { editing = null; inEditScreen = true; render(); });
+            const filter = root.querySelector('[data-filter]');
+            if (filter) filter.addEventListener('change', () => { filterValue = filter.value; render(); });
             const cancel = root.querySelector('[data-cancel]');
-            if (cancel) cancel.addEventListener('click', () => { editing = null; render(); });
-            root.querySelector('form').addEventListener('submit', submit);
+            if (cancel) cancel.addEventListener('click', () => { editing = null; inEditScreen = false; render(); });
+            const form = root.querySelector('form');
+            if (form) form.addEventListener('submit', submit);
         }
 
         async function submit(event) {
@@ -432,6 +462,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (result) {
                 rows = result;
                 editing = null;
+                inEditScreen = false;
                 render();
                 showMessage(config.afterSave ? config.afterSave() : '保存しました。');
             }
@@ -463,6 +494,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const skillsPanel = crudPanel(document.getElementById('tab-skills'), {
         key: 'skill',
         title: 'スキル項目',
+        separateEdit: true,
+        filter: { label: '種類', values: () => categories(), value: (r) => r.category },
         url: urls.skills,
         idKey: 'skill_id',
         label: (row) => row.name,

@@ -241,3 +241,9 @@ pre {
   color: var(--muted, inherit);
   margin-bottom: 0.5rem;
 }
+
+.list-filter {
+    display: block;
+    max-width: 20rem;
+    margin-bottom: 1rem;
+}
