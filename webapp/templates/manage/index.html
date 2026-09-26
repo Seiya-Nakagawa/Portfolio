@@ -11,6 +11,7 @@
     data-api-bootstrap="{% url 'manage-api-bootstrap' %}"
     data-api-projects="{% url 'manage-api-projects' %}"
     data-api-skills="{% url 'manage-api-skills' %}"
+    data-api-skill-order="{% url 'manage-api-skill-order' %}"
     data-api-certifications="{% url 'manage-api-certifications' %}"
     data-api-works="{% url 'manage-api-works' %}"
     data-api-site="{% url 'manage-api-site' %}"
@@ -28,7 +29,9 @@
     <nav class="tabs" id="main-tabs" role="tablist">
       <button type="button" role="tab" data-tab="project">案件登録</button>
       <button type="button" role="tab" data-tab="skills">スキル項目管理</button>
-      <button type="button" role="tab" data-tab="certworks">資格・実績・サイト情報管理</button>
+      <button type="button" role="tab" data-tab="certifications">資格</button>
+      <button type="button" role="tab" data-tab="works">実績</button>
+      <button type="button" role="tab" data-tab="site">サイト情報</button>
       <button type="button" role="tab" data-tab="export">職務経歴書エクスポート</button>
     </nav>
 
@@ -37,7 +40,9 @@
     <main>
       <section id="tab-project" hidden></section>
       <section id="tab-skills" hidden></section>
-      <section id="tab-certworks" hidden></section>
+      <section id="tab-certifications" hidden></section>
+      <section id="tab-works" hidden></section>
+      <section id="tab-site" hidden></section>
       <section id="tab-export" hidden></section>
     </main>
 

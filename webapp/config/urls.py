@@ -31,6 +31,11 @@ urlpatterns = [
     ),
     path("manage/api/skills", manage_views.api_skills, name="manage-api-skills"),
     path(
+        "manage/api/skills/order",
+        manage_views.api_skill_order,
+        name="manage-api-skill-order",
+    ),
+    path(
         "manage/api/skills/<str:skill_id>",
         manage_views.api_skill,
         name="manage-api-skill",

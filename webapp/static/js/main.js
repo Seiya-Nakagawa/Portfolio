@@ -302,6 +302,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <div class="work-content">
                     <h3>${work.title}</h3>
+                    ${work.date ? `<div style="font-size: 0.85rem; color: var(--text-muted);">${work.date}</div>` : ''}
                     <p style="font-size: 0.9rem; color: var(--text-muted); margin: 0.5rem 0;">${desc}</p>
                     <div class="work-tags">
                         ${work.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}

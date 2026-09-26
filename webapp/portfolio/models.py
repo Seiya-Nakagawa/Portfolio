@@ -123,16 +123,15 @@ class Certification(models.Model):
 
     certification_id = models.AutoField("資格ID", primary_key=True)
     name = models.CharField("資格名", max_length=255)
-    # 表示用の文言（年月の粒度。例: Jul 2024）。
-    acquired_on = models.CharField("取得日", max_length=32)
+    # 年月の粒度で管理し、その月の 1 日を保持する。表示（YYYY年MM月）は出力時に整形する。
+    acquired_on = models.DateField("取得年月")
     org = models.CharField("発行団体", max_length=255)
-    sort_order = models.PositiveIntegerField("表示順")
 
     class Meta:
         db_table = "certifications"
         verbose_name = "資格"
         verbose_name_plural = "資格"
-        ordering = ["sort_order"]
+        ordering = ["-acquired_on", "-certification_id"]
 
     def __str__(self) -> str:
         return self.name
@@ -150,13 +149,14 @@ class Work(models.Model):
     thumbnail = models.CharField("サムネイル", max_length=255, blank=True, default="")
     github_url = models.URLField("GitHub URL", max_length=255, blank=True, default="")
     live_url = models.URLField("公開 URL", max_length=255, blank=True, default="")
-    sort_order = models.PositiveIntegerField("表示順")
+    # 年月の粒度で管理し、その月の 1 日を保持する。日付導入前の登録分は未設定（null）を許容する。
+    achieved_on = models.DateField("実績年月", null=True)
 
     class Meta:
         db_table = "works"
         verbose_name = "実績"
         verbose_name_plural = "実績"
-        ordering = ["sort_order"]
+        ordering = [models.F("achieved_on").desc(nulls_last=True), "-work_id"]
 
     def __str__(self) -> str:
         return self.title

@@ -3,6 +3,8 @@
 from dataclasses import dataclass
 from datetime import date
 
+from django.db.models import F
+
 from portfolio.experience import (
     ProjectPeriod,
     SkillUsage,
@@ -58,6 +60,23 @@ def ordered_skills() -> list[Skill]:
     )
 
 
+def format_year_month(value: date) -> str:
+    """年月の表示形式（YYYY年MM月）に整形する。"""
+    return f"{value.year}年{value.month:02d}月"
+
+
+def ordered_certifications() -> list[Certification]:
+    """取得年月の新しい順（同じ取得年月は登録の新しい順）で返す。"""
+    return list(Certification.objects.order_by("-acquired_on", "-certification_id"))
+
+
+def ordered_works() -> list[Work]:
+    """実績年月の新しい順（未設定は末尾。同じ年月は登録の新しい順）で返す。"""
+    return list(
+        Work.objects.order_by(F("achieved_on").desc(nulls_last=True), "-work_id")
+    )
+
+
 def build_skill_rows(today: date) -> list[SkillRow]:
     """使用実績のあるスキル項目を表示順に集計して返す。"""
     projects = [
@@ -107,21 +126,23 @@ def build_skills_payload(today: date) -> dict:
 
 def build_certifications_payload() -> list[dict]:
     return [
-        {"name": c.name, "date": c.acquired_on, "org": c.org}
-        for c in Certification.objects.order_by("sort_order", "certification_id")
+        {"name": c.name, "date": format_year_month(c.acquired_on), "org": c.org}
+        for c in ordered_certifications()
     ]
 
 
 def build_works_payload() -> list[dict]:
     """実績 API のレスポンス。未設定の任意項目（サムネイル・リンク）はキーごと省略する。"""
     payload = []
-    for work in Work.objects.order_by("sort_order", "work_id"):
+    for work in ordered_works():
         item = {
             "title": work.title,
             "desc_ja": work.desc_ja,
             "desc_en": work.desc_en,
             "tags": work.tags,
         }
+        if work.achieved_on:
+            item["date"] = format_year_month(work.achieved_on)
         for key in ("thumbnail", "github_url", "live_url"):
             value = getattr(work, key)
             if value:

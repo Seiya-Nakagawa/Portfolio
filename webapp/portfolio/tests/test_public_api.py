@@ -75,43 +75,38 @@ class SkillsApiTests(TestCase):
 
 
 class CertificationsApiTests(TestCase):
-    def test_sort_order順でキーはname_date_org(self):
-        Certification.objects.create(
-            name="B", acquired_on="Jul 2024", org="X", sort_order=2
-        )
-        Certification.objects.create(
-            name="A", acquired_on="Sep 2020", org="Y", sort_order=1
-        )
+    def test_取得日の新しい順でキーはname_date_org(self):
+        Certification.objects.create(name="A", acquired_on=date(2020, 9, 1), org="Y")
+        Certification.objects.create(name="B", acquired_on=date(2024, 7, 1), org="X")
         response = self.client.get(reverse("api-certifications"))
         self.assertEqual(
             response.json(),
             [
-                {"name": "A", "date": "Sep 2020", "org": "Y"},
-                {"name": "B", "date": "Jul 2024", "org": "X"},
+                {"name": "B", "date": "2024年07月", "org": "X"},
+                {"name": "A", "date": "2020年09月", "org": "Y"},
             ],
         )
 
 
 class WorksApiTests(TestCase):
-    def test_sort_order順で未設定の任意項目は省略する(self):
-        Work.objects.create(title="後", desc_ja="d2", sort_order=2)
+    def test_登録の新しい順で未設定の任意項目は省略する(self):
+        Work.objects.create(title="先", desc_ja="d1")
         Work.objects.create(
-            title="先",
-            desc_ja="d1",
-            desc_en="e1",
+            title="後",
+            desc_ja="d2",
+            desc_en="e2",
             tags=["Python"],
             thumbnail="img/a.png",
             github_url="https://github.com/x/y",
-            sort_order=1,
         )
         body = self.client.get(reverse("api-works")).json()
-        self.assertEqual([w["title"] for w in body], ["先", "後"])
+        self.assertEqual([w["title"] for w in body], ["後", "先"])
         self.assertEqual(
             body[0],
             {
-                "title": "先",
-                "desc_ja": "d1",
-                "desc_en": "e1",
+                "title": "後",
+                "desc_ja": "d2",
+                "desc_en": "e2",
                 "tags": ["Python"],
                 "thumbnail": "img/a.png",
                 "github_url": "https://github.com/x/y",
@@ -137,7 +132,7 @@ class ImportPortfolioDataTests(TestCase):
         self.addCleanup(tmp.cleanup)
         path = Path(tmp.name)
         (path / "certifications.json").write_text(
-            json.dumps([{"name": "A", "date": "Jul 2024", "org": "X"}]),
+            json.dumps([{"name": "A", "date": "2024-07", "org": "X"}]),
             encoding="utf-8",
         )
         (path / "works.json").write_text(
@@ -155,7 +150,7 @@ class ImportPortfolioDataTests(TestCase):
         seed = self._seed_dir()
         call_command("import_portfolio_data", seed_dir=seed, stdout=StringIO())
         call_command("import_portfolio_data", seed_dir=seed, stdout=StringIO())
-        self.assertEqual(Certification.objects.get().acquired_on, "Jul 2024")
+        self.assertEqual(Certification.objects.get().acquired_on, date(2024, 7, 1))
         self.assertEqual(Work.objects.get().tags, ["a"])
 
     def test_同梱の投入元を読み込める(self):

@@ -3,6 +3,8 @@
 書き込みはトランザクション内で対象行をロックし、複数タブからの同時操作による不整合を防ぐ。
 """
 
+from datetime import date
+
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
@@ -16,6 +18,7 @@ from portfolio.models import (
     Skill,
     Work,
 )
+from portfolio.services import ordered_skills
 
 MAX_PROJECT_NAME_LENGTH = 255
 MAX_VERSION_LENGTH = 64
@@ -155,10 +158,64 @@ def _save_model(instance) -> None:
     instance.save()
 
 
+def _year_month_to_date(payload: dict, key: str, label: str) -> date:
+    """画面の年月（YYYY-MM）を、その月の 1 日の日付に変換する。"""
+    value = str(payload.get(key) or "").strip()
+    if not value:
+        raise ValidationFailed([f"{label}を入力してください。"])
+    try:
+        YEAR_MONTH_VALIDATOR(value)
+    except ValidationError:
+        raise ValidationFailed(
+            [f"{label}は YYYY-MM 形式で入力してください。"]
+        ) from None
+    return date(int(value[:4]), int(value[5:7]), 1)
+
+
 def _apply(instance, payload: dict, text_fields: list[str]) -> None:
     for name in text_fields:
         setattr(instance, name, str(payload.get(name) or "").strip())
-    instance.sort_order = _to_int(payload.get("sort_order"), "表示順")
+
+
+# 採番し直したスキル項目の表示順の間隔。
+SKILL_SORT_ORDER_STEP = 10
+
+
+def resequence_skills(category_order: list[str] | None = None) -> None:
+    """スキル項目の表示順（sort_order）を、種類の並び順と種類内の昇順に従って採番し直す。
+
+    種類間は category_order（未指定・未掲載の種類は現在の並び順）に従い、種類内は
+    サブカテゴリ（未設定は末尾） ＞ 表示名の昇順とする。
+    """
+    skills = ordered_skills()
+    categories = list(dict.fromkeys(skill.category for skill in skills))
+    requested = [c for c in (category_order or []) if c in categories]
+    order = requested + [c for c in categories if c not in requested]
+    rank = {category: index for index, category in enumerate(order)}
+    skills.sort(
+        key=lambda s: (
+            rank[s.category],
+            s.subcategory == "",
+            s.subcategory.casefold(),
+            s.name.casefold(),
+            s.skill_id,
+        )
+    )
+    for index, skill in enumerate(skills, start=1):
+        skill.sort_order = index * SKILL_SORT_ORDER_STEP
+    Skill.objects.bulk_update(skills, ["sort_order"])
+
+
+def reorder_skill_categories(payload: dict) -> None:
+    """種類単位の並び順を保存する。"""
+    categories = payload.get("categories")
+    if not isinstance(categories, list) or not all(
+        isinstance(c, str) for c in categories
+    ):
+        raise ValidationFailed(["種類の並び順の形式が不正です。"])
+    with transaction.atomic():
+        list(Skill.objects.select_for_update().values_list("pk", flat=True))
+        resequence_skills(categories)
 
 
 def save_skill(payload: dict, skill_id: str | None = None) -> Skill:
@@ -175,9 +232,15 @@ def save_skill(payload: dict, skill_id: str | None = None) -> Skill:
             except Skill.DoesNotExist:
                 raise NotFound("スキル項目が見つかりません。") from None
 
+        previous_category = skill.category
         _apply(skill, payload, ["category", "subcategory", "name"])
+        # 新規、または種類が変わった項目は末尾に置き、採番し直しで種類内の並びへ収める。
+        if skill_id is None or skill.category != previous_category:
+            last = Skill.objects.order_by("-sort_order").first()
+            skill.sort_order = (last.sort_order if last else 0) + SKILL_SORT_ORDER_STEP
         _save_model(skill)
-    return skill
+        resequence_skills()
+    return Skill.objects.get(pk=skill.pk)
 
 
 def delete_skill(skill_id: str) -> None:
@@ -190,6 +253,7 @@ def delete_skill(skill_id: str) -> None:
         if skill.project_skills.exists():
             raise ValidationFailed(["使用実績が紐づくスキル項目は削除できません。"])
         skill.delete()
+        resequence_skills()
 
 
 def save_certification(
@@ -205,7 +269,10 @@ def save_certification(
                 )
             except Certification.DoesNotExist:
                 raise NotFound("資格が見つかりません。") from None
-        _apply(certification, payload, ["name", "acquired_on", "org"])
+        _apply(certification, payload, ["name", "org"])
+        certification.acquired_on = _year_month_to_date(
+            payload, "acquired_on", "取得年月"
+        )
         _save_model(certification)
     return certification
 
@@ -239,6 +306,7 @@ def save_work(payload: dict, work_id: int | None = None) -> Work:
             payload,
             ["title", "desc_ja", "desc_en", "thumbnail", "github_url", "live_url"],
         )
+        work.achieved_on = _year_month_to_date(payload, "achieved_on", "実績年月")
         work.tags = _clean_tags(payload.get("tags"))
         _save_model(work)
     return work

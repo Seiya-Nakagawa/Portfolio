@@ -275,3 +275,25 @@ pre {
     max-width: 20rem;
     margin-bottom: 1rem;
 }
+
+/* 確認画面で、複数行の入力内容（自己紹介文など）の改行を保持する。 */
+.pre-line {
+  white-space: pre-line;
+}
+
+.category-order {
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.category-order li {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+
+.category-order li button {
+  padding: 0.125rem 0.5rem;
+}
