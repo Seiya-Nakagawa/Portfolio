@@ -75,7 +75,6 @@ class Command(BaseCommand):
                 skill_id=row["skill_id"],
                 category=row["category"],
                 name=row["name"],
-                remarks=row.get("remarks", ""),
                 sort_order=sort_order,
             )
             full_clean_or_raise(skill, label)

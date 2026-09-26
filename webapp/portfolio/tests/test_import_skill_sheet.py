@@ -8,9 +8,7 @@ from django.test import TestCase
 
 from portfolio.models import Project, ProjectSkill, Skill
 
-SKILLS = (
-    "skill_id,category,name,remarks,sort_order\nec2,AWS,EC2,,1\nlinux,OS,Linux,,1\n"
-)
+SKILLS = "skill_id,category,name,sort_order\nec2,AWS,EC2,1\nlinux,OS,Linux,1\n"
 PROJECTS = (
     "project_id,name,sort_order,start_year_month,end_year_month\n"
     "proj-a,案件A,1,2025-01,2025-06\n"
@@ -47,10 +45,10 @@ class ImportSkillSheetTests(TestCase):
     def test_表示順はCSVの行順で通し番号になる(self):
         # シートの sort_order はカテゴリごとに 1 から始まるため、値は使わず行順を引き継ぐ。
         skills = (
-            "skill_id,category,name,remarks,sort_order\n"
-            "linux,OS,Linux,,1\n"
-            "ec2,AWS,EC2,,1\n"
-            "s3,AWS,S3,,2\n"
+            "skill_id,category,name,sort_order\n"
+            "linux,OS,Linux,1\n"
+            "ec2,AWS,EC2,1\n"
+            "s3,AWS,S3,2\n"
         )
         self._run(
             self._dir(

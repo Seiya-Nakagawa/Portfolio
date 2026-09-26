@@ -175,7 +175,7 @@ def save_skill(payload: dict, skill_id: str | None = None) -> Skill:
             except Skill.DoesNotExist:
                 raise NotFound("スキル項目が見つかりません。") from None
 
-        _apply(skill, payload, ["category", "name", "remarks"])
+        _apply(skill, payload, ["category", "name"])
         _save_model(skill)
     return skill
 

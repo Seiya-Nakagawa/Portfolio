@@ -8,5 +8,6 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.RemoveField(model_name="skill", name="level"),
+        migrations.RemoveField(model_name="skill", name="remarks"),
         migrations.DeleteModel(name="Level"),
     ]

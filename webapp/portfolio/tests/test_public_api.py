@@ -16,12 +16,11 @@ from portfolio.models import Certification, Project, ProjectSkill, Skill, Work
 TODAY = date(2026, 9, 25)
 
 
-def _create_skill(skill_id, category, name, sort_order, remarks=""):
+def _create_skill(skill_id, category, name, sort_order):
     return Skill.objects.create(
         skill_id=skill_id,
         category=category,
         name=name,
-        remarks=remarks,
         sort_order=sort_order,
     )
 

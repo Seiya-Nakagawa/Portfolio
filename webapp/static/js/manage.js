@@ -500,7 +500,6 @@ document.addEventListener('DOMContentLoaded', () => {
         columns: [
             { label: '種類', value: (r) => r.category },
             { label: '項目', value: (r) => r.name },
-            { label: '補足', value: (r) => r.remarks },
             { label: '経験年数', value: (r) => r.years },
             { label: '表示順', value: (r) => r.sort_order },
         ],
@@ -508,7 +507,6 @@ document.addEventListener('DOMContentLoaded', () => {
             { name: 'skill_id', label: 'skill_id（半角英小文字・数字・ハイフン。登録後は変更不可）', readonlyOnEdit: true },
             { name: 'category', label: '種類', datalist: () => categories() },
             { name: 'name', label: '表示名' },
-            { name: 'remarks', label: '補足（職務経歴書の補足列に出力）' },
             { name: 'sort_order', label: '表示順', type: 'number' },
         ],
         afterSave: () => {

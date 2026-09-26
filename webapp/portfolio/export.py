@@ -32,8 +32,8 @@ def _format_period(start: str, end: str) -> str:
 def build_skill_table(today: date) -> str:
     """`■テクニカルスキル` の表。"""
     lines = [
-        "| 種類 | 項目 | 開始年 | 使用期間 | 補足 |",
-        "| --- | --- | --- | --- | --- |",
+        "| 種類 | 項目 | 開始年 | 使用期間 |",
+        "| --- | --- | --- | --- |",
     ]
     for row in build_skill_rows(today):
         skill = row.skill
@@ -42,7 +42,6 @@ def build_skill_table(today: date) -> str:
             skill.name,
             f"{row.start_year}年",
             row.years,
-            skill.remarks,
         ]
         lines.append("| " + " | ".join(_escape_cell(c) for c in cells) + " |")
     return "\n".join(lines)

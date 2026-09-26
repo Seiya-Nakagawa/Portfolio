@@ -11,12 +11,11 @@ from portfolio.models import Certification, Project, ProjectSkill, Skill, Work
 TODAY = date(2026, 9, 25)
 
 
-def _skill(skill_id, category, name, sort_order, remarks=""):
+def _skill(skill_id, category, name, sort_order):
     return Skill.objects.create(
         skill_id=skill_id,
         category=category,
         name=name,
-        remarks=remarks,
         sort_order=sort_order,
     )
 
@@ -211,7 +210,6 @@ class SkillApiTests(LoggedInTestCase):
             "skill_id": "ec2",
             "category": "AWS",
             "name": "EC2",
-            "remarks": "",
             "sort_order": 10,
         }
         payload.update(overrides)
@@ -356,7 +354,7 @@ class CertificationAndWorkApiTests(LoggedInTestCase):
 class ExportTests(LoggedInTestCase):
     def setUp(self):
         super().setUp()
-        java = _skill("java", "言語", "Java", 10, remarks="保守中心")
+        java = _skill("java", "言語", "Java", 10)
         python = _skill("python", "言語", "Python", 20)
         _skill("cobol", "言語", "COBOL", 30)
         old = Project.objects.create(
@@ -376,9 +374,9 @@ class ExportTests(LoggedInTestCase):
         self.assertEqual(
             table.splitlines()[:3],
             [
-                "| 種類 | 項目 | 開始年 | 使用期間 | 補足 |",
-                "| --- | --- | --- | --- | --- |",
-                "| 言語 | Java | 2023年 | 1年9ヶ月 | 保守中心 |",
+                "| 種類 | 項目 | 開始年 | 使用期間 |",
+                "| --- | --- | --- | --- |",
+                "| 言語 | Java | 2023年 | 1年9ヶ月 |",
             ],
         )
         self.assertEqual(

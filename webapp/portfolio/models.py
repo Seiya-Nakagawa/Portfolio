@@ -36,7 +36,6 @@ class Skill(models.Model):
     )
     category = models.CharField("種類", max_length=64)
     name = models.CharField("表示名", max_length=128)
-    remarks = models.CharField("補足", max_length=255, blank=True, default="")
     sort_order = models.PositiveIntegerField("表示順")
 
     class Meta:
