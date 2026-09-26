@@ -48,10 +48,10 @@
 | ---- | -------- |
 | ナビゲーション | アンカーリンク + CSS によるスムーズスクロール。`js/main.js` でモバイル用ハンバーガーメニューの開閉を制御する |
 | Hero タイピングアニメーション | `js/main.js` が肩書き文字列配列を 1 文字ずつ `#typing-text` に追加・削除してループ再生する |
-| About 年齢自動計算 | `js/main.js` が生年月日から現在日時との差分を計算し `#age-display` に描画する |
+| サイト情報の表示 | ポートフォリオアプリの読み取り専用 API（[6.2](#62-ポートフォリオ用読み取り専用api)）を `fetch` で呼び出し、`js/main.js` が Hero（氏名・肩書き・キャッチコピー）、About（自己紹介文・年齢・職業・学歴・居住地・趣味・GitHub URL）、Contact（案内文・問い合わせフォーム URL・GitHub URL）、フッター（氏名・著作権表示の年）を描画する。年齢は API が生年月日から算出して返し、著作権表示の年は API 呼び出し時点の年を返す |
 | Skills スキルバー | ポートフォリオアプリの読み取り専用 API（[6.2](#62-ポートフォリオ用読み取り専用api)）を `fetch` で呼び出し、カテゴリ別にグルーピングして描画する |
-| 経験年数の算出 | 実績 DB の案件実績（開始年月・終了年月・使用スキル）を年月に展開し、スキルごとにユニーク月数を集計して N年Mヶ月 に換算する（[4.9](#49-経験年数の算出)） |
-| 案件期間の導出 | 案件実績が保持する開始年月・終了年月をそのまま用いる（[4.10](#410-案件期間の導出)） |
+| 経験年数の算出 | 実績 DB の案件実績（開始年月・終了年月・使用スキル）を年月に展開し、スキルごとにユニーク月数を集計して N年Mヶ月 に換算する（[4.10](#410-経験年数の算出)） |
+| 案件期間の導出 | 案件実績が保持する開始年月・終了年月をそのまま用いる（[4.11](#411-案件期間の導出)） |
 | ポートフォリオ用データ提供 | 集計結果を API のレスポンスとして返す（[6.2](#62-ポートフォリオ用読み取り専用api)） |
 | 職務経歴書用データ出力 | 集計結果を `■テクニカルスキル` 表と `■開発経歴` の案件期間の Markdown として出力する（[6.3](#63-職務経歴書用データmarkdown)） |
 | アクセス制御 | 登録・変更操作は本人のログインを要する画面からのみ実行できる（[6.4](#64-ポートフォリオアプリ)） |
@@ -91,6 +91,7 @@
 | `levels` | 習熟度レベル定義 | `level` |
 | `certifications` | 資格 | `certification_id` |
 | `works` | 実績（Works） | `work_id` |
+| `site_info` | サイト全体の表示情報（Hero・About・Contact・フッター。1 行のみ） | `site_info_id` |
 
 ```mermaid
 erDiagram
@@ -103,7 +104,7 @@ erDiagram
 登録操作を「対象案件の期間を入力し、使用したスキル項目をチェックする」1 セットに収めるためであり、
 経験年数・案件期間・両出力に必要な情報はこの構成で充足する。
 
-`certifications`・`works` は `skills`・`projects` と参照関係を持たない独立したテーブルとし、
+`certifications`・`works`・`site_info` は `skills`・`projects` と参照関係を持たない独立したテーブルとし、
 ポートフォリオサイトへの表示のみを目的とする。
 
 ### 4.3. `skills`（スキル項目マスタ）
@@ -198,7 +199,30 @@ erDiagram
 | `live_url` | 文字列 | - | 公開 URL へのリンク |
 | `sort_order` | 整数 | ○ | 表示順 |
 
-### 4.9. 経験年数の算出
+### 4.9. `site_info`（サイト全体の表示情報）
+
+ポートフォリオサイトの Hero・About・Contact・フッターに表示する情報を保持する。行は常に 1 件のみとし、
+追加・削除は行わず変更のみとする。ナビゲーション・セクション見出し・表の列名などの固定ラベルは
+サイトの構造の一部であり、頻繁に更新されないため本テーブルでは管理しない。
+
+| 列名 | 型 | 必須 | 内容 |
+| ---- | -- | ---- | ---- |
+| `site_info_id` | 整数 | ○ | 識別子。1 行のみのため固定値とする |
+| `name` | 文字列 | ○ | 氏名（Hero・フッターに表示） |
+| `typing_titles` | 文字列（JSON 配列） | ○ | Hero のタイピングアニメーションに表示する肩書きの一覧 |
+| `catchphrase` | 文字列 | ○ | Hero のキャッチコピー |
+| `intro` | 文字列 | ○ | About の自己紹介文（改行を含む） |
+| `birth_date` | 日付 | ○ | 生年月日。年齢の算出にのみ用い、公開 API へは出力しない |
+| `job` | 文字列 | ○ | 職業 |
+| `education` | 文字列 | ○ | 学歴 |
+| `location` | 文字列 | ○ | 居住地 |
+| `hobby` | 文字列 | ○ | 趣味 |
+| `github_url` | 文字列 | ○ | GitHub URL（About・Contact で共用） |
+| `contact_message` | 文字列 | ○ | Contact の案内文（改行を含む） |
+| `contact_form_url` | 文字列 | ○ | 問い合わせフォームの URL |
+| `copyright_start_year` | 整数 | ○ | フッターの著作権表示の開始年。表示は `開始年-現在の年` とし、開始年と現在の年が同じ場合は 1 つの年のみ表示する |
+
+### 4.10. 経験年数の算出
 
 1. 出力時点の年月を基準日とする
 2. `projects` の各行について、`start_year_month` から `end_year_month`（空値の場合は基準日）
@@ -230,7 +254,7 @@ erDiagram
 - 使用実績が 1 件も存在しないスキル項目は、ポートフォリオ・職務経歴書のいずれにも出力しない
 - 職務経歴書の「開始年」は、そのスキル項目が紐づく案件の `start_year_month` の最小値の年とする
 
-### 4.10. 案件期間の導出
+### 4.11. 案件期間の導出
 
 - `projects` の `start_year_month`・`end_year_month` をそのまま用いる
 - `end_year_month` が空値の場合は継続中とみなし、終了年月を「現在」と表記する
@@ -253,7 +277,7 @@ erDiagram
 | ログイン | 本人のみがログインできる認証画面 |
 | 案件登録 | 継続中の案件（なければ新規案件）の開始年月・終了年月とスキル項目をチェックして案件実績を保存する。削除もここで行う。利用頻度の低い操作として、終了済みの案件を選んで登録内容を訂正する枠を別に設ける。ログイン後の初期表示画面とする |
 | スキル項目管理 | スキル項目マスタ（`skills`）の一覧・追加・変更・削除 |
-| 資格・実績管理 | `certifications`・`works` の一覧・追加・変更・削除 |
+| 資格・実績・サイト情報管理 | `certifications`・`works` の一覧・追加・変更・削除、および `site_info` の表示・変更 |
 | 職務経歴書エクスポート | 職務経歴書用 Markdown（[6.3](#63-職務経歴書用データmarkdown)）のプレビュー、ダウンロード、クリップボードへのコピー |
 
 ポートフォリオ用の表示データは画面から出力する操作を持たず、常に API 呼び出し時点の実績 DB の
@@ -285,7 +309,7 @@ flowchart TD
     Start["ポートフォリオアプリへアクセス"] --> Login["ログイン"]
     Login --> Project["案件登録"]
     Project <--> Skill["スキル項目管理"]
-    Project <--> CertWork["資格・実績管理"]
+    Project <--> CertWork["資格・実績・サイト情報管理"]
     Project <--> Output["職務経歴書エクスポート"]
     Skill <--> CertWork
     Skill <--> Output
@@ -316,12 +340,13 @@ flowchart LR
 
 | セクション | 主要項目 |
 | ---------- | -------- |
-| Hero | 氏名、タイピングアニメーションによる肩書き、キャッチコピー |
+| Hero | 氏名、タイピングアニメーションによる肩書き、キャッチコピー（いずれも `site_info` の値） |
 | About | 自己紹介文、年齢（自動計算）、職業、学歴、居住地、趣味、GitHub URL |
 | Skills | カテゴリ別スキルバー（技術名 / 経験年数 / 経験年数に基づく星 5 段階） |
 | Certifications | 取得資格の一覧 |
 | Works | 実績タイトル、説明、リンク |
-| Contact | Google フォームへのリンクボタン、GitHub アイコンリンク |
+| Contact | 案内文、問い合わせフォームへのリンクボタン、GitHub アイコンリンク（いずれも `site_info` の値） |
+| フッター | 氏名、著作権表示（開始年〜現在の年） |
 
 #### 5.3.2. スキル実績管理（ポートフォリオアプリ）
 
@@ -376,12 +401,13 @@ flowchart LR
 | 追加・変更 | `skill_id`（追加時のみ入力）、`category`、`name`、`level`（`levels` から選択）、`remarks`、`sort_order` を入力する。`category` は既存の種類から選択するほか、新しい種類の入力も可能とする |
 | 削除 | 使用実績が 1 件も紐づかないスキル項目のみ削除できる。使用実績が紐づく項目は削除不可とし、その旨を表示する |
 
-##### 資格・実績管理
+##### 資格・実績・サイト情報管理
 
 | 項目 | 内容 |
 | ---- | ---- |
 | 資格の一覧・追加・変更・削除 | `sort_order` 順に一覧表示し、`name`・`acquired_on`・`org`・`sort_order` を入力する |
 | 実績の一覧・追加・変更・削除 | `sort_order` 順に一覧表示し、`title`・`desc_ja`・`desc_en`・`tags`・`thumbnail`・`github_url`・`live_url`・`sort_order` を入力する |
+| サイト情報の表示・変更 | 現在の `site_info` の内容をフォームに表示し、`name`・`typing_titles`（1 行 1 件で入力）・`catchphrase`・`intro`・`birth_date`・`job`・`education`・`location`・`hobby`・`github_url`・`contact_message`・`contact_form_url`・`copyright_start_year` を変更して保存する。行は常に 1 件のみで、追加・削除の操作は持たない |
 
 ##### 職務経歴書エクスポート
 
@@ -417,6 +443,7 @@ flowchart LR
 | `GET` | `/portfolio/api/skills` | スキルデータ（下記例） |
 | `GET` | `/portfolio/api/certifications` | 資格データ |
 | `GET` | `/portfolio/api/works` | 実績データ |
+| `GET` | `/portfolio/api/site` | サイト情報データ（下記例） |
 
 ```json
 {
@@ -439,8 +466,8 @@ flowchart LR
 | `skills[].category` | `skills` の `category` |
 | `skills[].name` | `skills` の `name` |
 | `skills[].months` | ユニーク月数。表示には使わないが、再集計せずに値を検算できるよう保持する |
-| `skills[].years` | [4.9](#49-経験年数の算出) の表記に変換した経験年数 |
-| `skills[].stars` | [4.9](#49-経験年数の算出) の星の段階（1〜5）でユニーク月数から算出した値。`skills` の `level` は含めない |
+| `skills[].years` | [4.10](#410-経験年数の算出) の表記に変換した経験年数 |
+| `skills[].stars` | [4.10](#410-経験年数の算出) の星の段階（1〜5）でユニーク月数から算出した値。`skills` の `level` は含めない |
 
 ```json
 [
@@ -481,6 +508,40 @@ flowchart LR
 | `github_url` | GitHub リポジトリへのリンク（任意） |
 | `live_url` | 公開 URL へのリンク（任意） |
 
+```json
+{
+  "name": "Seiya Nakagawa",
+  "typing_titles": ["Cloud Architect Engineer", "Full Stack Engineer"],
+  "catchphrase": "ポートフォリオサイトへようこそ。",
+  "intro": "クラウドアーキテクトエンジニアとして…",
+  "age": 37,
+  "job": "インフラ（クラウド）エンジニア",
+  "education": "東海大学工学部 生命化学科卒",
+  "location": "神奈川県綾瀬市在住",
+  "hobby": "サウナ、サッカー観戦",
+  "github_url": "https://github.com/Seiya-Nakagawa",
+  "contact_message": "ご興味を持っていただけましたら…",
+  "contact_form_url": "https://docs.google.com/forms/…",
+  "copyright": "2024-2026"
+}
+```
+
+| キー | 内容 |
+| ---- | ---- |
+| `name` | 氏名 |
+| `typing_titles` | Hero の肩書きの一覧 |
+| `catchphrase` | Hero のキャッチコピー |
+| `intro` | 自己紹介文（改行を含む） |
+| `age` | `site_info` の `birth_date` から API 呼び出し時点で算出した満年齢。生年月日そのものは返さない |
+| `job` | 職業 |
+| `education` | 学歴 |
+| `location` | 居住地 |
+| `hobby` | 趣味 |
+| `github_url` | GitHub URL |
+| `contact_message` | Contact の案内文（改行を含む） |
+| `contact_form_url` | 問い合わせフォームの URL |
+| `copyright` | フッターに表示する著作権の年表記。`copyright_start_year` と API 呼び出し時点の年から生成する |
+
 - 案件に関する情報は含めない
 - 配列の順序は各テーブルの `category`・`sort_order`（`skills`）または `sort_order`
   （`certifications`・`works`）の順とする
@@ -508,7 +569,7 @@ flowchart LR
 | 種類 | `skills` の `category` |
 | 項目 | `skills` の `name` |
 | 開始年 | 当該スキル項目が紐づく案件の `start_year_month` の最小値の年 |
-| 使用期間 | [4.9](#49-経験年数の算出) の表記に変換した経験年数 |
+| 使用期間 | [4.10](#410-経験年数の算出) の表記に変換した経験年数 |
 | レベル | `levels` の `resume_label`。`skills` の `remarks` が設定されている場合は `（{remarks}）` を後置する |
 
 - 行の順序は [6.2](#62-ポートフォリオ用読み取り専用api) と同一とする
@@ -520,7 +581,7 @@ flowchart LR
 **2025年04月〜現在｜大手小売業向け基幹システム クラウド移行対応**
 ```
 
-- 期間の表記は [4.10](#410-案件期間の導出) に従う
+- 期間の表記は [4.11](#411-案件期間の導出) に従う
 - 行の順序は `projects` の `start_year_month` の昇順とする
 - 案件名は `projects` の `name` を出力し、体制・案件概要・業務内容等の本文は職務経歴書マスタを正とする。
   案件見出し行は `name` の一致で対応付け、期間部分のみを差し替える
@@ -549,6 +610,7 @@ infra-oci 基盤の Kubernetes 上に、コンテナ化したウェブアプリ�
 | 案件の削除 | `project_id` | 削除結果 |
 | スキル項目の一覧・追加・変更・削除 | スキル項目の各項目 | 更新後の一覧 |
 | 資格・実績の一覧・追加・変更・削除 | 資格・実績の各項目 | 更新後の一覧 |
+| サイト情報の取得・変更 | サイト情報の各項目（変更時） | 現在のサイト情報の内容 |
 | 職務経歴書用データの生成 | なし | 職務経歴書用 Markdown 文字列、警告 |
 
 - 実績 DB への書き込みを伴う処理はトランザクションで排他制御を行い、複数タブでの同時操作による不整合を防ぐ

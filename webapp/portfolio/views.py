@@ -1,4 +1,4 @@
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
 from django.views.decorators.http import require_GET
@@ -30,3 +30,11 @@ def api_certifications(request):
 @require_GET
 def api_works(request):
     return _json_response(services.build_works_payload())
+
+
+@require_GET
+def api_site(request):
+    payload = services.build_site_payload(timezone.localdate())
+    if payload is None:
+        raise Http404("サイト情報が登録されていません。")
+    return _json_response(payload)

@@ -11,6 +11,7 @@ urlpatterns = [
     path("api/skills", views.api_skills, name="api-skills"),
     path("api/certifications", views.api_certifications, name="api-certifications"),
     path("api/works", views.api_works, name="api-works"),
+    path("api/site", views.api_site, name="api-site"),
     # 登録画面（本人のログインが必要）
     path(
         "manage/login/",
@@ -50,6 +51,7 @@ urlpatterns = [
         manage_views.api_work,
         name="manage-api-work",
     ),
+    path("manage/api/site", manage_views.api_site, name="manage-api-site"),
     path("manage/api/export", manage_views.api_export, name="manage-api-export"),
     path(
         "manage/export.md", manage_views.export_download, name="manage-export-download"

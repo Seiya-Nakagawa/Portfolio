@@ -5,7 +5,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- DOM Elements ---
     const typingText = document.getElementById('typing-text');
-    const ageDisplay = document.getElementById('age-display');
     const header = document.querySelector('header');
 
     // 静的ファイルの配信パスと API の URL は、テンプレートが body の data 属性で渡す。
@@ -14,15 +13,15 @@ document.addEventListener('DOMContentLoaded', () => {
         skills: document.body.dataset.apiSkills,
         certifications: document.body.dataset.apiCertifications,
         works: document.body.dataset.apiWorks,
+        site: document.body.dataset.apiSite,
     };
 
     // --- Initialization ---
     applyLang();
-    calculateAge();
+    loadAndRender(api.site, 'site-error', renderSite);
     loadAndRender(api.skills, 'skills-container', (data) => renderSkills(data.skills));
     loadAndRender(api.certifications, 'certifications-container', renderCertifications);
     loadAndRender(api.works, 'works-container', renderWorks);
-    startTyping();
     initScrollEffects();
 
     // --- Event Listeners ---
@@ -72,21 +71,33 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function calculateAge() {
-        const birthday = new Date('1988-09-01'); // User birthday: 1988/09 (37yo in Feb 2026)
-        // If birthday is not provided in requirements, use a default or ask user.
-        // Based on "Age: Auto-calc" requirement, I need a birthdate.
-        // I will use a placeholder or 1998 if not known (26-27yo).
-        // Let's use 1998-04-18 for now as example or leave it generic if date unknown.
-        // Actually, I should check requirements. It says "Auto calculation" but no date.
-        // I'll stick to 1998 as a placeholder logic.
-        const today = new Date();
-        let age = today.getFullYear() - birthday.getFullYear();
-        const m = today.getMonth() - birthday.getMonth();
-        if (m < 0 || (m === 0 && today.getDate() < birthday.getDate())) {
-            age--;
-        }
-        ageDisplay.textContent = age;
+    // 改行を含む文言を、HTML として解釈させずに <br> 区切りで描画する。
+    function setMultiline(el, text) {
+        el.replaceChildren();
+        text.split('\n').forEach((line, index) => {
+            if (index > 0) el.appendChild(document.createElement('br'));
+            el.appendChild(document.createTextNode(line));
+        });
+    }
+
+    function renderSite(site) {
+        document.getElementById('site-name').textContent = site.name;
+        document.getElementById('site-catchphrase').textContent = site.catchphrase;
+        setMultiline(document.getElementById('about-intro'), site.intro);
+        document.getElementById('age-display').textContent = site.age;
+        document.getElementById('about-job').textContent = site.job;
+        document.getElementById('about-education').textContent = site.education;
+        document.getElementById('about-location').textContent = site.location;
+        document.getElementById('about-hobby').textContent = site.hobby;
+        const aboutGithub = document.getElementById('about-github');
+        aboutGithub.href = site.github_url;
+        aboutGithub.textContent = site.github_url;
+        setMultiline(document.getElementById('contact-message'), site.contact_message);
+        document.getElementById('contact-button').href = site.contact_form_url;
+        document.getElementById('contact-github').href = site.github_url;
+        document.getElementById('footer-copyright').textContent = site.copyright;
+        document.getElementById('footer-name').textContent = site.name;
+        startTyping(site.typing_titles);
     }
 
     function renderSkills(skillsData) {
@@ -305,8 +316,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function startTyping() {
-        const texts = ["Cloud Architect Engineer", "Full Stack Engineer", "Problem Solver"];
+    function startTyping(texts) {
         let textIndex = 0;
         let charIndex = 0;
         let isDeleting = false;

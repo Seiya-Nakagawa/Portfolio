@@ -1,0 +1,15 @@
+{
+  "name": "Seiya Nakagawa",
+  "typing_titles": ["Cloud Architect Engineer", "Full Stack Engineer", "Problem Solver"],
+  "catchphrase": "ポートフォリオサイトへようこそ。",
+  "intro": "クラウドアーキテクトエンジニアとして、AWS等のパブリッククラウドにおけるアーキテクチャ設計、IaC導入、CI/CDパイプライン構築を得意としております。\nまた、フロントエンドからバックエンドまで幅広い開発経験を持ち、領域を問わず柔軟に対応できる点が強みです。\n常に最新技術のキャッチアップを心がけ、クライアントにとって最善の提案を行うことを重視して活動しています。",
+  "birth_date": "1988-09-01",
+  "job": "インフラ（クラウド）エンジニア",
+  "education": "東海大学工学部 生命化学科卒",
+  "location": "神奈川県綾瀬市在住",
+  "hobby": "サウナ、サッカー観戦",
+  "github_url": "https://github.com/Seiya-Nakagawa",
+  "contact_message": "ご興味を持っていただけましたら、下記ボタンよりお気軽にお問い合わせください。\n副業での案件も積極的に対応しております！",
+  "contact_form_url": "https://docs.google.com/forms/d/e/1FAIpQLScCgs4OVyQwGBpTlb-ItbBG3FZriWsf3s42h0QUPyaCq_xNIQ/viewform?usp=sharing&ouid=102622625500046231898",
+  "copyright_start_year": 2024
+}

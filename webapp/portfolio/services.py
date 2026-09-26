@@ -10,7 +10,14 @@ from portfolio.experience import (
     calculate_stars,
     format_experience,
 )
-from portfolio.models import Certification, Project, ProjectSkill, Skill, Work
+from portfolio.models import (
+    Certification,
+    Project,
+    ProjectSkill,
+    SiteInfo,
+    Skill,
+    Work,
+)
 
 
 @dataclass(frozen=True)
@@ -110,3 +117,38 @@ def build_works_payload() -> list[dict]:
                 item[key] = value
         payload.append(item)
     return payload
+
+
+def calculate_age(birth_date: date, today: date) -> int:
+    """満年齢を返す。"""
+    before_birthday = (today.month, today.day) < (birth_date.month, birth_date.day)
+    return today.year - birth_date.year - before_birthday
+
+
+def format_copyright(start_year: int, today: date) -> str:
+    """著作権の年表記を返す。開始年と現在の年が同じ場合は 1 つの年のみとする。"""
+    if start_year >= today.year:
+        return str(start_year)
+    return f"{start_year}-{today.year}"
+
+
+def build_site_payload(today: date) -> dict | None:
+    """サイト情報 API のレスポンス。生年月日は含めず、年齢のみ返す。未登録の場合は None。"""
+    info = SiteInfo.objects.first()
+    if info is None:
+        return None
+    return {
+        "name": info.name,
+        "typing_titles": info.typing_titles,
+        "catchphrase": info.catchphrase,
+        "intro": info.intro,
+        "age": calculate_age(info.birth_date, today),
+        "job": info.job,
+        "education": info.education,
+        "location": info.location,
+        "hobby": info.hobby,
+        "github_url": info.github_url,
+        "contact_message": info.contact_message,
+        "contact_form_url": info.contact_form_url,
+        "copyright": format_copyright(info.copyright_start_year, today),
+    }

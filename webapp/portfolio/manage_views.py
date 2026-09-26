@@ -11,7 +11,7 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods
 
 from portfolio import export, registry
-from portfolio.models import Certification, Level, Project, Skill, Work
+from portfolio.models import Certification, Level, Project, SiteInfo, Skill, Work
 from portfolio.services import build_skill_rows, ordered_skills
 
 EXPORT_FILENAME = "skillsheet_output.md"
@@ -232,6 +232,31 @@ def api_work(request, work_id):
     else:
         registry.save_work(_body(request), work_id)
     return _json(_works())
+
+
+SITE_INFO_FIELDS = [
+    *registry.SITE_INFO_TEXT_FIELDS,
+    "typing_titles",
+    "birth_date",
+    "copyright_start_year",
+]
+
+
+def _site_info() -> dict:
+    """管理画面向けのサイト情報。未登録の場合は空のフォームを表示するため空の値を返す。"""
+    info = SiteInfo.objects.first()
+    if info is None:
+        return {name: "" for name in SITE_INFO_FIELDS} | {"typing_titles": []}
+    data = {name: getattr(info, name) for name in SITE_INFO_FIELDS}
+    data["birth_date"] = info.birth_date.isoformat()
+    return data
+
+
+@api_view("GET", "PUT")
+def api_site(request):
+    if request.method == "PUT":
+        registry.save_site_info(_body(request))
+    return _json(_site_info())
 
 
 @api_view("GET")
