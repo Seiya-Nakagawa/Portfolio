@@ -11,7 +11,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods
 
-from portfolio import export, registry
+from portfolio import export, registry, uploads
 from portfolio.models import Certification, Project, SiteInfo, Skill, Work
 from portfolio.services import (
     build_skill_rows,
@@ -303,3 +303,10 @@ def export_download(request):
     )
     response["Content-Disposition"] = f'attachment; filename="{EXPORT_FILENAME}"'
     return response
+
+
+@api_view("POST")
+def api_upload_image(request):
+    """実績のサムネイル画像をアップロードする。保存先の相対パスを返す。"""
+    path = uploads.save_work_image(request.FILES.get("image"))
+    return _json({"path": path})

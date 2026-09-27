@@ -67,9 +67,20 @@ urlpatterns = [
         name="manage-api-work",
     ),
     path("manage/api/site", manage_views.api_site, name="manage-api-site"),
+    path(
+        "manage/api/uploads",
+        manage_views.api_upload_image,
+        name="manage-api-upload-image",
+    ),
     path("manage/api/export", manage_views.api_export, name="manage-api-export"),
     path(
         "manage/export.md", manage_views.export_download, name="manage-export-download"
     ),
     path("admin/", admin.site.urls),
+]
+
+# アップロードした画像を配信する。小規模な個人サイトのため、アプリケーションから直接配信する。
+# 本番は Ingress がプレフィックスを除去して転送するため、プレフィックスを含めずに定義する。
+urlpatterns += [
+    path("media/<path:path>", views.media, name="media"),
 ]

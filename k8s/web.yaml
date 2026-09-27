@@ -1,5 +1,6 @@
 # Web Pod。hostPath でホストの /var/run/mysqld を共有し、UNIX ドメインソケット経由で
-# MySQL へ接続する。
+# MySQL へ接続する。管理画面からアップロードした画像は、ホストの hostPath に保存して
+# Pod の再作成後も保持する。
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -22,7 +23,24 @@ spec:
           hostPath:
             path: /var/run/mysqld
             type: Directory
+        - name: media
+          hostPath:
+            path: /var/lib/portfolio/media
+            type: DirectoryOrCreate
       initContainers:
+        # 非 root のアプリケーションコンテナがアップロード画像を書き込めるよう所有者を調整する。
+        - name: fix-media-permission
+          image: busybox:1.36
+          command:
+            - chown
+            - -R
+            - 1000:1000
+            - /app/media
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - name: media
+              mountPath: /app/media
         # root 権限・最小構成イメージでソケットファイルのパーミッションを調整し、
         # 非 root のアプリケーションコンテナから読み書きできるようにする。
         - name: fix-mysqld-socket-permission
@@ -55,6 +73,8 @@ spec:
           volumeMounts:
             - name: mysqld-socket-dir
               mountPath: /var/run/mysqld
+            - name: media
+              mountPath: /app/media
           securityContext:
             runAsNonRoot: true
             runAsUser: 1000

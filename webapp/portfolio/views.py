@@ -1,7 +1,9 @@
+from django.conf import settings
 from django.http import Http404, JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
 from django.views.decorators.http import require_GET
+from django.views.static import serve
 
 from portfolio import services
 
@@ -38,3 +40,9 @@ def api_site(request):
     if payload is None:
         raise Http404("サイト情報が登録されていません。")
     return _json_response(payload)
+
+
+@require_GET
+def media(request, path):
+    """管理画面からアップロードした画像を配信する。"""
+    return serve(request, path, document_root=settings.MEDIA_ROOT)

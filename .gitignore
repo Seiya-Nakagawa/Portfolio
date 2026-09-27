@@ -15,3 +15,6 @@ webapp/.env
 webapp/staticfiles/
 webapp/.ruff_cache/
 webapp/db.sqlite3
+
+# 管理画面からアップロードした画像（git 管理対象外）
+webapp/media/

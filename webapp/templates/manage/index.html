@@ -15,6 +15,8 @@
     data-api-category-order="{% url 'manage-api-category-order' %}"
     data-api-certifications="{% url 'manage-api-certifications' %}"
     data-api-works="{% url 'manage-api-works' %}"
+    data-api-upload="{% url 'manage-api-upload-image' %}"
+    data-media-base="{{ MEDIA_URL }}"
     data-api-site="{% url 'manage-api-site' %}"
     data-api-export="{% url 'manage-api-export' %}"
     data-export-download="{% url 'manage-export-download' %}"
@@ -38,6 +40,7 @@
     </nav>
 
     <p id="message" class="message" role="status" hidden></p>
+    <div id="toast" class="toast" role="status" hidden></div>
 
     <main>
       <section id="tab-project" hidden></section>

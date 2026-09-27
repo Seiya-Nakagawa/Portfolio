@@ -15,6 +15,7 @@ FORCE_SCRIPT_NAME = env("FORCE_SCRIPT_NAME", default="/portfolio")
 
 # 階層の深い URL でも静的ファイルを解決できるよう、プレフィックス起点の絶対パスにする。
 STATIC_URL = f"{FORCE_SCRIPT_NAME}/static/"
+MEDIA_URL = f"{FORCE_SCRIPT_NAME}/media/"
 
 DATABASES = {
     "default": {
