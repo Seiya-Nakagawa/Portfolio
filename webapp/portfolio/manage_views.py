@@ -1,6 +1,7 @@
 """登録画面（本人のログインが必要）のページと JSON API。"""
 
 import json
+from collections import Counter
 from functools import wraps
 
 from django.contrib.auth.decorators import login_required
@@ -142,6 +143,7 @@ def api_bootstrap(request):
     return _json(
         {
             "skills": _skills_with_years(),
+            "categories": registry.category_names(),
             "ongoing_projects": [
                 {"project_id": p.project_id, "name": p.name} for p in ongoing
             ],
@@ -183,11 +185,35 @@ def api_skills(request):
     return _json(_skills_with_years())
 
 
+def _categories() -> list[dict]:
+    counts = Counter(Skill.objects.values_list("category", flat=True))
+    return [
+        {"name": name, "skill_count": counts.get(name, 0)}
+        for name in registry.category_names()
+    ]
+
+
+@api_view("GET", "POST")
+def api_categories(request):
+    if request.method == "POST":
+        registry.add_skill_category(_body(request))
+    return _json(_categories())
+
+
 @api_view("POST")
-def api_skill_order(request):
+def api_category_order(request):
     """種類単位の並び順を保存する。"""
     registry.reorder_skill_categories(_body(request))
-    return _json(_skills_with_years())
+    return _json(_categories())
+
+
+@api_view("PUT", "DELETE")
+def api_category(request, category_name):
+    if request.method == "DELETE":
+        registry.delete_skill_category(category_name)
+    else:
+        registry.rename_skill_category(category_name, _body(request))
+    return _json(_categories())
 
 
 @api_view("PUT", "DELETE")

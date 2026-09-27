@@ -11,7 +11,8 @@
     data-api-bootstrap="{% url 'manage-api-bootstrap' %}"
     data-api-projects="{% url 'manage-api-projects' %}"
     data-api-skills="{% url 'manage-api-skills' %}"
-    data-api-skill-order="{% url 'manage-api-skill-order' %}"
+    data-api-categories="{% url 'manage-api-categories' %}"
+    data-api-category-order="{% url 'manage-api-category-order' %}"
     data-api-certifications="{% url 'manage-api-certifications' %}"
     data-api-works="{% url 'manage-api-works' %}"
     data-api-site="{% url 'manage-api-site' %}"
@@ -33,6 +34,7 @@
       <button type="button" role="tab" data-tab="works">実績</button>
       <button type="button" role="tab" data-tab="site">サイト情報</button>
       <button type="button" role="tab" data-tab="export">職務経歴書エクスポート</button>
+      <button type="button" role="tab" data-tab="categories">種類管理</button>
     </nav>
 
     <p id="message" class="message" role="status" hidden></p>
@@ -44,6 +46,7 @@
       <section id="tab-works" hidden></section>
       <section id="tab-site" hidden></section>
       <section id="tab-export" hidden></section>
+      <section id="tab-categories" hidden></section>
     </main>
 
     <script src="{% static 'js/manage.js' %}"></script>

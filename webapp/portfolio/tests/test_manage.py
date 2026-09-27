@@ -42,6 +42,7 @@ class AuthenticationTests(TestCase):
         for name in (
             "manage-api-bootstrap",
             "manage-api-skills",
+            "manage-api-categories",
             "manage-api-certifications",
             "manage-api-works",
             "manage-api-export",
@@ -204,6 +205,93 @@ class ProjectApiTests(LoggedInTestCase):
         self.assertEqual(body["ongoing_projects"], [])
 
 
+class CategoryApiTests(LoggedInTestCase):
+    def test_一覧は種類マスタの順に項目数を含む(self):
+        _skill("ec2", "AWS", "EC2", 10)
+        _skill("py", "言語", "Python", 20)
+        _skill("go", "言語", "Go", 30)
+        rows = self.call("get", "manage-api-categories").json()
+        self.assertEqual(
+            rows,
+            [
+                {"name": "AWS", "skill_count": 1},
+                {"name": "言語", "skill_count": 2},
+            ],
+        )
+
+    def test_追加は末尾に置き重複と空は拒否する(self):
+        _skill("ec2", "AWS", "EC2", 10)
+        response = self.call("post", "manage-api-categories", {"name": "OS・MW"})
+        self.assertEqual([r["name"] for r in response.json()], ["AWS", "OS・MW"])
+        for name in ("AWS", "OS・MW", "", " ", "a/b", "x" * 65):
+            with self.subTest(name):
+                response = self.call("post", "manage-api-categories", {"name": name})
+                self.assertEqual(response.status_code, 400)
+
+    def test_スキル項目のない種類も並び替えできる(self):
+        _skill("ec2", "AWS", "EC2", 10)
+        self.call("post", "manage-api-categories", {"name": "OS・MW"})
+        response = self.call(
+            "post", "manage-api-category-order", {"categories": ["OS・MW", "AWS"]}
+        )
+        self.assertEqual([r["name"] for r in response.json()], ["OS・MW", "AWS"])
+        rows = self.call("get", "manage-api-categories").json()
+        self.assertEqual([r["name"] for r in rows], ["OS・MW", "AWS"])
+
+    def test_種類単位で並び替えるとスキル項目の順も変わる(self):
+        _skill("ec2", "AWS", "EC2", 10)
+        _skill("py", "言語", "Python", 20)
+        _skill("go", "言語", "Go", 30)
+        self.call("post", "manage-api-category-order", {"categories": ["言語", "AWS"]})
+        rows = self.call("get", "manage-api-skills").json()
+        self.assertEqual([r["skill_id"] for r in rows], ["go", "py", "ec2"])
+
+    def test_種類の並び順の形式が不正なら400(self):
+        response = self.call("post", "manage-api-category-order", {"categories": "AWS"})
+        self.assertEqual(response.status_code, 400)
+
+    def test_名称変更はスキル項目の種類にも反映される(self):
+        _skill("ec2", "AWS", "EC2", 10)
+        response = self.call(
+            "put", "manage-api-category", {"name": "Amazon"}, category_name="AWS"
+        )
+        self.assertEqual(response.json(), [{"name": "Amazon", "skill_count": 1}])
+        self.assertEqual(Skill.objects.get().category, "Amazon")
+
+    def test_名称変更で既存名や未登録の種類は拒否する(self):
+        _skill("ec2", "AWS", "EC2", 10)
+        _skill("py", "言語", "Python", 20)
+        response = self.call(
+            "put", "manage-api-category", {"name": "言語"}, category_name="AWS"
+        )
+        self.assertEqual(response.status_code, 400)
+        response = self.call(
+            "put", "manage-api-category", {"name": "X"}, category_name="無い"
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_スキル項目のない種類は削除できる(self):
+        _skill("ec2", "AWS", "EC2", 10)
+        self.call("post", "manage-api-categories", {"name": "空"})
+        response = self.call("delete", "manage-api-category", category_name="空")
+        self.assertEqual([r["name"] for r in response.json()], ["AWS"])
+
+    def test_スキル項目のある種類は削除できない(self):
+        _skill("ec2", "AWS", "EC2", 10)
+        response = self.call("delete", "manage-api-category", category_name="AWS")
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(Skill.objects.count(), 1)
+
+    def test_スキル項目の追加で新しい種類が種類マスタに登録される(self):
+        self.call(
+            "post",
+            "manage-api-skills",
+            {"skill_id": "ec2", "category": "AWS", "name": "EC2"},
+        )
+        rows = self.call("get", "manage-api-categories").json()
+        self.assertEqual(rows, [{"name": "AWS", "skill_count": 1}])
+
+
 class SkillApiTests(LoggedInTestCase):
     def _payload(self, **overrides):
         payload = {
@@ -267,20 +355,6 @@ class SkillApiTests(LoggedInTestCase):
         self.assertEqual(
             [r["skill_id"] for r in rows], ["ec2", "lambda", "s3", "other"]
         )
-
-    def test_種類単位で並び替えできる(self):
-        _skill("ec2", "AWS", "EC2", 10)
-        _skill("py", "言語", "Python", 20)
-        _skill("go", "言語", "Go", 30)
-        response = self.call(
-            "post", "manage-api-skill-order", {"categories": ["言語", "AWS"]}
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual([r["skill_id"] for r in response.json()], ["go", "py", "ec2"])
-
-    def test_種類の並び順の形式が不正なら400(self):
-        response = self.call("post", "manage-api-skill-order", {"categories": "AWS"})
-        self.assertEqual(response.status_code, 400)
 
     def test_使用実績のない項目は削除できる(self):
         _skill("ec2", "AWS", "EC2", 10)

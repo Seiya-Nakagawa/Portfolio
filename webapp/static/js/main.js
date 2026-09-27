@@ -105,7 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = '';
         container.className = 'skills-grid-container'; // Use a class for easier styling if needed, or just inline for now
         container.style.display = 'grid';
-        container.style.gridTemplateColumns = 'repeat(auto-fit, minmax(450px, 1fr))';
+        container.style.gridTemplateColumns = '1fr';
         container.style.gap = '2rem';
         container.style.alignItems = 'start';
 

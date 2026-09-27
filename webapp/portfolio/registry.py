@@ -16,6 +16,7 @@ from portfolio.models import (
     ProjectSkill,
     SiteInfo,
     Skill,
+    SkillCategory,
     Work,
 )
 from portfolio.services import ordered_skills
@@ -181,14 +182,28 @@ def _apply(instance, payload: dict, text_fields: list[str]) -> None:
 SKILL_SORT_ORDER_STEP = 10
 
 
+MAX_CATEGORY_NAME_LENGTH = 64
+
+
+def category_names() -> list[str]:
+    """種類の並び順を返す。種類マスタの順に、マスタ未登録の種類（スキル項目側のみ）を続ける。"""
+    names = list(SkillCategory.objects.values_list("name", flat=True))
+    known = set(names)
+    for skill in ordered_skills():
+        if skill.category not in known:
+            known.add(skill.category)
+            names.append(skill.category)
+    return names
+
+
 def resequence_skills(category_order: list[str] | None = None) -> None:
-    """スキル項目の表示順（sort_order）を、種類の並び順と種類内の昇順に従って採番し直す。
+    """種類マスタとスキル項目の表示順（sort_order）を、種類の並び順と種類内の昇順に従って採番し直す。
 
     種類間は category_order（未指定・未掲載の種類は現在の並び順）に従い、種類内は
-    サブカテゴリ（未設定は末尾） ＞ 表示名の昇順とする。
+    サブカテゴリ（未設定は末尾） ＞ 表示名の昇順とする。スキル項目を持たない種類も並び順に含める。
     """
     skills = ordered_skills()
-    categories = list(dict.fromkeys(skill.category for skill in skills))
+    categories = category_names()
     requested = [c for c in (category_order or []) if c in categories]
     order = requested + [c for c in categories if c not in requested]
     rank = {category: index for index, category in enumerate(order)}
@@ -205,6 +220,72 @@ def resequence_skills(category_order: list[str] | None = None) -> None:
         skill.sort_order = index * SKILL_SORT_ORDER_STEP
     Skill.objects.bulk_update(skills, ["sort_order"])
 
+    existing = {c.name: c for c in SkillCategory.objects.all()}
+    for name in order:
+        category = existing.get(name) or SkillCategory(name=name)
+        category.sort_order = (rank[name] + 1) * SKILL_SORT_ORDER_STEP
+        category.save()
+
+
+def _lock_skills() -> None:
+    list(Skill.objects.select_for_update().values_list("pk", flat=True))
+    list(SkillCategory.objects.select_for_update().values_list("pk", flat=True))
+
+
+def _clean_category_name(payload: dict) -> str:
+    name = str(payload.get("name") or "").strip()
+    if not name:
+        raise ValidationFailed(["種類名を入力してください。"])
+    if len(name) > MAX_CATEGORY_NAME_LENGTH:
+        raise ValidationFailed(
+            [f"種類名は{MAX_CATEGORY_NAME_LENGTH}文字以内で入力してください。"]
+        )
+    if "/" in name:
+        raise ValidationFailed(["種類名に「/」は使用できません。"])
+    return name
+
+
+def add_skill_category(payload: dict) -> None:
+    """種類を末尾に追加する。"""
+    name = _clean_category_name(payload)
+    with transaction.atomic():
+        _lock_skills()
+        if name in category_names():
+            raise ValidationFailed([f"種類は既に登録されています: {name}"])
+        resequence_skills()
+        SkillCategory.objects.create(
+            name=name, sort_order=(len(category_names()) + 1) * SKILL_SORT_ORDER_STEP
+        )
+        resequence_skills()
+
+
+def rename_skill_category(current: str, payload: dict) -> None:
+    """種類名を変更する。対応するスキル項目の種類も同時に更新する。"""
+    name = _clean_category_name(payload)
+    with transaction.atomic():
+        _lock_skills()
+        names = category_names()
+        if current not in names:
+            raise NotFound("種類が見つかりません。")
+        if name != current and name in names:
+            raise ValidationFailed([f"種類は既に登録されています: {name}"])
+        resequence_skills()
+        SkillCategory.objects.filter(name=current).update(name=name)
+        Skill.objects.filter(category=current).update(category=name)
+        resequence_skills()
+
+
+def delete_skill_category(name: str) -> None:
+    """スキル項目が属さない種類のみ削除できる。"""
+    with transaction.atomic():
+        _lock_skills()
+        if name not in category_names():
+            raise NotFound("種類が見つかりません。")
+        if Skill.objects.filter(category=name).exists():
+            raise ValidationFailed(["スキル項目が属する種類は削除できません。"])
+        SkillCategory.objects.filter(name=name).delete()
+        resequence_skills()
+
 
 def reorder_skill_categories(payload: dict) -> None:
     """種類単位の並び順を保存する。"""
@@ -214,7 +295,7 @@ def reorder_skill_categories(payload: dict) -> None:
     ):
         raise ValidationFailed(["種類の並び順の形式が不正です。"])
     with transaction.atomic():
-        list(Skill.objects.select_for_update().values_list("pk", flat=True))
+        _lock_skills()
         resequence_skills(categories)
 
 

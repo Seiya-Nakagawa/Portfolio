@@ -5,7 +5,9 @@ from django.test import TestCase
 
 from portfolio.models import Project, ProjectSkill, Skill
 
-migration = importlib.import_module("portfolio.migrations.0007_move_aws_services_to_aws")
+migration = importlib.import_module(
+    "portfolio.migrations.0007_move_aws_services_to_aws"
+)
 
 
 class MoveAwsServicesTests(TestCase):
@@ -36,9 +38,7 @@ class MoveAwsServicesTests(TestCase):
         project = Project.objects.create(
             project_id="p1", name="案件", start_year_month="2024-01"
         )
-        ProjectSkill.objects.create(
-            project=project, skill_id="rds-db", version="8.0"
-        )
+        ProjectSkill.objects.create(project=project, skill_id="rds-db", version="8.0")
         self._run()
         self.assertFalse(Skill.objects.filter(skill_id="rds-db").exists())
         self.assertEqual(ProjectSkill.objects.get(project=project).skill_id, "rds")
