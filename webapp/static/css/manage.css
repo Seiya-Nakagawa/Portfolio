@@ -284,15 +284,26 @@ pre {
 /* 完了通知のポップアップ。画面右上に重ねて表示する。 */
 .toast {
   position: fixed;
-  top: 1rem;
-  right: 1rem;
-  z-index: 100;
-  max-width: 24rem;
-  padding: 0.75rem 1.25rem;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
+  max-width: 28rem;
+  padding: 1rem 1.5rem;
   border-radius: 0.5rem;
   background: var(--ok);
   color: #fff;
-  box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.2);
+  white-space: pre-line;
+  text-align: center;
+  box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.3);
+}
+
+.toast-error {
+  background: var(--danger);
+}
+
+.toast-warning {
+  background: #b45309;
 }
 
 .toast[hidden] {

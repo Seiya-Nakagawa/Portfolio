@@ -14,8 +14,6 @@ document.addEventListener('DOMContentLoaded', () => {
         export: document.body.dataset.apiExport,
         exportDownload: document.body.dataset.exportDownload,
     };
-    const messageEl = document.getElementById('message');
-
     // --- 共通処理 ---
 
     function esc(value) {
@@ -30,25 +28,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const toastEl = document.getElementById('toast');
-    const TOAST_DURATION_MS = 3000;
+    // エラーは文章が長くなりがちなため、成功・警告より長く表示する。
+    const TOAST_DURATION_MS = { ok: 3000, warning: 4000, error: 5000 };
     let toastTimer = null;
 
-    // 完了通知はポップアップ（トースト）で表示し、一定時間後に自動で閉じる。
-    // エラー・警告は見落とさないよう、従来どおり画面上部に残す。
+    // 完了通知・エラー・警告は、いずれも画面中央のポップアップ（トースト）で表示する。
     function showMessage(text, kind = 'ok') {
         clearTimeout(toastTimer);
         toastEl.hidden = true;
-        messageEl.hidden = true;
         if (!text) return;
-        if (kind === 'ok') {
-            toastEl.textContent = text;
-            toastEl.hidden = false;
-            toastTimer = setTimeout(() => { toastEl.hidden = true; }, TOAST_DURATION_MS);
-            return;
-        }
-        messageEl.textContent = text;
-        messageEl.className = `message ${kind}`;
-        messageEl.hidden = false;
+        toastEl.textContent = text;
+        toastEl.className = `toast toast-${kind}`;
+        toastEl.hidden = false;
+        toastTimer = setTimeout(() => { toastEl.hidden = true; }, TOAST_DURATION_MS[kind] ?? TOAST_DURATION_MS.ok);
     }
 
     async function api(method, url, body) {
