@@ -297,7 +297,8 @@ section {
   width: 100%;
   height: 200px;
   background-color: var(--bg-secondary); /* Placeholder color */
-  object-fit: cover;
+  /* 横長・縦長どちらの画像でも切り取らず全体を表示する（余白は背景色でレターボックス表示） */
+  object-fit: contain;
 }
 
 .work-content {
