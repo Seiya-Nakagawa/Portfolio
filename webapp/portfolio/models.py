@@ -147,7 +147,7 @@ class Certification(models.Model):
         db_table = "certifications"
         verbose_name = "資格"
         verbose_name_plural = "資格"
-        ordering = ["-acquired_on", "-certification_id"]
+        ordering = ["acquired_on", "certification_id"]
 
     def __str__(self) -> str:
         return self.name

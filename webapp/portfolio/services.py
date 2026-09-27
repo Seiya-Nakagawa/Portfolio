@@ -66,8 +66,8 @@ def format_year_month(value: date) -> str:
 
 
 def ordered_certifications() -> list[Certification]:
-    """取得年月の新しい順（同じ取得年月は登録の新しい順）で返す。"""
-    return list(Certification.objects.order_by("-acquired_on", "-certification_id"))
+    """取得年月の古い順（同じ取得年月は登録の古い順）で返す。"""
+    return list(Certification.objects.order_by("acquired_on", "certification_id"))
 
 
 def ordered_works() -> list[Work]:

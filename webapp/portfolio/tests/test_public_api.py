@@ -75,15 +75,15 @@ class SkillsApiTests(TestCase):
 
 
 class CertificationsApiTests(TestCase):
-    def test_取得日の新しい順でキーはname_date_org(self):
+    def test_取得日の古い順でキーはname_date_org(self):
         Certification.objects.create(name="A", acquired_on=date(2020, 9, 1), org="Y")
         Certification.objects.create(name="B", acquired_on=date(2024, 7, 1), org="X")
         response = self.client.get(reverse("api-certifications"))
         self.assertEqual(
             response.json(),
             [
-                {"name": "B", "date": "2024年07月", "org": "X"},
                 {"name": "A", "date": "2020年09月", "org": "Y"},
+                {"name": "B", "date": "2024年07月", "org": "X"},
             ],
         )
 

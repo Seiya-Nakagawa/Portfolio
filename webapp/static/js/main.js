@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 静的ファイルの配信パスと API の URL は、テンプレートが body の data 属性で渡す。
     const staticBase = document.body.dataset.staticBase;
+    const mediaBase = document.body.dataset.mediaBase;
     const api = {
         skills: document.body.dataset.apiSkills,
         certifications: document.body.dataset.apiCertifications,
@@ -55,10 +56,11 @@ document.addEventListener('DOMContentLoaded', () => {
             });
     }
 
-    // サムネイルのパスは静的ファイルの相対パスで保持しているため、配信パスを前置する。
+    // サムネイルはアップロード画像の相対パスで保持しているため、画像の配信パスを前置する。
+    // 未設定の場合は既定のプレースホルダー（静的ファイル）を表示する。
     function resolveThumbnail(path) {
-        const thumbnail = path || 'img/placeholder.png';
-        return /^(https?:)?\/\//.test(thumbnail) ? thumbnail : staticBase + thumbnail;
+        if (!path) return staticBase + 'img/placeholder.png';
+        return /^(https?:)?\/\//.test(path) ? path : mediaBase + path;
     }
 
     function applyLang() {

@@ -48,6 +48,7 @@ TEMPLATES = [
         "OPTIONS": {
             "context_processors": [
                 "django.template.context_processors.request",
+                "django.template.context_processors.media",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
             ],
@@ -77,6 +78,10 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
+
+# 実績の画像など、管理画面からアップロードしたファイル（git 管理対象外）。
+MEDIA_URL = "media/"
+MEDIA_ROOT = env("MEDIA_ROOT", default=str(BASE_DIR / "media"))
 
 STORAGES = {
     "default": {

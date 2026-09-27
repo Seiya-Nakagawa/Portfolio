@@ -1,9 +1,12 @@
 import json
+import tempfile
 from datetime import date
+from pathlib import Path
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from portfolio.models import Certification, Project, ProjectSkill, Skill, Work
@@ -406,7 +409,7 @@ class CertificationAndWorkApiTests(LoggedInTestCase):
         ).json()
         self.assertEqual(rows, [])
 
-    def test_資格は取得日の新しい順に並ぶ(self):
+    def test_資格は取得日の古い順に並ぶ(self):
         for name, acquired_on in [
             ("古い", "2020-09"),
             ("新しい", "2024-07"),
@@ -418,7 +421,7 @@ class CertificationAndWorkApiTests(LoggedInTestCase):
                 {"name": name, "acquired_on": acquired_on, "org": "団体"},
             )
         rows = self.call("get", "manage-api-certifications").json()
-        self.assertEqual([r["name"] for r in rows], ["新しい", "中間", "古い"])
+        self.assertEqual([r["name"] for r in rows], ["古い", "中間", "新しい"])
 
     def test_実績は登録の新しい順に並ぶ(self):
         for title, achieved_on in [
@@ -492,6 +495,50 @@ class CertificationAndWorkApiTests(LoggedInTestCase):
             ).status_code,
             404,
         )
+
+
+class ImageUploadTests(LoggedInTestCase):
+    def setUp(self):
+        super().setUp()
+        self._media = tempfile.TemporaryDirectory()
+        self.addCleanup(self._media.cleanup)
+        override = override_settings(MEDIA_ROOT=self._media.name)
+        override.enable()
+        self.addCleanup(override.disable)
+
+    def _upload(self, name="a.png", content=b"\x89PNG-data"):
+        return self.client.post(
+            reverse("manage-api-upload-image"),
+            {"image": SimpleUploadedFile(name, content)},
+        )
+
+    def test_画像を保存し相対パスを返す(self):
+        response = self._upload()
+        self.assertEqual(response.status_code, 200)
+        path = response.json()["path"]
+        self.assertRegex(path, r"^works/[0-9a-f]{32}\.png$")
+        self.assertTrue((Path(self._media.name) / path).exists())
+
+    def test_保存した画像を配信する(self):
+        path = self._upload().json()["path"]
+        response = self.client.get(f"/media/{path}")
+        self.assertEqual(response.status_code, 200)
+
+    def test_画像以外の拡張子は拒否する(self):
+        response = self._upload("a.html", b"<script></script>")
+        self.assertEqual(response.status_code, 400)
+
+    def test_ファイル未指定は拒否する(self):
+        response = self.client.post(reverse("manage-api-upload-image"))
+        self.assertEqual(response.status_code, 400)
+
+    def test_サイズ超過は拒否する(self):
+        response = self._upload(content=b"0" * (5 * 1024 * 1024 + 1))
+        self.assertEqual(response.status_code, 400)
+
+    def test_未ログインでは401を返す(self):
+        self.client.logout()
+        self.assertEqual(self._upload().status_code, 401)
 
 
 class ExportTests(LoggedInTestCase):

@@ -9,6 +9,8 @@ document.addEventListener('DOMContentLoaded', () => {
         certifications: document.body.dataset.apiCertifications,
         works: document.body.dataset.apiWorks,
         site: document.body.dataset.apiSite,
+        upload: document.body.dataset.apiUpload,
+        mediaBase: document.body.dataset.mediaBase,
         export: document.body.dataset.apiExport,
         exportDownload: document.body.dataset.exportDownload,
     };
@@ -27,10 +29,26 @@ document.addEventListener('DOMContentLoaded', () => {
         return match ? decodeURIComponent(match.split('=')[1]) : '';
     }
 
+    const toastEl = document.getElementById('toast');
+    const TOAST_DURATION_MS = 3000;
+    let toastTimer = null;
+
+    // 完了通知はポップアップ（トースト）で表示し、一定時間後に自動で閉じる。
+    // エラー・警告は見落とさないよう、従来どおり画面上部に残す。
     function showMessage(text, kind = 'ok') {
+        clearTimeout(toastTimer);
+        toastEl.hidden = true;
+        messageEl.hidden = true;
+        if (!text) return;
+        if (kind === 'ok') {
+            toastEl.textContent = text;
+            toastEl.hidden = false;
+            toastTimer = setTimeout(() => { toastEl.hidden = true; }, TOAST_DURATION_MS);
+            return;
+        }
         messageEl.textContent = text;
-        messageEl.className = kind === 'ok' ? 'message' : `message ${kind}`;
-        messageEl.hidden = !text;
+        messageEl.className = `message ${kind}`;
+        messageEl.hidden = false;
     }
 
     async function api(method, url, body) {
@@ -60,6 +78,32 @@ document.addEventListener('DOMContentLoaded', () => {
             showMessage(error.message, 'error');
             return undefined;
         }
+    }
+
+    // --- 画像 ---
+
+    // 画像のパスは MEDIA_ROOT からの相対パスで保持している。外部 URL はそのまま使う。
+    function imageUrl(path) {
+        return /^(https?:)?\/\//.test(path) ? path : urls.mediaBase + path;
+    }
+
+    async function uploadImage(file) {
+        const form = new FormData();
+        form.append('image', file);
+        const response = await fetch(urls.upload, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': getCookie('csrftoken') },
+            body: form,
+        });
+        if (response.status === 401) {
+            window.location.reload();
+            throw new Error('ログインが必要です。');
+        }
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error((data.errors || ['画像のアップロードに失敗しました。']).join('\n'));
+        }
+        return data;
     }
 
     // --- 案件登録 ---
@@ -425,12 +469,27 @@ document.addEventListener('DOMContentLoaded', () => {
         return Array.isArray(value) ? value.join(', ') : String(value ?? '');
     }
 
-    function renderConfirmScreen(root, { title, rows, saveLabel, onBack, onSave }) {
+    // before を渡した場合は、変更のあった項目のみを修正前・修正後の 2 列で表示する。
+    function renderConfirmScreen(root, { title, rows, before, saveLabel, onBack, onSave }) {
+        let body;
+        if (before) {
+            const changed = rows
+                .map(([label, value], i) => ({ label, after: value, before: before[i] }))
+                .filter((r) => confirmValue(r.after) !== confirmValue(r.before));
+            body = changed.length === 0
+                ? '<p>変更された項目はありません。</p>'
+                : `<div class="table-wrap"><table>
+                    <tr><th>項目</th><th>修正前</th><th>修正後</th></tr>
+                    ${changed.map((r) => `<tr><th>${esc(r.label)}</th><td class="pre-line">${esc(confirmValue(r.before))}</td><td class="pre-line">${esc(confirmValue(r.after))}</td></tr>`).join('')}
+                </table></div>`;
+        } else {
+            body = `<div class="table-wrap"><table>
+                ${rows.map(([label, value]) => `<tr><th>${esc(label)}</th><td class="pre-line">${esc(confirmValue(value))}</td></tr>`).join('')}
+            </table></div>`;
+        }
         root.innerHTML = `
             <h2>${esc(title)}の確認</h2>
-            <div class="table-wrap"><table>
-                ${rows.map(([label, value]) => `<tr><th>${esc(label)}</th><td class="pre-line">${esc(confirmValue(value))}</td></tr>`).join('')}
-            </table></div>
+            ${body}
             <div class="actions">
                 <button type="button" data-confirm-back>入力に戻る</button>
                 <span class="spacer"></span>
@@ -455,6 +514,11 @@ document.addEventListener('DOMContentLoaded', () => {
             return Array.isArray(value) ? value.join(', ') : (value ?? '');
         }
 
+        function formatField(field, source) {
+            const value = source[field.name];
+            return field.format ? field.format(value) : (Array.isArray(value) ? value.join(', ') : value);
+        }
+
         // フォームの初期値は、確認画面から戻った場合は入力途中の内容、それ以外は編集対象の行とする。
         function formSource() {
             return draft || editing;
@@ -469,6 +533,15 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             if (field.type === 'textarea') {
                 return `<label>${esc(field.label)}<textarea name="${field.name}" rows="3">${value}</textarea></label>`;
+            }
+            if (field.type === 'image') {
+                const current = fieldValue(row, field);
+                return `<div class="image-field" data-image-field>
+                    <span>${esc(field.label)}</span>
+                    <input type="hidden" name="${field.name}" value="${value}" />
+                    <img class="image-preview" alt="サムネイルのプレビュー" src="${current ? esc(imageUrl(current)) : ''}"${current ? '' : ' hidden'} />
+                    <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" data-image-input />
+                </div>`;
             }
             const list = field.datalist ? ` list="${config.key}-${field.name}-list"` : '';
             const dl = field.datalist
@@ -502,7 +575,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderConfirmScreen(root, {
                     title: config.title,
                     saveLabel: editing ? '更新' : '追加',
-                    rows: config.fields.map((f) => [confirmLabel(f.label), f.format ? f.format(draft[f.name]) : draft[f.name]]),
+                    rows: config.fields.map((f) => [confirmLabel(f.label), formatField(f, draft)]),
+                    before: editing ? config.fields.map((f) => formatField(f, editing)) : undefined,
                     onBack: () => { confirming = false; render(); },
                     onSave: save,
                 });
@@ -541,6 +615,22 @@ document.addEventListener('DOMContentLoaded', () => {
             if (cancel) cancel.addEventListener('click', () => { editing = null; draft = null; inEditScreen = false; render(); });
             const form = root.querySelector('form');
             if (form) form.addEventListener('submit', submit);
+            root.querySelectorAll('[data-image-field]').forEach(bindImageField);
+        }
+
+        // 画像を選択した時点でアップロードし、保存先のパスを hidden の入力欄へ保持する。
+        function bindImageField(wrapper) {
+            const input = wrapper.querySelector('[data-image-input]');
+            const hidden = wrapper.querySelector('input[type="hidden"]');
+            const preview = wrapper.querySelector('.image-preview');
+            input.addEventListener('change', async () => {
+                if (!input.files.length) return;
+                const result = await guarded(() => uploadImage(input.files[0]));
+                if (!result) { input.value = ''; return; }
+                hidden.value = result.path;
+                preview.src = imageUrl(result.path);
+                preview.hidden = false;
+            });
         }
 
         // 入力内容を確認画面へ渡す。保存は確認画面で承認した場合のみ行う。
@@ -662,11 +752,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const rename = categoriesRoot.querySelector('form[data-rename]');
         if (rename) rename.addEventListener('submit', (e) => {
             e.preventDefault();
-            saveCategory('PUT', `${urls.categories}/${encodeURIComponent(editingCategory)}`, e.target.elements.name.value, '名称を変更しました。');
+            confirmCategory({ method: 'PUT', url: `${urls.categories}/${encodeURIComponent(editingCategory)}`, before: editingCategory, name: e.target.elements.name.value, message: '名称を変更しました。' });
         });
         categoriesRoot.querySelector('form[data-add]').addEventListener('submit', (e) => {
             e.preventDefault();
-            saveCategory('POST', urls.categories, e.target.elements.name.value, '追加しました。');
+            confirmCategory({ method: 'POST', url: urls.categories, name: e.target.elements.name.value, message: '追加しました。' });
         });
     }
 
@@ -680,8 +770,19 @@ document.addEventListener('DOMContentLoaded', () => {
         showMessage(message);
     }
 
-    async function saveCategory(method, url, name, message) {
-        await applyCategories(await guarded(() => api(method, url, { name })), message);
+    // 追加・名称変更は、確認画面で承認した場合のみ保存する。
+    function confirmCategory({ method, url, before, name, message }) {
+        showMessage('');
+        renderConfirmScreen(categoriesRoot, {
+            title: before === undefined ? '種類の追加' : '種類の名称変更',
+            saveLabel: before === undefined ? '追加' : '更新',
+            rows: [['種類名', name]],
+            before: before === undefined ? undefined : [before],
+            onBack: renderCategories,
+            onSave: async () => {
+                await applyCategories(await guarded(() => api(method, url, { name })), message);
+            },
+        });
     }
 
     async function moveCategory(index, direction) {
@@ -713,6 +814,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const certificationsPanel = crudPanel(certificationsRoot, {
         key: 'cert',
         title: '資格',
+        separateEdit: true,
         url: urls.certifications,
         idKey: 'certification_id',
         label: (row) => row.name,
@@ -730,6 +832,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const worksPanel = crudPanel(worksRoot, {
         key: 'work',
         title: '実績',
+        separateEdit: true,
         url: urls.works,
         idKey: 'work_id',
         label: (row) => row.title,
@@ -744,7 +847,7 @@ document.addEventListener('DOMContentLoaded', () => {
             { name: 'desc_ja', label: '説明文（日本語）', type: 'textarea' },
             { name: 'desc_en', label: '説明文（英語）', type: 'textarea' },
             { name: 'tags', label: '使用技術タグ（カンマ区切り）', type: 'tags' },
-            { name: 'thumbnail', label: 'サムネイル（例: img/portfolio.png）' },
+            { name: 'thumbnail', label: 'サムネイル画像', type: 'image', format: (v) => (v ? v.split('/').pop() : '') },
             { name: 'github_url', label: 'GitHub URL', type: 'url' },
             { name: 'live_url', label: '公開 URL', type: 'url' },
         ],
@@ -777,14 +880,35 @@ document.addEventListener('DOMContentLoaded', () => {
         return `<label>${esc(field.label)}<input type="${field.type || 'text'}" name="${field.name}" value="${esc(value)}" /></label>`;
     }
 
-    // 保存前に確認画面を表示する。入力に戻る場合は入力途中の内容をフォームへ再表示する。
-    function renderSiteForm(values) {
+    // 表示 → 編集 → 確認の順に画面を遷移する。確認画面では変更のあった項目のみ修正前後を表示する。
+    let siteCurrent = null; // サーバーに保存されている現在の内容
+
+    function siteRows(values) {
+        return SITE_FIELDS.map((f) => [f.label, values[f.name]]);
+    }
+
+    function renderSiteView() {
         siteRoot.innerHTML = `
             <h2>サイト情報</h2>
+            <div class="table-wrap"><table>
+                ${siteRows(siteCurrent).map(([label, value]) => `<tr><th>${esc(label)}</th><td class="pre-line">${esc(confirmValue(value))}</td></tr>`).join('')}
+            </table></div>
+            <div class="actions"><button type="button" class="primary" data-site-edit>編集</button></div>`;
+        siteRoot.querySelector('[data-site-edit]').addEventListener('click', () => renderSiteForm(siteCurrent));
+    }
+
+    // 入力に戻る場合は入力途中の内容をフォームへ再表示する。
+    function renderSiteForm(values) {
+        siteRoot.innerHTML = `
+            <h2>サイト情報の編集</h2>
             <form>
                 ${SITE_FIELDS.map((f) => renderSiteField(f, values[f.name])).join('')}
-                <div class="actions"><button type="submit" class="primary">確認へ</button></div>
+                <div class="actions">
+                    <button type="submit" class="primary">確認へ</button>
+                    <button type="button" data-site-cancel>キャンセル</button>
+                </div>
             </form>`;
+        siteRoot.querySelector('[data-site-cancel]').addEventListener('click', renderSiteView);
         siteRoot.querySelector('form').addEventListener('submit', (event) => {
             event.preventDefault();
             const payload = {};
@@ -801,12 +925,14 @@ document.addEventListener('DOMContentLoaded', () => {
         renderConfirmScreen(siteRoot, {
             title: 'サイト情報',
             saveLabel: '更新',
-            rows: SITE_FIELDS.map((f) => [f.label, payload[f.name]]),
+            rows: siteRows(payload),
+            before: siteRows(siteCurrent).map(([, value]) => value),
             onBack: () => renderSiteForm(payload),
             onSave: async () => {
                 const saved = await guarded(() => api('PUT', urls.site, payload));
                 if (!saved) return;
-                renderSiteForm(saved);
+                siteCurrent = saved;
+                renderSiteView();
                 showMessage('保存しました。');
             },
         });
@@ -814,7 +940,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function loadSiteInfo() {
         const data = await guarded(() => api('GET', urls.site));
-        if (data) renderSiteForm(data);
+        if (data) {
+            siteCurrent = data;
+            renderSiteView();
+        }
     }
 
     // --- エクスポート ---

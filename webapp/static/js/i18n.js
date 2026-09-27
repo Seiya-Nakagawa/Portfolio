@@ -1,11 +1,11 @@
 const resources = {
     ja: {
         nav: {
-            about: "About",
-            skills: "Skills",
-            certifications: "Certifications",
-            works: "Works",
-            contact: "Contact",
+            about: "自己紹介",
+            skills: "スキル",
+            certifications: "資格",
+            works: "実績",
+            contact: "お問い合わせ",
             skill_tech: "技術",
             skill_years: "経験年数",
             skill_level: "レベル",

@@ -24,6 +24,7 @@
   </head>
   <body
     data-static-base="{% static '' %}"
+    data-media-base="{{ MEDIA_URL }}"
     data-api-skills="{% url 'api-skills' %}"
     data-api-certifications="{% url 'api-certifications' %}"
     data-api-works="{% url 'api-works' %}"
@@ -33,15 +34,15 @@
       <nav class="container">
         <div class="logo">SN</div>
         <ul class="nav-links glass-panel">
-          <li><a href="#about" data-i18n="nav.about">About</a></li>
-          <li><a href="#skills" data-i18n="nav.skills">Skills</a></li>
+          <li><a href="#about" data-i18n="nav.about">自己紹介</a></li>
+          <li><a href="#skills" data-i18n="nav.skills">スキル</a></li>
           <li>
             <a href="#certifications" data-i18n="nav.certifications"
-              >Certifications</a
+              >資格</a
             >
           </li>
-          <li><a href="#works" data-i18n="nav.works">Works</a></li>
-          <li><a href="#contact" data-i18n="nav.contact">Contact</a></li>
+          <li><a href="#works" data-i18n="nav.works">実績</a></li>
+          <li><a href="#contact" data-i18n="nav.contact">お問い合わせ</a></li>
         </ul>
         <div class="nav-tools">
           <div id="mobile-menu-btn" class="icon-btn mobile-only">
@@ -66,7 +67,7 @@
 
       <!-- About Section -->
       <section id="about" class="container">
-        <h2 class="section-title" data-i18n="nav.about">About</h2>
+        <h2 class="section-title" data-i18n="nav.about">自己紹介</h2>
         <div class="about-grid glass-panel" style="padding: 2rem">
           <div class="about-text">
             <p id="about-intro"></p>
@@ -104,7 +105,7 @@
 
       <!-- Skills Section -->
       <section id="skills" class="container">
-        <h2 class="section-title" data-i18n="nav.skills">Skills</h2>
+        <h2 class="section-title" data-i18n="nav.skills">スキル</h2>
         <div id="skills-container" class="skills-grid">
           <!-- Injected via JS -->
         </div>
@@ -112,9 +113,7 @@
 
       <!-- Certifications Section -->
       <section id="certifications" class="container">
-        <h2 class="section-title" data-i18n="nav.certifications">
-          Certifications
-        </h2>
+        <h2 class="section-title" data-i18n="nav.certifications">資格</h2>
         <div id="certifications-container" class="certifications-grid">
           <!-- Injected via JS -->
         </div>
@@ -122,7 +121,7 @@
 
       <!-- Works Section -->
       <section id="works" class="container">
-        <h2 class="section-title" data-i18n="nav.works">Works</h2>
+        <h2 class="section-title" data-i18n="nav.works">実績</h2>
         <div id="works-container" class="works-grid">
           <!-- Injected via JS -->
         </div>
@@ -130,7 +129,7 @@
 
       <!-- Contact Section -->
       <section id="contact" class="container">
-        <h2 class="section-title" data-i18n="nav.contact">Contact</h2>
+        <h2 class="section-title" data-i18n="nav.contact">お問い合わせ</h2>
         <div class="contact-container glass-panel">
           <p id="contact-message"></p>
           <div

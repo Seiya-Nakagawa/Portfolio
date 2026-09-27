@@ -8,3 +8,4 @@ Dockerfile
 .dockerignore
 .ruff_cache/
 staticfiles/
+media/
