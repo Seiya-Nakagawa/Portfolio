@@ -25,6 +25,22 @@ def generate_project_id() -> str:
     return f"{PROJECT_ID_PREFIX}{uuid.uuid4().hex[:PROJECT_ID_HEX_LENGTH]}"
 
 
+class SkillCategory(models.Model):
+    """スキル項目の種類マスタ。種類の一覧と並び順を保持する。"""
+
+    name = models.CharField("種類名", max_length=64, unique=True)
+    sort_order = models.PositiveIntegerField("表示順")
+
+    class Meta:
+        db_table = "skill_categories"
+        verbose_name = "スキル項目の種類"
+        verbose_name_plural = "スキル項目の種類"
+        ordering = ["sort_order", "id"]
+
+    def __str__(self) -> str:
+        return self.name
+
+
 class Skill(models.Model):
     """スキル項目マスタ。"""
 

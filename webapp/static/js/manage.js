@@ -4,7 +4,8 @@ document.addEventListener('DOMContentLoaded', () => {
         bootstrap: document.body.dataset.apiBootstrap,
         projects: document.body.dataset.apiProjects,
         skills: document.body.dataset.apiSkills,
-        skillOrder: document.body.dataset.apiSkillOrder,
+        categories: document.body.dataset.apiCategories,
+        categoryOrder: document.body.dataset.apiCategoryOrder,
         certifications: document.body.dataset.apiCertifications,
         works: document.body.dataset.apiWorks,
         site: document.body.dataset.apiSite,
@@ -90,6 +91,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // カテゴリページの順序は、各カテゴリの sort_order 最小値の昇順（サーバーの並び順に従う）。
+    // 種類マスタの並び順（スキル項目を持たない種類を含む）。スキル項目の入力候補・絞り込みに使う。
+    function masterCategories() {
+        return project.categoryNames || categories();
+    }
+
     function categories() {
         return [...new Set(project.skills.map((s) => s.category))];
     }
@@ -124,6 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const data = await api('GET', urls.bootstrap);
             project.skills = data.skills;
+            project.categoryNames = data.categories;
             project.ongoing = data.ongoing_projects;
             project.finished = data.finished_projects;
             return data;
@@ -489,30 +496,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return `<label class="list-filter">${esc(config.filter.label)}<select data-filter>${options}</select></label>`;
         }
 
-        function renderCategoryOrder() {
-            if (!config.categoryOrder) return '';
-            const order = [...new Set(rows.map((r) => r.category))];
-            return `
-                <h2>種類の並び替え</h2>
-                <ul class="category-order">
-                    ${order.map((c, i) => `<li>${esc(c)}
-                        <button type="button" data-move="${i}" data-dir="-1"${i === 0 ? ' disabled' : ''}>↑</button>
-                        <button type="button" data-move="${i}" data-dir="1"${i === order.length - 1 ? ' disabled' : ''}>↓</button></li>`).join('')}
-                </ul>`;
-        }
-
-        async function moveCategory(index, direction) {
-            const order = [...new Set(rows.map((r) => r.category))];
-            const target = index + direction;
-            [order[index], order[target]] = [order[target], order[index]];
-            const result = await guarded(() => api('POST', config.categoryOrder.url, { categories: order }));
-            if (result) {
-                rows = result;
-                render();
-                showMessage(config.afterSave ? config.afterSave() : '保存しました。');
-            }
-        }
-
         function render() {
             const showEditScreen = config.separateEdit && inEditScreen;
             if (confirming) {
@@ -535,7 +518,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     <h2>${esc(config.title)}</h2>
                     ${renderFilter()}
                     ${config.separateEdit ? '<div class="actions"><button type="button" class="primary" data-add>追加</button></div>' : ''}
-                    ${renderCategoryOrder()}
                     <div class="table-wrap"><table>
                         <tr>${config.columns.map((c) => `<th>${esc(c.label)}</th>`).join('')}<th></th></tr>
                         ${visible.map((row) => `<tr>${config.columns.map((c) => `<td>${esc(c.value(row))}</td>`).join('')}
@@ -550,7 +532,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 inEditScreen = true;
                 render();
             }));
-            root.querySelectorAll('[data-move]').forEach((b) => b.addEventListener('click', () => moveCategory(Number(b.dataset.move), Number(b.dataset.dir))));
             root.querySelectorAll('[data-delete]').forEach((b) => b.addEventListener('click', () => remove(rows[Number(b.dataset.delete)])));
             const add = root.querySelector('[data-add]');
             if (add) add.addEventListener('click', () => { editing = null; draft = null; inEditScreen = true; render(); });
@@ -618,8 +599,7 @@ document.addEventListener('DOMContentLoaded', () => {
         key: 'skill',
         title: 'スキル項目',
         separateEdit: true,
-        filter: { label: '種類', values: () => categories(), value: (r) => r.category },
-        categoryOrder: { url: urls.skillOrder },
+        filter: { label: '種類', values: () => masterCategories(), value: (r) => r.category },
         url: urls.skills,
         idKey: 'skill_id',
         label: (row) => row.name,
@@ -631,7 +611,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ],
         fields: [
             { name: 'skill_id', label: 'skill_id（半角英小文字・数字・ハイフン。登録後は変更不可）', readonlyOnEdit: true },
-            { name: 'category', label: '種類', datalist: () => categories() },
+            { name: 'category', label: '種類', datalist: () => masterCategories() },
             { name: 'subcategory', label: 'サブカテゴリ（任意。案件登録でサブタブに分ける）', datalist: () => subcategories() },
             { name: 'name', label: '表示名' },
         ],
@@ -641,6 +621,89 @@ document.addEventListener('DOMContentLoaded', () => {
             return '保存しました。';
         },
     });
+
+    // 種類管理。サイト管理者のみの作業として、追加・名称変更・削除・並び替えをこのタブに集約する。
+    const categoriesRoot = document.getElementById('tab-categories');
+    let categoryRows = [];
+    let editingCategory = null; // 名称変更中の種類名
+
+    function renderCategories() {
+        const last = categoryRows.length - 1;
+        categoriesRoot.innerHTML = `
+            <h2>種類管理</h2>
+            <div class="table-wrap"><table>
+                <tr><th>種類</th><th>項目数</th><th></th></tr>
+                ${categoryRows.map((c, i) => `<tr>
+                    <td>${editingCategory === c.name
+                        ? `<form data-rename><input type="text" name="name" value="${esc(c.name)}" /> <button type="submit" class="primary">保存</button> <button type="button" data-rename-cancel>キャンセル</button></form>`
+                        : esc(c.name)}</td>
+                    <td>${c.skill_count}</td>
+                    <td>
+                        <button type="button" data-move="${i}" data-dir="-1"${i === 0 ? ' disabled' : ''}>↑</button>
+                        <button type="button" data-move="${i}" data-dir="1"${i === last ? ' disabled' : ''}>↓</button>
+                        <button type="button" data-rename-start="${i}">名称変更</button>
+                        <button type="button" class="danger" data-delete="${i}">削除</button>
+                    </td></tr>`).join('')}
+            </table></div>
+            <h2>追加</h2>
+            <form data-add>
+                <label>種類名<input type="text" name="name" /></label>
+                <div class="actions"><button type="submit" class="primary">追加</button></div>
+            </form>`;
+
+        categoriesRoot.querySelectorAll('[data-move]').forEach((b) => b.addEventListener('click', () => moveCategory(Number(b.dataset.move), Number(b.dataset.dir))));
+        categoriesRoot.querySelectorAll('[data-rename-start]').forEach((b) => b.addEventListener('click', () => {
+            editingCategory = categoryRows[Number(b.dataset.renameStart)].name;
+            renderCategories();
+        }));
+        categoriesRoot.querySelectorAll('[data-delete]').forEach((b) => b.addEventListener('click', () => deleteCategory(categoryRows[Number(b.dataset.delete)])));
+        const cancel = categoriesRoot.querySelector('[data-rename-cancel]');
+        if (cancel) cancel.addEventListener('click', () => { editingCategory = null; renderCategories(); });
+        const rename = categoriesRoot.querySelector('form[data-rename]');
+        if (rename) rename.addEventListener('submit', (e) => {
+            e.preventDefault();
+            saveCategory('PUT', `${urls.categories}/${encodeURIComponent(editingCategory)}`, e.target.elements.name.value, '名称を変更しました。');
+        });
+        categoriesRoot.querySelector('form[data-add]').addEventListener('submit', (e) => {
+            e.preventDefault();
+            saveCategory('POST', urls.categories, e.target.elements.name.value, '追加しました。');
+        });
+    }
+
+    // 種類の変更結果を、スキル項目管理・案件登録の表示にも反映する。
+    async function applyCategories(result, message) {
+        if (!result) return;
+        categoryRows = result;
+        editingCategory = null;
+        await refreshMaster();
+        renderCategories();
+        showMessage(message);
+    }
+
+    async function saveCategory(method, url, name, message) {
+        await applyCategories(await guarded(() => api(method, url, { name })), message);
+    }
+
+    async function moveCategory(index, direction) {
+        const order = categoryRows.map((c) => c.name);
+        const target = index + direction;
+        [order[index], order[target]] = [order[target], order[index]];
+        await applyCategories(await guarded(() => api('POST', urls.categoryOrder, { categories: order })), '並び順を保存しました。');
+    }
+
+    async function deleteCategory(category) {
+        if (!window.confirm(`「${category.name}」を削除します。よろしいですか？`)) return;
+        await applyCategories(await guarded(() => api('DELETE', `${urls.categories}/${encodeURIComponent(category.name)}`)), '削除しました。');
+    }
+
+    async function loadCategories() {
+        const data = await guarded(() => api('GET', urls.categories));
+        if (data) {
+            categoryRows = data;
+            editingCategory = null;
+            renderCategories();
+        }
+    }
 
     // 資格・実績・サイト情報は、それぞれ別のタブで管理する。表示順は入力せず、サーバー側で自動的に並べる。
     const certificationsRoot = document.getElementById('tab-certifications');
@@ -795,6 +858,7 @@ document.addEventListener('DOMContentLoaded', () => {
         works: () => worksPanel.load(),
         site: loadSiteInfo,
         export: loadExport,
+        categories: loadCategories,
     };
 
     async function showTab(name) {
