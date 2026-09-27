@@ -435,7 +435,7 @@ flowchart LR
 | ファイル名 | 利用者の入力は使わず、サーバーが推測されにくい名前を採番する |
 | 保存先 | アプリケーションの画像保存領域（`MEDIA_ROOT`）配下。本番は OCI ホストの hostPath を Pod にマウントして永続化する。画像ファイルは git の管理対象外とする |
 | 配信 | 保存領域配下を `/media/` 配下でアプリケーションから配信する（認証不要） |
-| 既存画像の移行 | 既存の実績画像は git から削除し、保存領域へ手動で配置する（構築手順書を参照）。既存の `thumbnail` の値（`img/…`）は保存領域からの相対パスとしてそのまま解決する |
+| 既存画像の移行 | 既存の実績画像は git から削除し、保存領域へ手動で配置する（構築手順書を参照）。`thumbnail` の値は既存の実績も含め `works/…` とし、アップロード画像と同じ保存先に配置する |
 
 ##### 画面遷移と確認画面
 
@@ -540,7 +540,7 @@ flowchart LR
     "desc_ja": "当ポートフォリオサイト",
     "desc_en": "Renewal project of this portfolio website.",
     "tags": ["HTML", "CSS", "JS"],
-    "thumbnail": "img/portfolio.png",
+    "thumbnail": "works/portfolio.png",
     "github_url": "https://github.com/Seiya-Nakagawa/Portfolio"
   }
 ]
@@ -720,7 +720,7 @@ Portfolio/
 │                              # （Googleドライブへのシンボリックリンク、.gitignoreで除外）
 ├── webapp/                    # ポートフォリオアプリのソース（OCI 基盤へデプロイするコンテナアプリ）
 │   ├── templates/            # ページ本体（index 等）のテンプレート
-│   └── static/                # css / js / img（ビルド不要な Vanilla 構成のまま配置する）
+│   └── static/                # css / js（ビルド不要な Vanilla 構成のまま配置する）
 │                              # アップロード画像（media/）は git 管理対象外
 ├── k8s/                       # ポートフォリオアプリの Kubernetes マニフェスト（Deployment・Service）
 ├── deploy-oci.sh              # ポートフォリオアプリのビルド・デプロイスクリプト

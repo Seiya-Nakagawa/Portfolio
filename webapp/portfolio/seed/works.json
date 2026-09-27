@@ -4,7 +4,7 @@
     "desc_ja": "当ポートフォリオサイト",
     "desc_en": "Renewal project of this portfolio website.",
     "tags": ["HTML", "CSS", "JS"],
-    "thumbnail": "img/portfolio.png",
+    "thumbnail": "works/portfolio.png",
     "github_url": "https://github.com/Seiya-Nakagawa/Portfolio"
   },
   {
@@ -12,7 +12,7 @@
     "desc_ja": "ブログ記事内のリンク切れを自動でチェック。GASとAWS（Lambda, S3）を連携。",
     "desc_en": "Automated broken link checker for blogs. Integrates GAS with AWS Lambda and S3.",
     "tags": ["GAS", "AWS", "Terraform"],
-    "thumbnail": "img/blog_link_checker.jpg",
+    "thumbnail": "works/blog_link_checker.jpg",
     "github_url": "https://github.com/Seiya-Nakagawa/blog_link_checker"
   },
   {
@@ -20,7 +20,7 @@
     "desc_ja": "登録した路線の情報をLINEで受け取れる遅延通知システム。",
     "desc_en": "Train delay notification system using LINE Messaging API and AWS.",
     "tags": ["Python", "AWS", "Line API", "Terraform"],
-    "thumbnail": "img/train_delay_alert.jpg",
+    "thumbnail": "works/train_delay_alert.jpg",
     "github_url": "https://github.com/Seiya-Nakagawa/train_delay_alert"
   },
   {
