@@ -300,7 +300,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             el.innerHTML = `
                 <div class="work-img">
-                    <img src="${resolveThumbnail(work.thumbnail)}" alt="${work.title}" style="width: 100%; height: 100%; object-fit: cover;">
+                    <img src="${resolveThumbnail(work.thumbnail)}" alt="${work.title}" style="width: 100%; height: 100%; object-fit: contain;">
                 </div>
                 <div class="work-content">
                     <h3>${work.title}</h3>
