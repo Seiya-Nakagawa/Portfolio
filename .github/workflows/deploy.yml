@@ -1,0 +1,44 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "webapp/**"
+      - "k8s/**"
+      - "deploy-oci.sh"
+      - "scripts/deploy_via_bastion.sh"
+      - ".github/workflows/deploy.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  OCI_CLI_USER: ${{ secrets.BASTION_OCI_USER_OCID }}
+  OCI_CLI_FINGERPRINT: ${{ secrets.BASTION_OCI_FINGERPRINT }}
+  OCI_CLI_KEY_CONTENT: ${{ secrets.BASTION_OCI_PRIVATE_KEY }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install OCI CLI
+        run: pip install --disable-pip-version-check oci-cli==3.94.0
+
+      - name: Deploy via OCI Bastion
+        run: ./scripts/deploy_via_bastion.sh
