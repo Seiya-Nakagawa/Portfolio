@@ -103,8 +103,9 @@ uv run python manage.py runserver
 ## デプロイ
 
 リポジトリルートの `deploy-oci.sh` が、イメージのビルド・転送、`k8s/` のマニフェスト適用、
-マイグレーション、初期データ投入を行う（infra-oci 基盤へ作業端末から直接適用する）。
-手順は構築手順書を参照する。
+マイグレーション、初期データ投入を行う。本番デプロイは GitHub Actions（`.github/workflows/deploy.yml`）
+が `main` マージを契機に、OCI Bastion 経由で自動実行する。作業端末からの直接実行は障害調査等の
+一時的な用途に限る。詳細は [基本設計書 7.1](../docs/02.design/DESIGN.md#71-cicd-パイプライン) を参照する。
 
 ## テスト・静的解析
 
