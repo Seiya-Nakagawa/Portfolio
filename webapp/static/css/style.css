@@ -297,7 +297,27 @@ section {
   width: 100%;
   height: 200px;
   background-color: var(--bg-secondary); /* Placeholder color */
-  /* 横長・縦長どちらの画像でも切り取らず全体を表示する（余白は背景色でレターボックス表示） */
+  position: relative;
+  overflow: hidden;
+}
+
+/* 画像のアスペクト比に隙間ができる場合、同じ画像を拡大・ぼかして背景に敷き、余白をなくす */
+.work-img::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: var(--thumb-url);
+  background-size: cover;
+  background-position: center;
+  filter: blur(20px) brightness(0.6);
+  transform: scale(1.15);
+}
+
+.work-img img {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  /* 前面の画像は切り取らず全体を表示する */
   object-fit: contain;
 }
 
