@@ -32,17 +32,20 @@ Terraform（`bastion.tf`・`iam-bastion.tf`）で作成済みであり、infra-o
 
 ### 3.1. GitHub Secretsへの登録
 
+GitHub Actions の Secrets は個人アカウント配下ではリポジトリ単位の登録以外に共有手段がないため、
+複数リポジトリで同一の CI/CD 専用 IAM ユーザーの API キーを使い回す際は、共通スクリプト
+（`~/.claude/scripts/gh_secret_set_oci_bastion.sh`）で登録する。
+
 ```bash
-gh secret set BASTION_OCI_USER_OCID --repo Seiya-Nakagawa/Portfolio
-gh secret set BASTION_OCI_FINGERPRINT --repo Seiya-Nakagawa/Portfolio
-gh secret set BASTION_OCI_PRIVATE_KEY --repo Seiya-Nakagawa/Portfolio
+~/.claude/scripts/gh_secret_set_oci_bastion.sh Seiya-Nakagawa/Portfolio
 ```
 
-- 各コマンド実行後、標準入力で対応する値を貼り付けて登録する
+- 3 つの Secrets（`BASTION_OCI_USER_OCID`・`BASTION_OCI_FINGERPRINT`・`BASTION_OCI_PRIVATE_KEY`）を
+  順に対話入力で登録する
   （`BASTION_OCI_PRIVATE_KEY` は infra-oci セットアップ時にダウンロードした秘密鍵ファイルの内容全体）
 - infra-oci リポジトリに登録済みの値と同一のものを使う（IAM ユーザーを共用するため、新しい API
   キーの発行は不要）
-- 値はチャットへ貼り付けず、上記コマンドの標準入力へ直接入力する
+- 値はチャットへ貼り付けず、対話入力へ直接入力する
 
 ### 3.2. 動作確認
 
