@@ -21,9 +21,9 @@
   `deploy-oci.sh` を実行し本番環境へ自動デプロイする
 - OCI Bastion（Managed SSH Session）を使い、セキュリティ・リストを変更せずに GitHub Actions から
   OCI ホストへ到達する（詳細は [基本設計書 7.1](docs/02.design/DESIGN.md#71-cicd-パイプライン) を参照）
-- Bastion セッション作成用の IAM ユーザーは infra-oci リポジトリの Ansible CI/CD と共用する
-  （OCID 等は `scripts/deploy_via_bastion.sh` に定義。セットアップ手順は
-  [16 構築手順書](docs/04.build/16_GitHubActionsCICD構築.md) を参照）
-- GitHub Secrets: `BASTION_OCI_USER_OCID`・`BASTION_OCI_FINGERPRINT`・`BASTION_OCI_PRIVATE_KEY`
+- Bastion セッション作成用の IAM ユーザーは infra-oci リポジトリの Ansible CI/CD と共用する。
+  ユーザー OCID・フィンガープリントは秘密情報ではないため `scripts/deploy_via_bastion.sh` に
+  直接定義する（セットアップ手順は [16 構築手順書](docs/04.build/16_GitHubActionsCICD構築.md) を参照）
+- GitHub Secrets: `BASTION_OCI_PRIVATE_KEY`（秘密鍵のみ）
 - 作業端末からの `deploy-oci.sh` 直接実行は、障害調査等の一時的な用途にのみ使う
   （本番デプロイは CI/CD 経由に統一する）

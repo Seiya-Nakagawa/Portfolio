@@ -2,8 +2,10 @@
 
 # OCI Bastion (Managed SSH Session) 経由で deploy-oci.sh を実行するラッパー。
 # GitHub Actions から、セキュリティ・リストを変更せずに本番デプロイを行うために使う。
-# OCI CLI が認証済み（環境変数 OCI_CLI_USER / OCI_CLI_FINGERPRINT / OCI_CLI_KEY_CONTENT）で
-# あることを前提とする。infra-oci リポジトリの scripts/run_ansible_bastion.sh と同じ方式。
+# OCI CLI の認証情報のうち、秘密鍵（OCI_CLI_KEY_CONTENT）のみ GitHub Secrets
+# （BASTION_OCI_PRIVATE_KEY）から渡される前提とする。ユーザー OCID・フィンガープリントは
+# 秘密情報ではないため下記に直接定義する。infra-oci リポジトリの
+# scripts/run_ansible_bastion.sh と同じ方式。
 
 set -euo pipefail
 
@@ -16,6 +18,10 @@ OCI_REGION="ap-osaka-1"
 OCI_TENANCY_OCID="ocid1.tenancy.oc1..aaaaaaaacg5alpzvgeigrdm2zyjqnczctg7eqvl5bhqyaddfc64bhewtrciq"
 BASTION_SESSION_TTL="${BASTION_SESSION_TTL:-1800}"
 
+# Bastion セッション作成専用の最小権限 IAM ユーザー（github-actions-ansible-bastion）。
+# OCID・フィンガープリントは秘密情報ではないため直接定義する（秘密鍵のみ Secrets 経由）。
+export OCI_CLI_USER="ocid1.user.oc1..aaaaaaaaajzmsgey3q5hwfofdbxu23hxgiulbizuww4to6pbu5csvzv2fppa"
+export OCI_CLI_FINGERPRINT="19:d9:03:da:3f:59:d1:e8:79:2d:91:08:7b:f0:d6:92"
 export OCI_CLI_REGION="$OCI_REGION"
 export OCI_CLI_TENANCY="$OCI_TENANCY_OCID"
 

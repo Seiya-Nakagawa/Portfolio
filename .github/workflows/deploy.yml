@@ -18,8 +18,8 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  OCI_CLI_USER: ${{ secrets.BASTION_OCI_USER_OCID }}
-  OCI_CLI_FINGERPRINT: ${{ secrets.BASTION_OCI_FINGERPRINT }}
+  # ユーザー OCID・フィンガープリントは秘密情報ではないため scripts/deploy_via_bastion.sh に
+  # 直接定義する。秘密鍵のみ Secrets 経由で渡す。
   OCI_CLI_KEY_CONTENT: ${{ secrets.BASTION_OCI_PRIVATE_KEY }}
 
 jobs:

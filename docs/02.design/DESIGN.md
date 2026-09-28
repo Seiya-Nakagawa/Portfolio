@@ -707,8 +707,9 @@ infra-oci 基盤の Kubernetes 上に、コンテナ化したウェブアプリ�
   OCI Bastion の Managed SSH Session を都度作成し、一時鍵と ProxyCommand 経由で `deploy-oci.sh` を
   実行する。セキュリティ・リストの変更は発生しない
 - **認証情報**: Bastion セッション作成専用の最小権限 IAM ユーザー（`manage bastion-session` のみを許可）の
-  API キーを GitHub Secrets（`BASTION_OCI_USER_OCID`・`BASTION_OCI_FINGERPRINT`・`BASTION_OCI_PRIVATE_KEY`）
-  として保持する。infra-oci リポジトリの Ansible CI/CD と同一の IAM ユーザーを共用する
+  API キーを使う。infra-oci リポジトリの Ansible CI/CD と同一の IAM ユーザーを共用する。
+  ユーザー OCID・フィンガープリントは秘密情報ではないため `scripts/deploy_via_bastion.sh` に直接定義し、
+  秘密鍵のみ GitHub Secrets（`BASTION_OCI_PRIVATE_KEY`）として保持する
 - **arm64 クロスビルド**: OCI ホストが aarch64 のため、GitHub Actions（amd64 ランナー）では
   QEMU（binfmt）を有効化したうえで `docker build --platform linux/arm64` を実行する
 

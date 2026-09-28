@@ -23,9 +23,10 @@ Terraform（`bastion.tf`・`iam-bastion.tf`）で作成済みであり、infra-o
 
 - infra-oci リポジトリで Bastion（`oci_bastion_bastion`）と CI/CD 専用 IAM グループ・ポリシー
   （`manage bastion-session` のみを許可）が適用済みであること
-- infra-oci リポジトリの GitHub Secrets（`BASTION_OCI_USER_OCID`・`BASTION_OCI_FINGERPRINT`・
-  `BASTION_OCI_PRIVATE_KEY`）に登録済みの API キーと同じものを保持していること
-  （API キーのダウンロード手順は infra-oci リポジトリの構築手順書を参照）
+- infra-oci セットアップ時にダウンロードした CI/CD 専用 IAM ユーザー
+  （`github-actions-ansible-bastion`）の秘密鍵ファイルを保持していること
+  （ユーザー OCID・フィンガープリントは秘密情報ではないため `scripts/deploy_via_bastion.sh` に
+  直接定義済みで、登録作業は不要）
 - 本リポジトリの管理者権限を持つこと（GitHub Secrets の登録に必要）
 
 ## 3. 手順
@@ -33,19 +34,16 @@ Terraform（`bastion.tf`・`iam-bastion.tf`）で作成済みであり、infra-o
 ### 3.1. GitHub Secretsへの登録
 
 GitHub Actions の Secrets は個人アカウント配下ではリポジトリ単位の登録以外に共有手段がないため、
-複数リポジトリで同一の CI/CD 専用 IAM ユーザーの API キーを使い回す際は、共通スクリプト
-（`~/.claude/scripts/gh_secret_set_oci_bastion.sh`）で登録する。
+複数リポジトリで同一の CI/CD 専用 IAM ユーザーの秘密鍵を使い回す際は、共通スクリプト
+（`~/.claude/scripts/gh_secret_set_oci_bastion.sh`）で登録する。対話入力は発生しない。
 
 ```bash
-~/.claude/scripts/gh_secret_set_oci_bastion.sh Seiya-Nakagawa/Portfolio
+~/.claude/scripts/gh_secret_set_oci_bastion.sh Seiya-Nakagawa/Portfolio /path/to/oci_api_key.pem
 ```
 
-- 3 つの Secrets（`BASTION_OCI_USER_OCID`・`BASTION_OCI_FINGERPRINT`・`BASTION_OCI_PRIVATE_KEY`）を
-  順に対話入力で登録する
-  （`BASTION_OCI_PRIVATE_KEY` は infra-oci セットアップ時にダウンロードした秘密鍵ファイルの内容全体）
-- infra-oci リポジトリに登録済みの値と同一のものを使う（IAM ユーザーを共用するため、新しい API
-  キーの発行は不要）
-- 値はチャットへ貼り付けず、対話入力へ直接入力する
+- `BASTION_OCI_PRIVATE_KEY`（秘密鍵ファイルの内容全体）のみを登録する。infra-oci セットアップ時に
+  ダウンロードした秘密鍵ファイルを指定する（IAM ユーザーを共用するため、新しい API キーの発行は不要）
+- 秘密鍵ファイルの中身をチャットへ貼り付けない
 
 ### 3.2. 動作確認
 
