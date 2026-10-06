@@ -274,6 +274,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div id="project-page"></div>
             <div class="actions">
                 <button type="button" id="prev-page"${project.pageIndex === 0 ? ' disabled' : ''}>${project.pageIndex === 1 ? '案件情報へ戻る' : '戻る'}</button>
+                ${project.pageIndex > 1 ? '<button type="button" id="to-info-page">案件情報へ戻る</button>' : ''}
                 ${isLastPage
         ? '<button type="button" class="primary" id="next-page">確認へ</button>'
         : `<button type="button" id="next-page">次へ</button>${onInfoPage ? '' : '<button type="button" class="primary" id="confirm-page">確認へ</button>'}`}
@@ -315,6 +316,13 @@ document.addEventListener('DOMContentLoaded', () => {
             project.pageIndex = Math.max(0, project.pageIndex - 1);
             renderProject();
         });
+        const toInfoButton = root.querySelector('#to-info-page');
+        if (toInfoButton) {
+            toInfoButton.addEventListener('click', () => {
+                project.pageIndex = 0;
+                renderProject();
+            });
+        }
         root.querySelector('#next-page').addEventListener('click', () => {
             // 案件情報ページの必須項目を満たさない場合は先へ進めない。
             if (current === PAGE_INFO && !infoIsValid()) {
