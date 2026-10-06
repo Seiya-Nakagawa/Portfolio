@@ -23,17 +23,31 @@ document.addEventListener('DOMContentLoaded', () => {
     loadAndRender(api.skills, 'skills-container', (data) => renderSkills(data.skills));
     loadAndRender(api.certifications, 'certifications-container', renderCertifications);
     loadAndRender(api.works, 'works-container', renderWorks);
-    initScrollEffects();
 
-    // --- Event Listeners ---
     // --- Event Listeners ---
 
     window.addEventListener('scroll', () => {
-        if (window.scrollY > 50) {
-            header.classList.add('scrolled');
-        } else {
-            header.classList.remove('scrolled');
-        }
+        header.classList.toggle('scrolled', window.scrollY > 50);
+    });
+
+    // モバイル用メニューの開閉。リンク選択時は閉じる。
+    const menuButton = document.getElementById('mobile-menu-btn');
+    const navLinks = document.getElementById('nav-links');
+
+    function setMenuOpen(open) {
+        header.classList.toggle('menu-open', open);
+        menuButton.setAttribute('aria-expanded', String(open));
+        menuButton.setAttribute('aria-label', open ? 'メニューを閉じる' : 'メニューを開く');
+    }
+
+    menuButton.addEventListener('click', () => {
+        setMenuOpen(menuButton.getAttribute('aria-expanded') !== 'true');
+    });
+    navLinks.addEventListener('click', (event) => {
+        if (event.target.closest('a')) setMenuOpen(false);
+    });
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') setMenuOpen(false);
     });
 
     // --- Functions ---
@@ -102,224 +116,112 @@ document.addEventListener('DOMContentLoaded', () => {
         startTyping(site.typing_titles);
     }
 
+    // 表示データを HTML 文字列へ埋め込む際のエスケープ。
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, (ch) => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+        }[ch]));
+    }
+
+    // 星の数（1〜5）を、5 段階のレベルメーターとして描画する。
+    function levelMeter(stars) {
+        const pips = [1, 2, 3, 4, 5]
+            .map((i) => `<i class="${i <= stars ? 'on' : ''}"></i>`)
+            .join('');
+        return `<span class="skill-level" role="img" aria-label="レベル ${stars} / 5">${pips}</span>`;
+    }
+
     function renderSkills(skillsData) {
         const container = document.getElementById('skills-container');
-        container.innerHTML = '';
-        container.className = 'skills-grid-container'; // Use a class for easier styling if needed, or just inline for now
-        container.style.display = 'grid';
-        container.style.gridTemplateColumns = '1fr';
-        container.style.gap = '2rem';
-        container.style.alignItems = 'start';
+        const r = resources[currentLang].nav;
 
-        // 0. Render Legend
-        const r = resources[currentLang || 'ja'].nav;
-        const legend = document.createElement('div');
-        legend.className = 'glass-panel';
-        legend.style.padding = '1rem';
-        legend.style.marginBottom = '2rem';
-        legend.style.fontSize = '0.9rem';
-        legend.style.color = 'var(--text-muted)';
-        legend.style.gridColumn = '1 / -1'; // Ensure legend takes full row space
-        legend.style.width = 'fit-content'; // But don't make the box wider than content
-        legend.style.justifySelf = 'center'; // Center the block
+        // 凡例（経験年数の目安）。i18n の凡例文言「★★★☆☆: 1年以上3年未満」を、メーターと目安に分けて表示する。
+        const legendItems = Object.values(r.skill_legend).map((text) => {
+            const [starsPart, label] = text.split(': ');
+            const stars = (starsPart.match(/★/g) || []).length;
+            return `<span class="skill-legend-item">${levelMeter(stars)}${escapeHtml(label)}</span>`;
+        }).join('');
 
-        let legendHTML = `<div style="margin-bottom:0.5rem; font-weight:bold;">${r.skill_level_label || 'Skill Level'}</div>`;
-        legendHTML += `<div style="display: flex; flex-direction: column; gap: 0.3rem;">`;
-        if (r.skill_legend) {
-            Object.values(r.skill_legend).forEach(text => {
-                legendHTML += `<span>${text}</span>`;
-            });
-        }
-        legendHTML += `</div>`;
-        legend.innerHTML = legendHTML;
-        container.appendChild(legend);
-
-        // 1. Group by category
+        // カテゴリ単位にグルーピングする。
         const groups = {};
-        skillsData.forEach(skill => {
+        skillsData.forEach((skill) => {
             if (!groups[skill.category]) groups[skill.category] = [];
             groups[skill.category].push(skill);
         });
 
-        // 2. Render each group
-        Object.keys(groups).forEach(category => {
-            const groupSection = document.createElement('div');
-            groupSection.className = 'skill-category-section glass-panel';
-            groupSection.style.marginBottom = '2rem';
-            groupSection.style.padding = '2rem';
-
-            // Category Title
-            const title = document.createElement('h3');
-            title.textContent = category;
-            title.style.color = 'var(--primary)';
-            title.style.marginBottom = '1.5rem';
-            title.style.borderLeft = '4px solid var(--primary)';
-            title.style.paddingLeft = '1rem';
-            groupSection.appendChild(title);
-
-            // Table Header
-            const headerRow = document.createElement('div');
-            headerRow.style.display = 'grid';
-            headerRow.style.gridTemplateColumns = '2fr 1fr 2fr';
-            headerRow.style.paddingBottom = '1rem';
-            headerRow.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
-            headerRow.style.marginBottom = '1rem';
-            headerRow.style.fontWeight = 'bold';
-            headerRow.style.color = 'var(--text-muted)';
-
-            // Get current headers from i18n resources directly for simplicity (or pass them in)
-            // Ideally we use a data-i18n, but for dynamic content updates, let's grab from resources global
-            const r = resources[currentLang || 'ja'].nav;
-
-            headerRow.innerHTML = `
-                <div>${r.skill_tech || 'Technology'}</div>
-                <div style="text-align: center;">${r.skill_years || 'Years'}</div>
-                <div style="text-align: center;">${r.skill_level || 'Skill'}</div>
-            `;
-            groupSection.appendChild(headerRow);
-
-            // Skill Items
-            groups[category].forEach(skill => {
-                const row = document.createElement('div');
-                row.style.display = 'grid';
-                row.style.gridTemplateColumns = '2fr 1fr 2fr';
-                row.style.padding = '1rem 0';
-                row.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
-                row.style.alignItems = 'center';
-
-                // Stars generation
-                let stars = '';
-                for (let i = 1; i <= 5; i++) {
-                    const color = i <= skill.stars ? 'gold' : 'var(--text-muted)';
-                    const iconClass = i <= skill.stars ? 'fas' : 'far';
-                    stars += `<i class="${iconClass} fa-star" style="color: ${color}; margin-right: 2px;"></i>`;
-                }
-
-                row.innerHTML = `
-                    <div style="font-weight: bold;">${skill.name}</div>
-                    <div style="text-align: center;">${skill.years}</div>
-                    <div style="text-align: center; white-space: nowrap;">
-                        ${stars}
+        const categoriesHtml = Object.keys(groups).map((category) => {
+            const rows = groups[category].map((skill) => `
+                <div class="skill-row">
+                    <span class="skill-name">${escapeHtml(skill.name)}</span>
+                    <span class="skill-years">${escapeHtml(skill.years)}</span>
+                    ${levelMeter(skill.stars)}
+                </div>`).join('');
+            return `
+                <section class="skill-category">
+                    <h3 class="skill-category-title">${escapeHtml(category)}</h3>
+                    <div class="skill-row skill-row-head">
+                        <span>${r.skill_tech}</span>
+                        <span>${r.skill_years}</span>
+                        <span>${r.skill_level}</span>
                     </div>
-                `;
-                groupSection.appendChild(row);
-            });
+                    ${rows}
+                </section>`;
+        }).join('');
 
-            container.appendChild(groupSection);
-        });
-
-        // Simple fade in
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.style.opacity = 1;
-                    entry.target.style.transform = 'translateY(0)';
-                    observer.unobserve(entry.target);
-                }
-            });
-        }, { threshold: 0.1 });
-
-        document.querySelectorAll('.skill-category-section').forEach(item => {
-            item.style.opacity = 0;
-            item.style.transform = 'translateY(20px)';
-            item.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
-            observer.observe(item);
-        });
+        container.innerHTML = `<div class="skill-legend">${legendItems}</div>${categoriesHtml}`;
     }
 
     function renderCertifications(certificationsData) {
         const container = document.getElementById('certifications-container');
-        if (!container) return;
-        container.innerHTML = '';
-
-        const listWrapper = document.createElement('div');
-        listWrapper.className = 'glass-panel';
-        listWrapper.style.padding = '2rem';
-        listWrapper.style.maxWidth = '800px';
-        listWrapper.style.margin = '0 auto';
-
-        certificationsData.forEach((cert, index) => {
-            const item = document.createElement('div');
-            item.className = 'cert-item';
-            item.style.display = 'flex';
-            item.style.justifyContent = 'space-between';
-            item.style.alignItems = 'center';
-            item.style.padding = '1.2rem 0';
-            if (index !== certificationsData.length - 1) {
-                item.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
-            }
-
-            item.innerHTML = `
-                <div style="display: flex; align-items: center; gap: 1.5rem;">
-                    <div class="cert-icon" style="color: var(--primary); font-size: 1.5rem;">
-                        <i class="fas fa-certificate"></i>
-                    </div>
-                    <div>
-                        <div style="font-weight: 700; color: var(--text-main); font-size: 1.1rem; margin-bottom: 0.2rem;">${cert.name}</div>
-                        <div style="font-size: 0.85rem; color: var(--text-muted); opacity: 0.8;">${cert.org}</div>
-                    </div>
+        container.innerHTML = certificationsData.map((cert) => `
+            <div class="cert-item">
+                <div>
+                    <div class="cert-name">${escapeHtml(cert.name)}</div>
+                    <div class="cert-org">${escapeHtml(cert.org)}</div>
                 </div>
-                <div style="background: rgba(6, 182, 212, 0.1); color: var(--primary); padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.9rem; font-weight: 600;">
-                    ${cert.date}
-                </div>
-            `;
-            listWrapper.appendChild(item);
-        });
-
-        container.appendChild(listWrapper);
-
-        // Simple fade in
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.style.opacity = 1;
-                    entry.target.style.transform = 'translateY(0)';
-                    observer.unobserve(entry.target);
-                }
-            });
-        }, { threshold: 0.1 });
-
-        listWrapper.style.opacity = 0;
-        listWrapper.style.transform = 'translateY(20px)';
-        listWrapper.style.transition = 'opacity 0.8s ease, transform 0.8s ease';
-        observer.observe(listWrapper);
+                <div class="cert-date">${escapeHtml(cert.date)}</div>
+            </div>`).join('');
     }
-
 
     function renderWorks(worksData) {
         const container = document.getElementById('works-container');
+        const r = resources[currentLang].nav;
         container.innerHTML = '';
 
-        worksData.forEach(work => {
+        worksData.forEach((work) => {
             const desc = currentLang === 'ja' ? work.desc_ja : work.desc_en;
-            const el = document.createElement('div');
-            el.className = 'work-card glass-panel';
-            const r = resources[currentLang || 'ja'].nav;
-            const liveLink = work.live_url ? `<a href="${work.live_url}" target="_blank" style="font-size: 0.9rem; text-decoration: underline; margin-right: 1.5rem;">${r.view_live} <i class="fas fa-external-link-alt"></i></a>` : '';
-            const githubLink = work.github_url ? `<a href="${work.github_url}" target="_blank" style="font-size: 0.9rem; text-decoration: underline;">${r.view_github} <i class="fab fa-github"></i></a>` : '';
+            const thumb = escapeHtml(resolveThumbnail(work.thumbnail));
+            const liveLink = work.live_url
+                ? `<a href="${escapeHtml(work.live_url)}" target="_blank" rel="noopener">${r.view_live}</a>` : '';
+            const githubLink = work.github_url
+                ? `<a href="${escapeHtml(work.github_url)}" target="_blank" rel="noopener">${r.view_github}</a>` : '';
 
+            const el = document.createElement('article');
+            el.className = 'work-card';
             el.innerHTML = `
-                <div class="work-img" style="--thumb-url: url('${resolveThumbnail(work.thumbnail)}');">
-                    <img src="${resolveThumbnail(work.thumbnail)}" alt="${work.title}">
+                <div class="work-img" style="--thumb-url: url('${thumb}');">
+                    <img src="${thumb}" alt="${escapeHtml(work.title)}" loading="lazy">
                 </div>
                 <div class="work-content">
-                    <h3>${work.title}</h3>
-                    ${work.date ? `<div style="font-size: 0.85rem; color: var(--text-muted);">${work.date}</div>` : ''}
-                    <p style="font-size: 0.9rem; color: var(--text-muted); margin: 0.5rem 0;">${desc}</p>
+                    <h3 class="work-title">${escapeHtml(work.title)}</h3>
+                    ${work.date ? `<div class="work-date">${escapeHtml(work.date)}</div>` : ''}
+                    <p class="work-desc">${escapeHtml(desc)}</p>
                     <div class="work-tags">
-                        ${work.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+                        ${work.tags.map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}
                     </div>
-                    <div class="work-links">
-                        ${liveLink}
-                        ${githubLink}
-                    </div>
-                </div>
-            `;
+                    <div class="work-links">${liveLink}${githubLink}</div>
+                </div>`;
             container.appendChild(el);
         });
     }
 
     function startTyping(texts) {
+        // 動きを減らす設定の場合は、最初の肩書きを固定表示する。
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            typingText.textContent = texts[0];
+            return;
+        }
+
         let textIndex = 0;
         let charIndex = 0;
         let isDeleting = false;
@@ -352,19 +254,4 @@ document.addEventListener('DOMContentLoaded', () => {
 
         type();
     }
-
-    function initScrollEffects() {
-        // Optional: Reveal animations on scroll
-        const obs = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.style.opacity = 1;
-                    entry.target.style.transform = 'translateY(0)';
-                }
-            });
-        });
-    }
-
-    // --- Contact Form Event ---
-    // Removed: Contact is now handled via Google Forms link in index.html
 });

@@ -4,12 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Seiya Nakagawa | Portfolio</title>
+    <meta name="theme-color" content="#0b1120" />
+    <meta name="color-scheme" content="dark" />
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@600;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap"
       rel="stylesheet"
     />
 
@@ -30,10 +32,21 @@
     data-api-works="{% url 'api-works' %}"
     data-api-site="{% url 'api-site' %}"
   >
+    <a class="skip-link" href="#main">本文へ移動</a>
     <header>
-      <nav class="container">
-        <div class="logo">SN</div>
-        <ul class="nav-links glass-panel">
+      <nav class="container" aria-label="メインメニュー">
+        <a class="logo" href="#hero" aria-label="トップへ戻る">Seiya Nakagawa</a>
+        <button
+          id="mobile-menu-btn"
+          class="menu-btn"
+          type="button"
+          aria-expanded="false"
+          aria-controls="nav-links"
+          aria-label="メニューを開く"
+        >
+          <span></span><span></span>
+        </button>
+        <ul id="nav-links" class="nav-links">
           <li><a href="#about" data-i18n="nav.about">自己紹介</a></li>
           <li><a href="#skills" data-i18n="nav.skills">スキル</a></li>
           <li>
@@ -42,125 +55,157 @@
             >
           </li>
           <li><a href="#works" data-i18n="nav.works">実績</a></li>
-          <li><a href="#contact" data-i18n="nav.contact">お問い合わせ</a></li>
+          <li>
+            <a class="nav-cta" href="#contact" data-i18n="nav.contact"
+              >お問い合わせ</a
+            >
+          </li>
         </ul>
-        <div class="nav-tools">
-          <div id="mobile-menu-btn" class="icon-btn mobile-only">
-            <i class="fas fa-bars"></i>
-          </div>
-        </div>
       </nav>
     </header>
 
-    <main>
+    <main id="main">
       <div id="site-error"></div>
       <!-- Hero Section -->
       <section id="hero" class="hero">
-        <div class="hero-content">
-          <h1 id="site-name"></h1>
-          <h2>
-            <span id="typing-text"></span><span class="typing-cursor">|</span>
-          </h2>
-          <p id="site-catchphrase"></p>
+        <div class="container hero-grid">
+          <div class="hero-content">
+            <h1 id="site-name"></h1>
+            <p class="hero-role">
+              <span id="typing-text"></span><span class="typing-cursor" aria-hidden="true"></span>
+            </p>
+            <p id="site-catchphrase" class="hero-catch"></p>
+            <div class="hero-actions">
+              <a class="btn-primary" href="#works">実績を見る</a>
+              <a class="btn-text" href="#contact">お問い合わせ</a>
+            </div>
+          </div>
+          <figure class="hero-visual" aria-hidden="true">
+            <svg viewBox="0 0 560 470" role="presentation" focusable="false">
+              <g class="stack">
+                <g class="layer layer-cloud">
+                  <polygon points="250,320 410,390 250,460 90,390" />
+                  <path d="M250,320 V460 M90,390 H410" class="grid-line" />
+                  <text x="430" y="395">クラウド</text>
+                </g>
+                <g class="layer layer-iac">
+                  <polygon points="250,170 410,240 250,310 90,240" />
+                  <path d="M250,170 V310 M90,240 H410" class="grid-line" />
+                  <text x="430" y="245">IaC</text>
+                </g>
+                <g class="layer layer-cicd">
+                  <polygon points="250,20 410,90 250,160 90,90" />
+                  <path d="M250,20 V160 M90,90 H410" class="grid-line" />
+                  <text x="430" y="95">CI/CD</text>
+                </g>
+                <path class="link" d="M250,160 V170 M250,310 V320 M170,125 V205 M330,125 V205 M170,275 V355 M330,275 V355" />
+              </g>
+            </svg>
+          </figure>
         </div>
       </section>
 
       <!-- About Section -->
-      <section id="about" class="container">
-        <h2 class="section-title" data-i18n="nav.about">自己紹介</h2>
-        <div class="about-grid glass-panel" style="padding: 2rem">
-          <div class="about-text">
-            <p id="about-intro"></p>
-            <table class="profile-table">
-              <tr>
-                <th data-i18n="profile.age">年齢</th>
-                <td id="age-display">--</td>
-              </tr>
-              <tr>
-                <th data-i18n="profile.job">職業</th>
-                <td id="about-job"></td>
-              </tr>
-              <tr>
-                <th data-i18n="profile.education">学歴</th>
-                <td id="about-education"></td>
-              </tr>
-              <tr>
-                <th data-i18n="profile.location">居住地</th>
-                <td id="about-location"></td>
-              </tr>
-              <tr>
-                <th data-i18n="profile.hobby">趣味</th>
-                <td id="about-hobby"></td>
-              </tr>
-              <tr>
-                <th data-i18n="profile.github">GitHub URL</th>
-                <td>
+      <section id="about" class="section">
+        <div class="container section-grid">
+          <h2 class="section-title" data-i18n="nav.about">自己紹介</h2>
+          <div class="about-body">
+            <p id="about-intro" class="about-intro"></p>
+            <dl class="profile-list">
+              <div>
+                <dt data-i18n="profile.age">年齢</dt>
+                <dd id="age-display">--</dd>
+              </div>
+              <div>
+                <dt data-i18n="profile.job">職業</dt>
+                <dd id="about-job"></dd>
+              </div>
+              <div>
+                <dt data-i18n="profile.education">学歴</dt>
+                <dd id="about-education"></dd>
+              </div>
+              <div>
+                <dt data-i18n="profile.location">居住地</dt>
+                <dd id="about-location"></dd>
+              </div>
+              <div>
+                <dt data-i18n="profile.hobby">趣味</dt>
+                <dd id="about-hobby"></dd>
+              </div>
+              <div>
+                <dt data-i18n="profile.github">GitHub URL</dt>
+                <dd>
                   <a id="about-github" target="_blank" rel="noopener"></a>
-                </td>
-              </tr>
-            </table>
+                </dd>
+              </div>
+            </dl>
           </div>
         </div>
       </section>
 
       <!-- Skills Section -->
-      <section id="skills" class="container">
-        <h2 class="section-title" data-i18n="nav.skills">スキル</h2>
-        <div id="skills-container" class="skills-grid">
-          <!-- Injected via JS -->
+      <section id="skills" class="section">
+        <div class="container section-grid">
+          <h2 class="section-title" data-i18n="nav.skills">スキル</h2>
+          <div id="skills-container" class="skills-container">
+            <!-- Injected via JS -->
+          </div>
         </div>
       </section>
 
       <!-- Certifications Section -->
-      <section id="certifications" class="container">
-        <h2 class="section-title" data-i18n="nav.certifications">資格</h2>
-        <div id="certifications-container" class="certifications-grid">
-          <!-- Injected via JS -->
+      <section id="certifications" class="section">
+        <div class="container section-grid">
+          <h2 class="section-title" data-i18n="nav.certifications">資格</h2>
+          <div id="certifications-container" class="certifications-container">
+            <!-- Injected via JS -->
+          </div>
         </div>
       </section>
 
       <!-- Works Section -->
-      <section id="works" class="container">
-        <h2 class="section-title" data-i18n="nav.works">実績</h2>
-        <div id="works-container" class="works-grid">
-          <!-- Injected via JS -->
+      <section id="works" class="section">
+        <div class="container section-grid">
+          <h2 class="section-title" data-i18n="nav.works">実績</h2>
+          <div id="works-container" class="works-grid">
+            <!-- Injected via JS -->
+          </div>
         </div>
       </section>
 
       <!-- Contact Section -->
-      <section id="contact" class="container">
-        <h2 class="section-title" data-i18n="nav.contact">お問い合わせ</h2>
-        <div class="contact-container glass-panel">
-          <p id="contact-message"></p>
-          <div
-            class="contact-actions"
-            style="display: flex; justify-content: center; margin-top: 2rem"
-          >
+      <section id="contact" class="contact">
+        <div class="container contact-inner">
+          <h2 class="section-title" data-i18n="nav.contact">お問い合わせ</h2>
+          <p id="contact-message" class="contact-message"></p>
+          <div class="contact-actions">
             <a
               target="_blank"
-              class="btn-primary"
+              rel="noopener"
+              class="btn-contact"
               data-i18n="contact.btn"
               id="contact-button"
             >
               問い合わせ
             </a>
-          </div>
-          <div class="social-links" style="margin-top: 2rem">
             <a
               id="contact-github"
               target="_blank"
-              class="icon-btn"
-              style="font-size: 2rem"
+              rel="noopener"
+              class="contact-github"
+              aria-label="GitHub"
             >
-              <i class="fab fa-github"></i>
+              <i class="fab fa-github" aria-hidden="true"></i>
             </a>
           </div>
         </div>
       </section>
     </main>
 
-    <footer style="text-align: center; padding: 2rem; color: var(--text-muted)">
-      <p>&copy; <span id="footer-copyright"></span> <span id="footer-name"></span>. All rights reserved.</p>
+    <footer class="site-footer">
+      <div class="container">
+        <p>&copy; <span id="footer-copyright"></span> <span id="footer-name"></span>. All rights reserved.</p>
+      </div>
     </footer>
 
     <!-- Scripts -->
