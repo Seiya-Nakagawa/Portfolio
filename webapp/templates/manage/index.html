@@ -21,35 +21,43 @@
     data-api-export="{% url 'manage-api-export' %}"
     data-export-download="{% url 'manage-export-download' %}"
   >
-    <header class="app-header">
-      <h1>スキル実績管理</h1>
-      <form method="post" action="{% url 'logout' %}">
-        {% csrf_token %}
-        <button type="submit">ログアウト</button>
-      </form>
-    </header>
+    <div class="app-shell">
+      <header class="app-header">
+        <button type="button" class="nav-toggle" id="nav-toggle" aria-controls="main-tabs" aria-expanded="false" aria-label="メニューを開閉">☰</button>
+        <h1 class="app-title">スキル実績管理</h1>
+        <span class="current-page" id="current-page" aria-live="polite"></span>
+        <span class="spacer"></span>
+        <form method="post" action="{% url 'logout' %}">
+          {% csrf_token %}
+          <button type="submit">ログアウト</button>
+        </form>
+      </header>
 
-    <nav class="tabs" id="main-tabs" role="tablist">
-      <button type="button" role="tab" data-tab="project">案件登録</button>
-      <button type="button" role="tab" data-tab="skills">スキル項目管理</button>
-      <button type="button" role="tab" data-tab="certifications">資格</button>
-      <button type="button" role="tab" data-tab="works">実績</button>
-      <button type="button" role="tab" data-tab="site">サイト情報</button>
-      <button type="button" role="tab" data-tab="export">職務経歴書エクスポート</button>
-      <button type="button" role="tab" data-tab="categories">種類管理</button>
-    </nav>
+      <nav class="sidebar" id="main-tabs" role="tablist" aria-orientation="vertical" aria-label="管理メニュー">
+        <p class="nav-group" role="presentation">登録</p>
+        <button type="button" role="tab" data-tab="project">案件登録</button>
+        <p class="nav-group" role="presentation">掲載内容</p>
+        <button type="button" role="tab" data-tab="skills">スキル項目管理</button>
+        <button type="button" role="tab" data-tab="certifications">資格</button>
+        <button type="button" role="tab" data-tab="works">実績</button>
+        <button type="button" role="tab" data-tab="site">サイト情報</button>
+        <p class="nav-group" role="presentation">出力・設定</p>
+        <button type="button" role="tab" data-tab="export">職務経歴書エクスポート</button>
+        <button type="button" role="tab" data-tab="categories">種類管理</button>
+      </nav>
 
-    <div id="toast" class="toast" role="status" hidden></div>
+      <div id="toast" class="toast" role="status" hidden></div>
 
-    <main>
-      <section id="tab-project" hidden></section>
-      <section id="tab-skills" hidden></section>
-      <section id="tab-certifications" hidden></section>
-      <section id="tab-works" hidden></section>
-      <section id="tab-site" hidden></section>
-      <section id="tab-export" hidden></section>
-      <section id="tab-categories" hidden></section>
-    </main>
+      <main>
+        <section id="tab-project" hidden></section>
+        <section id="tab-skills" hidden></section>
+        <section id="tab-certifications" hidden></section>
+        <section id="tab-works" hidden></section>
+        <section id="tab-site" hidden></section>
+        <section id="tab-export" hidden></section>
+        <section id="tab-categories" hidden></section>
+      </main>
+    </div>
 
     <script src="{% static 'js/manage.js' %}"></script>
   </body>
