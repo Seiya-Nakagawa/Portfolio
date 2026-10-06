@@ -1,22 +1,22 @@
 :root {
-  /* Default (Dark Mode) */
-  --bg-primary: #0f172a;
-  --bg-secondary: #1e293b;
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
+  /* 配色: 夜の紺を基調に、琥珀を唯一の強調色とする */
+  --bg-primary: #0b1120;
+  --bg-secondary: #131b30;
+  --bg-raised: #1a2440;
+  --line: #27314d;
+  --text-main: #e6eaf4;
+  --text-muted: #94a0bd;
 
-  --accent-1: #06b6d4; /* Cyan */
-  --accent-2: #8b5cf6; /* Purple */
-  --accent-gradient: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+  --accent: #f0b24a; /* 琥珀: 強調・リンク・レベル表示 */
+  --accent-ink: #1b1303; /* 琥珀の上に載せる文字色 */
+  --layer: #6f8cff; /* 構成図の線・補助色 */
 
-  --glass-bg: rgba(255, 255, 255, 0.05);
-  --glass-border: rgba(255, 255, 255, 0.1);
-  --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  /* 書体 */
+  --font-display: 'Shippori Mincho', 'Hiragino Mincho ProN', serif;
+  --font-main: 'Zen Kaku Gothic New', 'Hiragino Sans', sans-serif;
 
-  /* Fonts */
-  --font-main: 'Inter', sans-serif;
-
-  /* Sizes */
-  --header-height: 70px;
-  --border-radius: 16px;
+  /* 寸法 */
+  --header-height: 72px;
+  --content-width: 1120px;
+  --radius: 4px;
 }
