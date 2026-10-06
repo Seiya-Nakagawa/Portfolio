@@ -3,15 +3,16 @@ import re
 from django.db import migrations
 
 ECS_NAME = "ECS"
-# 「ECS (Fargate)」「Amazon ECS(Fargate)」のように Fargate の補足が付いた表記。
+# 「ECS (Fargate)」「Amazon ECS(Fargate)」のように Fargate の補足が付いた表記と、単体の「Fargate」。
 ECS_FARGATE_PATTERN = re.compile(
-    r"^(?:amazon\s+|aws\s+)?ecs\s*\(\s*fargate\s*\)$", re.I
+    r"^(?:(?:amazon\s+|aws\s+)?ecs\s*\(\s*fargate\s*\)|(?:amazon\s+|aws\s+)?fargate)$",
+    re.I,
 )
 ECS_PATTERN = re.compile(r"^(?:amazon\s+|aws\s+)?ecs$", re.I)
 
 
 def merge_ecs_fargate(apps, schema_editor):
-    """「ECS (Fargate)」を「ECS」へ一本化する。"""
+    """「ECS (Fargate)」と単体の「Fargate」を「ECS」へ一本化する。"""
     Skill = apps.get_model("portfolio", "Skill")
     ProjectSkill = apps.get_model("portfolio", "ProjectSkill")
 

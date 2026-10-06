@@ -45,3 +45,21 @@ class MergeEcsFargateMigrationTests(TestCase):
         migration.merge_ecs_fargate(apps, None)
 
         self.assertEqual(Skill.objects.get(skill_id="ecs-fargate").name, "ECS")
+
+    def test_単体のFargateもECSへ付け替えて削除する(self):
+        Skill.objects.create(
+            skill_id="aws-ecs", category="AWS", name="ECS", sort_order=10
+        )
+        Skill.objects.create(
+            skill_id="aws-fargate", category="AWS", name="Fargate", sort_order=20
+        )
+        project = Project.objects.create(name="C", start_year_month="2025-03")
+        ProjectSkill.objects.create(project=project, skill_id="aws-fargate")
+
+        migration.merge_ecs_fargate(apps, None)
+
+        self.assertFalse(Skill.objects.filter(skill_id="aws-fargate").exists())
+        self.assertEqual(
+            list(ProjectSkill.objects.values_list("skill_id", flat=True)),
+            ["aws-ecs"],
+        )
