@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const TOAST_DURATION_MS = { ok: 3000, warning: 4000, error: 5000 };
     let toastTimer = null;
 
-    // 完了通知・エラー・警告は、いずれも画面中央のポップアップ（トースト）で表示する。
+    // 完了通知・エラー・警告は、いずれも画面右上のポップアップ（トースト）で表示する。
     function showMessage(text, kind = 'ok') {
         clearTimeout(toastTimer);
         toastEl.hidden = true;
@@ -990,10 +990,23 @@ document.addEventListener('DOMContentLoaded', () => {
         categories: loadCategories,
     };
 
+    // 狭い画面でのサイドバー開閉。画面を選択したら閉じる。
+    const navToggle = document.getElementById('nav-toggle');
+    function setNavOpen(open) {
+        document.body.classList.toggle('nav-open', open);
+        navToggle.setAttribute('aria-expanded', String(open));
+    }
+    navToggle.addEventListener('click', () => setNavOpen(!document.body.classList.contains('nav-open')));
+
     async function showTab(name) {
         document.querySelectorAll('#main-tabs button').forEach((b) => {
-            b.setAttribute('aria-selected', String(b.dataset.tab === name));
+            const selected = b.dataset.tab === name;
+            b.setAttribute('aria-selected', String(selected));
+            if (selected) {
+                document.getElementById('current-page').textContent = b.textContent;
+            }
         });
+        setNavOpen(false);
         Object.keys(tabLoaders).forEach((key) => {
             document.getElementById(`tab-${key}`).hidden = key !== name;
         });
