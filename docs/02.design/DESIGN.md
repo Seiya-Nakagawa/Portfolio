@@ -690,9 +690,37 @@ infra-oci 基盤の Kubernetes 上に、コンテナ化したウェブアプリ�
 | 6.2 | 性能 | 外部ライブラリを Font Awesome・Google Fonts のみに限定する。読み取り専用 API はキャッシュを設けず都度集計するが、想定データ量は少量のため目標値内に収まる |
 | 6.3 | セキュリティ | ポートフォリオアプリの登録・変更・削除操作は本人のログインを要する構成とし（[6.4](#64-ポートフォリオアプリ)）、案件情報を公開 API へ出力しない。ページ本体と API が同一オリジンのため CORS 制御は不要（[6.2](#62-ポートフォリオ用読み取り専用api)）。職務経歴書の実データは本リポジトリに一切含めず、`tools/skillsheet-builder/` に公開するのはダミーデータのみとする（詳細は [8. 職務経歴書の管理方式](#8-職務経歴書の管理方式)を参照） |
 | 6.4 | バックアップ・リストア | ポートフォリオアプリのソースは GitHub リポジトリの履歴で管理する。実績 DB のバックアップは infra-oci リポジトリのバックアップ方針に委譲する |
-| 6.5 | 運用・保守 | ポートフォリオアプリ（ポートフォリオサイト・登録画面・API を含む）のデプロイは infra-oci 基盤の運用方針（CI/CD を設けず、作業端末から直接適用する）に準ずる |
+| 6.5 | 運用・保守 | ポートフォリオアプリ（ポートフォリオサイト・登録画面・API を含む）の本番デプロイは GitHub Actions による CI/CD で自動化する（[7.1](#71-cicd-パイプライン)） |
 | 6.6 | コスト | infra-oci 基盤（OCI 無料枠）に相乗りし、新たな恒常的費用を発生させない |
 | 6.7 | 移植性・保守性 | フロントエンドはフレームワーク非依存の Vanilla HTML/CSS/JavaScript 構成とする。表示データは API 経由の JSON でやり取りし、生成元の実装に依存しない |
+
+### 7.1. CI/CD パイプライン
+
+- **層ごとの適用経路**: Pull Request のレビュー・マージ承認を適用可否の判断点とし、GitHub Actions で自動適用する
+  - CI（テスト・Lint）: Pull Request の作成・更新で `webapp/` の `pytest`（Django `test`）・`ruff` を実行する
+  - CD（本番デプロイ）: `main` へのマージを契機に、`deploy-oci.sh` を GitHub Actions から実行し本番環境（`app-prod`）へ適用する
+- **ローカル実行は確認用途に限定する**: 作業端末での `deploy-oci.sh` 直接実行は、infra-oci 基盤が単一環境であり
+  ステージングを持たないため、障害調査等の一時的な用途にのみ使う。本番デプロイは CI/CD 経由に統一する
+- **ファイアウォールを変更しない接続方式**: OCI ホストの SSH（22番）は、作業端末の固定 IP と
+  OCI Bastion のプライベート・エンドポイントからのみ許可されている（infra-oci リポジトリの方針）。
+  GitHub Actions（動的 IP）はこのいずれにも該当しないため、`scripts/deploy_via_bastion.sh` が
+  OCI Bastion の Managed SSH Session を都度作成し、一時鍵と ProxyCommand 経由で `deploy-oci.sh` を
+  実行する。セキュリティ・リストの変更は発生しない
+- **認証情報**: Bastion セッション作成専用の最小権限 IAM ユーザー（`manage bastion-session` のみを許可）の
+  API キーを使う。infra-oci リポジトリの Ansible CI/CD と同一の IAM ユーザーを共用する。
+  ユーザー OCID・フィンガープリントは秘密情報ではないため `scripts/deploy_via_bastion.sh` に直接定義し、
+  秘密鍵のみ GitHub Secrets（`BASTION_OCI_PRIVATE_KEY`）として保持する
+- **arm64 クロスビルド**: OCI ホストが aarch64 のため、GitHub Actions（amd64 ランナー）では
+  QEMU（binfmt）を有効化したうえで `docker build --platform linux/arm64` を実行する
+
+```mermaid
+graph LR
+    GHA["GitHub Actions"] -->|OCI API: セッション作成| BASTION["OCI Bastion<br/>(Managed SSH Session)"]
+    BASTION -->|SSH:22（プライベート・エンドポイント）| INST["Compute Instance<br/>(kubectl / nerdctl)"]
+    OP["作業端末"] -.SSH:22（障害調査等）.-> INST
+```
+
+セットアップ手順は [16 構築手順書 - GitHub Actions CI/CD の構築](../04.build/16_GitHubActionsCICD構築.md) を参照する。
 
 ## 8. 職務経歴書の管理方式
 
