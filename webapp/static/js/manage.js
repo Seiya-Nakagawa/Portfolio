@@ -72,6 +72,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // 各画面の先頭に置く見出し。補足文と主要操作（追加・新規作成など）を同じ行にまとめる。
+    function pageHead(title, { sub = '', actions = '', back = '' } = {}) {
+        return `
+            <div class="page-head">
+                <div>
+                    ${back ? `<button type="button" class="link" ${back}>← 一覧に戻る</button>` : ''}
+                    <h2>${esc(title)}</h2>
+                    ${sub ? `<p class="sub">${esc(sub)}</p>` : ''}
+                </div>
+                ${actions ? `<div class="head-actions">${actions}</div>` : ''}
+            </div>`;
+    }
+
     // --- 画像 ---
 
     // 画像のパスは MEDIA_ROOT からの相対パスで保持している。外部 URL はそのまま使う。
@@ -100,7 +113,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 案件登録 ---
 
-    const PAGE_INFO = 'info';
     const SUB_OTHER = 'その他';
     const SUB_ALL = 'すべて';
 
@@ -109,8 +121,8 @@ document.addEventListener('DOMContentLoaded', () => {
         skills: [],
         ongoing: [],
         finished: [],
-        pageIndex: 0,
-        confirming: false, // true の間は入力ページとは別の確認画面を表示する
+        activeCategory: '', // スキル選択で表示中のカテゴリ
+        confirming: false, // true の間は入力画面とは別の確認画面を表示する
         finishedOpen: false,
         subTabs: {}, // カテゴリごとに選択中のサブカテゴリ { category: subcategory }
     };
@@ -126,12 +138,12 @@ document.addEventListener('DOMContentLoaded', () => {
         return { ...data, selected };
     }
 
-    // カテゴリページの順序は、各カテゴリの sort_order 最小値の昇順（サーバーの並び順に従う）。
     // 種類マスタの並び順（スキル項目を持たない種類を含む）。スキル項目の入力候補・絞り込みに使う。
     function masterCategories() {
         return project.categoryNames || categories();
     }
 
+    // カテゴリの順序は、各カテゴリの sort_order 最小値の昇順（サーバーの並び順に従う）。
     function categories() {
         return [...new Set(project.skills.map((s) => s.category))];
     }
@@ -146,15 +158,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const named = [...new Set(items.map((s) => s.subcategory).filter((v) => v !== ''))];
         if (named.length === 0) return [];
         return items.some((s) => s.subcategory === '') ? [...named, SUB_OTHER] : named;
-    }
-
-    function pages() {
-        return [PAGE_INFO, ...categories()];
-    }
-
-    function pageLabel(page) {
-        if (page === PAGE_INFO) return '案件情報';
-        return page;
     }
 
     function infoIsValid() {
@@ -184,32 +187,35 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (reloadInitial) {
             project.state = fromServer(data.initial_project);
-            project.pageIndex = 0;
         }
         renderProject();
     }
 
-    // 入力内容の確認画面。入力ページのタブ・案件選択は表示せず、登録か入力への戻りのみを選べる。
+    // 入力内容の確認画面。登録か入力への戻りのみを選べる。
     function renderConfirm() {
         const root = document.getElementById('tab-project');
         const s = project.state;
         const chosen = project.skills.filter((sk) => sk.skill_id in s.selected);
         root.innerHTML = `
-            <h2>入力内容の確認</h2>
-            <table>
-                <tr><th>案件名</th><td>${esc(s.name)}</td></tr>
-                <tr><th>開始年月</th><td>${esc(s.start_year_month)}</td></tr>
-                <tr><th>終了年月</th><td>${s.end_year_month ? esc(s.end_year_month) : '継続中'}</td></tr>
-            </table>
-            <h2>選択したスキル項目（${chosen.length}件）</h2>
-            <div class="table-wrap"><table>
-                <tr><th>種類</th><th>項目</th><th>バージョン</th></tr>
-                ${chosen.map((sk) => `<tr><td>${esc(sk.category)}</td><td>${esc(sk.name)}</td><td>${esc(s.selected[sk.skill_id])}</td></tr>`).join('')}
-            </table></div>
-            <div class="actions">
-                <button type="button" id="back-to-input">入力に戻る</button>
-                <span class="spacer"></span>
-                <button type="button" class="primary" id="save-project">登録</button>
+            ${pageHead('入力内容の確認', { sub: '内容を確認して「登録」を押すと保存します。' })}
+            <div class="card">
+                <h3>案件情報</h3>
+                <table class="kv">
+                    <tr><th>案件名</th><td>${esc(s.name)}</td></tr>
+                    <tr><th>開始年月</th><td>${esc(s.start_year_month)}</td></tr>
+                    <tr><th>終了年月</th><td>${s.end_year_month ? esc(s.end_year_month) : '継続中'}</td></tr>
+                </table>
+            </div>
+            <div class="card">
+                <h3>選択したスキル項目（${chosen.length}件）</h3>
+                ${chosen.length === 0 ? '<p class="empty">スキル項目は選択されていません。</p>' : `<div class="table-wrap"><table class="data-table">
+                    <thead><tr><th>種類</th><th>項目</th><th>バージョン</th></tr></thead>
+                    <tbody>${chosen.map((sk) => `<tr><td>${esc(sk.category)}</td><td>${esc(sk.name)}</td><td>${esc(s.selected[sk.skill_id])}</td></tr>`).join('')}</tbody>
+                </table></div>`}
+                <div class="form-bar">
+                    <button type="button" id="back-to-input">入力に戻る</button>
+                    <button type="button" class="primary" id="save-project">登録</button>
+                </div>
             </div>`;
         root.querySelector('#back-to-input').addEventListener('click', () => {
             project.confirming = false;
@@ -219,16 +225,35 @@ document.addEventListener('DOMContentLoaded', () => {
         root.querySelector('#save-project').addEventListener('click', saveProject);
     }
 
+    // 案件情報の必須項目を満たさない場合は、案件情報のカードへ戻してエラーを表示する。
     function goToConfirm() {
         showMessage('');
         if (!infoIsValid()) {
-            project.pageIndex = 0;
-            renderProject();
-            showMessage('案件名と開始年月を入力してください。', 'error');
+            showInfoErrors();
             return;
         }
         project.confirming = true;
         renderProject();
+        window.scrollTo({ top: 0 });
+    }
+
+    function showInfoErrors() {
+        const card = document.getElementById('info-card');
+        if (!card) {
+            project.confirming = false;
+            renderProject();
+            showInfoErrors();
+            return;
+        }
+        [['#p-name', project.state.name.trim() === ''], ['#p-start', project.state.start_year_month === '']].forEach(([selector, bad]) => {
+            const input = card.querySelector(selector);
+            input.classList.toggle('invalid', bad);
+            input.setAttribute('aria-invalid', String(bad));
+        });
+        card.scrollIntoView({ block: 'center' });
+        const firstBad = card.querySelector('.invalid');
+        if (firstBad) firstBad.focus();
+        showMessage('案件名と開始年月を入力してください。', 'error');
     }
 
     function renderProject() {
@@ -237,52 +262,55 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         const root = document.getElementById('tab-project');
-        const list = pages();
-        const current = list[project.pageIndex];
-        const isLastPage = project.pageIndex === list.length - 1;
-        const onInfoPage = current === PAGE_INFO;
-        const categoryList = list.slice(1);
-        const hasId = project.state.project_id !== '';
-        const options = ['<option value="">（選択してください）</option>']
-            .concat(project.ongoing.map((p) => (
-                `<option value="${esc(p.project_id)}"${p.project_id === project.state.project_id ? ' selected' : ''}>${esc(p.name)}</option>`
-            ))).join('');
-
-        const finishedOptions = ['<option value="">（選択してください）</option>']
-            .concat(project.finished.map((p) => (
-                `<option value="${esc(p.project_id)}"${p.project_id === project.state.project_id ? ' selected' : ''}>${esc(p.name)}（${esc(p.start_year_month)}〜${esc(p.end_year_month)}）</option>`
+        const s = project.state;
+        const hasId = s.project_id !== '';
+        const projectOptions = (list, label) => ['<option value="">（選択してください）</option>']
+            .concat(list.map((p) => (
+                `<option value="${esc(p.project_id)}"${p.project_id === s.project_id ? ' selected' : ''}>${esc(label(p))}</option>`
             ))).join('');
 
         root.innerHTML = `
-            <div class="row">
-                <label>継続中の案件
-                    <select id="ongoing-select">${options}</select>
-                </label>
-                <button type="button" id="new-project">新規作成</button>
-            </div>
-            <details class="finished-projects"${project.finishedOpen ? ' open' : ''}>
-                <summary>終了済みの案件を訂正する</summary>
+            ${pageHead('案件登録', {
+        sub: hasId ? `「${s.name}」を編集しています。` : '新しい案件を登録します。',
+        actions: '<button type="button" id="new-project">新規作成</button>',
+    })}
+            <div class="card picker">
                 <div class="row">
-                    <label>終了済みの案件
-                        <select id="finished-select">${finishedOptions}</select>
+                    <label>継続中の案件を編集する
+                        <select id="ongoing-select">${projectOptions(project.ongoing, (p) => p.name)}</select>
                     </label>
                 </div>
-            </details>
-            ${onInfoPage ? '' : `<div class="page-tabs" role="tablist">
-                ${categoryList.map((p, i) => `<button type="button" role="tab" data-page="${i + 1}" aria-selected="${i + 1 === project.pageIndex}">${esc(pageLabel(p))}</button>`).join('')}
-            </div>`}
-            <div id="project-page"></div>
-            <div class="actions">
-                <button type="button" id="prev-page"${project.pageIndex === 0 ? ' disabled' : ''}>${project.pageIndex === 1 ? '案件情報へ戻る' : '戻る'}</button>
-                ${project.pageIndex > 1 ? '<button type="button" id="to-info-page">案件情報へ戻る</button>' : ''}
-                ${isLastPage
-        ? '<button type="button" class="primary" id="next-page">確認へ</button>'
-        : `<button type="button" id="next-page">次へ</button>${onInfoPage ? '' : '<button type="button" class="primary" id="confirm-page">確認へ</button>'}`}
-                <span class="spacer"></span>
-                ${hasId ? '<button type="button" class="danger" id="delete-project">削除</button>' : ''}
+                <details class="finished-projects"${project.finishedOpen ? ' open' : ''}>
+                    <summary>終了済みの案件を訂正する</summary>
+                    <div class="row">
+                        <label>終了済みの案件
+                            <select id="finished-select">${projectOptions(project.finished, (p) => `${p.name}（${p.start_year_month}〜${p.end_year_month}）`)}</select>
+                        </label>
+                    </div>
+                </details>
+            </div>
+            <div class="project-layout">
+                <div>
+                    <div class="card" id="info-card">
+                        <h3>案件情報</h3>
+                        <label>案件名<input type="text" id="p-name" value="${esc(s.name)}" maxlength="255" required /></label>
+                        <div class="row">
+                            <label>開始年月<input type="month" id="p-start" value="${esc(s.start_year_month)}" required /></label>
+                            <label>終了年月<input type="month" id="p-end" value="${esc(s.end_year_month)}" /></label>
+                        </div>
+                        <p><label><input type="checkbox" id="p-ongoing"${s.end_year_month === '' ? ' checked' : ''} />継続中（終了年月を空欄のままにする）</label></p>
+                    </div>
+                    <div class="card">
+                        <h3>使用したスキル</h3>
+                        <div id="skill-area"></div>
+                    </div>
+                </div>
+                <aside class="card tray" id="tray" aria-label="選択中のスキル"></aside>
             </div>`;
 
-        renderProjectPage(current);
+        bindInfoFields(root);
+        renderSkillArea();
+        renderTray();
 
         // 継続中・終了済みのどちらのプルダウンも、選んだ案件を登録フォームへ読み込む。
         [['#ongoing-select', false], ['#finished-select', true]].forEach(([selector, isFinished]) => {
@@ -291,7 +319,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = await guarded(() => api('GET', `${urls.projects}/${encodeURIComponent(e.target.value)}`));
                 if (data) {
                     project.state = fromServer(data);
-                    project.pageIndex = 0;
                     project.finishedOpen = isFinished;
                     renderProject();
                 }
@@ -302,130 +329,149 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         root.querySelector('#new-project').addEventListener('click', () => {
             project.state = emptyProject();
-            project.pageIndex = 0;
             showMessage('');
             renderProject();
         });
-        root.querySelectorAll('.page-tabs button').forEach((button) => {
-            button.addEventListener('click', () => {
-                project.pageIndex = Number(button.dataset.page);
-                renderProject();
-            });
-        });
-        root.querySelector('#prev-page').addEventListener('click', () => {
-            project.pageIndex = Math.max(0, project.pageIndex - 1);
-            renderProject();
-        });
-        const toInfoButton = root.querySelector('#to-info-page');
-        if (toInfoButton) {
-            toInfoButton.addEventListener('click', () => {
-                project.pageIndex = 0;
-                renderProject();
-            });
-        }
-        root.querySelector('#next-page').addEventListener('click', () => {
-            // 案件情報ページの必須項目を満たさない場合は先へ進めない。
-            if (current === PAGE_INFO && !infoIsValid()) {
-                showMessage('案件名と開始年月を入力してください。', 'error');
-                return;
-            }
-            showMessage('');
-            if (isLastPage) {
-                goToConfirm();
-                return;
-            }
-            project.pageIndex += 1;
-            renderProject();
-        });
-        // 最後以外のページからも、案件情報を検証したうえで確認画面へ遷移する。
-        const confirmButton = root.querySelector('#confirm-page');
-        if (confirmButton) confirmButton.addEventListener('click', goToConfirm);
-        const deleteButton = root.querySelector('#delete-project');
-        if (deleteButton) deleteButton.addEventListener('click', deleteProject);
     }
 
-    function renderProjectPage(page) {
-        const body = document.getElementById('project-page');
+    function bindInfoFields(root) {
         const s = project.state;
+        const nameInput = root.querySelector('#p-name');
+        const startInput = root.querySelector('#p-start');
+        const endInput = root.querySelector('#p-end');
+        const ongoingCheck = root.querySelector('#p-ongoing');
+        endInput.disabled = ongoingCheck.checked;
+        // 入力されたらエラー表示を解除する。
+        const clearInvalid = (input) => { input.classList.remove('invalid'); input.removeAttribute('aria-invalid'); };
+        nameInput.addEventListener('input', (e) => { s.name = e.target.value; clearInvalid(nameInput); });
+        startInput.addEventListener('input', (e) => { s.start_year_month = e.target.value; clearInvalid(startInput); });
+        endInput.addEventListener('input', (e) => { s.end_year_month = e.target.value; });
+        ongoingCheck.addEventListener('change', (e) => {
+            endInput.disabled = e.target.checked;
+            if (e.target.checked) {
+                s.end_year_month = '';
+                endInput.value = '';
+            }
+        });
+    }
 
-        if (page === PAGE_INFO) {
-            body.innerHTML = `
-                <label>案件名<input type="text" id="p-name" value="${esc(s.name)}" maxlength="255" /></label>
-                <div class="row">
-                    <label>開始年月<input type="month" id="p-start" value="${esc(s.start_year_month)}" /></label>
-                    <label>終了年月<input type="month" id="p-end" value="${esc(s.end_year_month)}" /></label>
-                </div>
-                <p><label><input type="checkbox" id="p-ongoing"${s.end_year_month === '' ? ' checked' : ''} />継続中（終了年月を空欄のままにする）</label></p>`;
-            const endInput = body.querySelector('#p-end');
-            const ongoingCheck = body.querySelector('#p-ongoing');
-            endInput.disabled = ongoingCheck.checked;
-            body.querySelector('#p-name').addEventListener('input', (e) => { s.name = e.target.value; });
-            body.querySelector('#p-start').addEventListener('input', (e) => { s.start_year_month = e.target.value; });
-            endInput.addEventListener('input', (e) => { s.end_year_month = e.target.value; });
-            ongoingCheck.addEventListener('change', (e) => {
-                endInput.disabled = e.target.checked;
-                if (e.target.checked) {
-                    s.end_year_month = '';
-                    endInput.value = '';
-                }
-            });
+    // カテゴリのタブとサブタブ、選択中のカテゴリのスキル項目チップを描画する。
+    function renderSkillArea() {
+        const area = document.getElementById('skill-area');
+        const s = project.state;
+        const cats = categories();
+        if (cats.length === 0) {
+            area.innerHTML = '<p class="empty">スキル項目が登録されていません。「スキル項目管理」から追加してください。</p>';
             return;
         }
-
+        if (!cats.includes(project.activeCategory)) project.activeCategory = cats[0];
+        const page = project.activeCategory;
         const categoryItems = project.skills.filter((sk) => sk.category === page);
         const subs = subcategoriesOf(categoryItems);
-        const skillHtml = (sk) => {
-            const checked = sk.skill_id in s.selected;
-            return `
-                <div class="skill-check">
-                    <label><input type="checkbox" data-skill="${esc(sk.skill_id)}"${checked ? ' checked' : ''} />${esc(sk.name)}</label>
-                    <input type="text" data-version="${esc(sk.skill_id)}" placeholder="バージョン（任意）" maxlength="64" value="${esc(s.selected[sk.skill_id] ?? '')}"${checked ? '' : ' hidden'} />
-                </div>`;
-        };
-        const tabs = subs.length > 0 ? [SUB_ALL, ...subs] : [];
-        let contentHtml = categoryItems.map(skillHtml).join('');
+        const chipHtml = (sk) => `<label class="chip"><input type="checkbox" data-skill="${esc(sk.skill_id)}"${sk.skill_id in s.selected ? ' checked' : ''} />${esc(sk.name)}</label>`;
+        const chipsHtml = (items) => `<div class="chips">${items.map(chipHtml).join('')}</div>`;
+
         let subTabsHtml = '';
+        let contentHtml = chipsHtml(categoryItems);
+        const tabs = subs.length > 0 ? [SUB_ALL, ...subs] : [];
         if (tabs.length > 0) {
             // 既定は「すべて」。「すべて」ではサブカテゴリのセクション単位で表示する。
             const activeSub = tabs.includes(project.subTabs[page]) ? project.subTabs[page] : SUB_ALL;
             project.subTabs[page] = activeSub;
             const inSub = (sub) => categoryItems.filter((sk) => (sk.subcategory || SUB_OTHER) === sub);
             contentHtml = activeSub === SUB_ALL
-                ? subs.map((sub) => `<div class="sub-section"><h3>${esc(sub)}</h3>${inSub(sub).map(skillHtml).join('')}</div>`).join('')
-                : inSub(activeSub).map(skillHtml).join('');
-            subTabsHtml = `<div class="sub-tabs" role="tablist">${tabs.map((sub, i) => `<button type="button" role="tab" data-sub="${i}" aria-selected="${sub === activeSub}">${esc(sub)}</button>`).join('')}</div>`;
+                ? subs.map((sub) => `<div class="sub-section"><h4>${esc(sub)}</h4>${chipsHtml(inSub(sub))}</div>`).join('')
+                : chipsHtml(inSub(activeSub));
+            subTabsHtml = `<div class="sub-tabs" role="tablist" aria-label="サブカテゴリ">${tabs.map((sub, i) => `<button type="button" role="tab" data-sub="${i}" aria-selected="${sub === activeSub}">${esc(sub)}</button>`).join('')}</div>`;
         }
-        body.innerHTML = subTabsHtml + contentHtml;
-        body.querySelectorAll('.sub-tabs button').forEach((button) => {
+
+        area.innerHTML = `
+            <div class="page-tabs" role="tablist" aria-label="種類">
+                ${cats.map((c, i) => `<button type="button" role="tab" data-cat="${i}" aria-selected="${c === page}">${esc(c)}<span class="badge" data-badge="${i}"></span></button>`).join('')}
+            </div>
+            ${subTabsHtml}
+            ${contentHtml}`;
+        updateBadges();
+
+        area.querySelectorAll('[data-cat]').forEach((button) => {
             button.addEventListener('click', () => {
-                project.subTabs[page] = tabs[Number(button.dataset.sub)];
-                renderProjectPage(page);
+                project.activeCategory = cats[Number(button.dataset.cat)];
+                renderSkillArea();
             });
         });
-        body.querySelectorAll('input[data-skill]').forEach((check) => {
-            const versionInput = body.querySelector(`input[data-version="${CSS.escape(check.dataset.skill)}"]`);
+        area.querySelectorAll('[data-sub]').forEach((button) => {
+            button.addEventListener('click', () => {
+                project.subTabs[page] = tabs[Number(button.dataset.sub)];
+                renderSkillArea();
+            });
+        });
+        area.querySelectorAll('input[data-skill]').forEach((check) => {
             check.addEventListener('change', () => {
                 if (check.checked) {
-                    s.selected[check.dataset.skill] = versionInput.value;
+                    s.selected[check.dataset.skill] = s.selected[check.dataset.skill] ?? '';
                 } else {
                     delete s.selected[check.dataset.skill];
                 }
-                versionInput.hidden = !check.checked;
-            });
-            versionInput.addEventListener('input', () => {
-                if (check.checked) s.selected[check.dataset.skill] = versionInput.value;
+                updateBadges();
+                renderTray();
             });
         });
     }
 
+    // カテゴリのタブに、選択中の項目数を表示する。
+    function updateBadges() {
+        const s = project.state;
+        categories().forEach((category, i) => {
+            const badge = document.querySelector(`[data-badge="${i}"]`);
+            if (!badge) return;
+            const count = project.skills.filter((sk) => sk.category === category && sk.skill_id in s.selected).length;
+            badge.textContent = count > 0 ? String(count) : '';
+        });
+    }
+
+    // 選択中のスキルを常時表示し、バージョンの入力と取り外しを行う。
+    function renderTray() {
+        const tray = document.getElementById('tray');
+        const s = project.state;
+        const chosen = project.skills.filter((sk) => sk.skill_id in s.selected);
+        const groups = categories()
+            .map((category) => [category, chosen.filter((sk) => sk.category === category)])
+            .filter(([, items]) => items.length > 0);
+        tray.innerHTML = `
+            <div class="tray-title"><span>選択中のスキル</span><span><b>${chosen.length}</b>件</span></div>
+            ${groups.length === 0 ? '<p class="tray-empty">左の一覧からスキルを選ぶと、ここに表示されます。バージョンはここで入力できます。</p>' : groups.map(([category, items]) => `
+                <h4>${esc(category)}</h4>
+                ${items.map((sk) => `<div class="tray-row">
+                    <span>${esc(sk.name)}</span>
+                    <input type="text" data-version="${esc(sk.skill_id)}" placeholder="バージョン" aria-label="${esc(sk.name)}のバージョン" maxlength="64" value="${esc(s.selected[sk.skill_id])}" />
+                    <button type="button" data-remove="${esc(sk.skill_id)}" aria-label="${esc(sk.name)}を外す">×</button>
+                </div>`).join('')}`).join('')}
+            <div class="tray-actions">
+                <button type="button" class="primary" id="confirm-project">確認へ</button>
+                ${s.project_id !== '' ? '<button type="button" class="danger" id="delete-project">この案件を削除</button>' : ''}
+            </div>`;
+        tray.querySelectorAll('input[data-version]').forEach((input) => {
+            input.addEventListener('input', () => { s.selected[input.dataset.version] = input.value; });
+        });
+        tray.querySelectorAll('[data-remove]').forEach((button) => {
+            button.addEventListener('click', () => {
+                delete s.selected[button.dataset.remove];
+                renderSkillArea();
+                renderTray();
+            });
+        });
+        tray.querySelector('#confirm-project').addEventListener('click', goToConfirm);
+        const deleteButton = tray.querySelector('#delete-project');
+        if (deleteButton) deleteButton.addEventListener('click', deleteProject);
+    }
+
     async function saveProject() {
         const s = project.state;
-        // 保存時は必ず案件情報の必須項目を確認し、未入力なら案件情報ページへ戻す。
+        // 保存時は必ず案件情報の必須項目を確認し、未入力なら入力画面へ戻す。
         if (!infoIsValid()) {
             project.confirming = false;
-            project.pageIndex = 0;
             renderProject();
-            showMessage('案件名と開始年月を入力してください。', 'error');
+            showInfoErrors();
             return;
         }
         const saved = await guarded(() => api('POST', urls.projects, {
@@ -438,7 +484,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!saved) return;
         project.state = fromServer(saved);
         project.confirming = false;
-        project.pageIndex = 0;
         await loadProjectTab(false);
         showMessage('保存しました。');
     }
@@ -477,26 +522,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 .map(([label, value], i) => ({ label, after: value, before: before[i] }))
                 .filter((r) => confirmValue(r.after) !== confirmValue(r.before));
             body = changed.length === 0
-                ? '<p>変更された項目はありません。</p>'
-                : `<div class="table-wrap"><table>
-                    <tr><th>項目</th><th>修正前</th><th>修正後</th></tr>
-                    ${changed.map((r) => `<tr><th>${esc(r.label)}</th><td class="pre-line">${esc(confirmValue(r.before))}</td><td class="pre-line">${esc(confirmValue(r.after))}</td></tr>`).join('')}
+                ? '<p class="empty">変更された項目はありません。</p>'
+                : `<div class="table-wrap"><table class="data-table">
+                    <thead><tr><th>項目</th><th>修正前</th><th>修正後</th></tr></thead>
+                    <tbody>${changed.map((r) => `<tr><th scope="row">${esc(r.label)}</th><td class="pre-line">${esc(confirmValue(r.before))}</td><td class="pre-line">${esc(confirmValue(r.after))}</td></tr>`).join('')}</tbody>
                 </table></div>`;
         } else {
-            body = `<div class="table-wrap"><table>
-                ${rows.map(([label, value]) => `<tr><th>${esc(label)}</th><td class="pre-line">${esc(confirmValue(value))}</td></tr>`).join('')}
+            body = `<div class="table-wrap"><table class="kv">
+                ${rows.map(([label, value]) => `<tr><th scope="row">${esc(label)}</th><td class="pre-line">${esc(confirmValue(value))}</td></tr>`).join('')}
             </table></div>`;
         }
         root.innerHTML = `
-            <h2>${esc(title)}の確認</h2>
-            ${body}
-            <div class="actions">
-                <button type="button" data-confirm-back>入力に戻る</button>
-                <span class="spacer"></span>
-                <button type="button" class="primary" data-confirm-save>${esc(saveLabel)}</button>
+            ${pageHead(`${title}の確認`, { sub: `内容を確認して「${saveLabel}」を押すと保存します。` })}
+            <div class="card">
+                ${body}
+                <div class="form-bar">
+                    <button type="button" data-confirm-back>入力に戻る</button>
+                    <button type="button" class="primary" data-confirm-save>${esc(saveLabel)}</button>
+                </div>
             </div>`;
         root.querySelector('[data-confirm-back]').addEventListener('click', onBack);
         root.querySelector('[data-confirm-save]').addEventListener('click', onSave);
+        window.scrollTo({ top: 0 });
     }
 
     // --- 一覧・追加・変更・削除の共通画面（スキル項目・資格・実績） ---
@@ -506,6 +553,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let editing = null; // 編集中の行。追加時は null
         let inEditScreen = false; // separateEdit 指定時に、一覧ではなく編集画面を表示中か
         let filterValue = ''; // filter 指定時に、絞り込み中の値（空は絞り込みなし）
+        let searchValue = ''; // キーワード検索の入力値
         let draft = null; // 入力済みで確認待ちの内容。入力に戻る場合はフォームへ再表示する
         let confirming = false; // true の間は保存前の確認画面を表示する
 
@@ -532,11 +580,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 return `<label>${esc(field.label)}<select name="${field.name}">${options}</select></label>`;
             }
             if (field.type === 'textarea') {
-                return `<label>${esc(field.label)}<textarea name="${field.name}" rows="3">${value}</textarea></label>`;
+                return `<label class="wide">${esc(field.label)}<textarea name="${field.name}" rows="4">${value}</textarea></label>`;
             }
             if (field.type === 'image') {
                 const current = fieldValue(row, field);
-                return `<div class="image-field" data-image-field>
+                return `<div class="image-field wide" data-image-field>
                     <span>${esc(field.label)}</span>
                     <input type="hidden" name="${field.name}" value="${value}" />
                     <img class="image-preview" alt="サムネイルのプレビュー" src="${current ? esc(imageUrl(current)) : ''}"${current ? '' : ' hidden'} />
@@ -551,13 +599,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         function renderForm() {
+            const heading = `${config.title}を${editing ? '変更' : '追加'}`;
             return `
-                <h2>${editing ? '変更' : '追加'}</h2>
-                <form>
-                    ${config.fields.map((f) => renderField(f, formSource())).join('')}
-                    <div class="actions">
+                ${pageHead(heading, { back: 'data-cancel' })}
+                <form class="card">
+                    <div class="form-grid">
+                        ${config.fields.map((f) => renderField(f, formSource())).join('')}
+                    </div>
+                    <div class="form-bar">
                         <button type="submit" class="primary">確認へ</button>
-                        ${editing || config.separateEdit ? '<button type="button" data-cancel>キャンセル</button>' : ''}
+                        <button type="button" data-cancel>キャンセル</button>
                     </div>
                 </form>`;
         }
@@ -566,7 +617,48 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!config.filter) return '';
             const options = ['', ...config.filter.values()]
                 .map((v) => `<option value="${esc(v)}"${v === filterValue ? ' selected' : ''}>${esc(v || 'すべて')}</option>`).join('');
-            return `<label class="list-filter">${esc(config.filter.label)}<select data-filter>${options}</select></label>`;
+            return `<label>${esc(config.filter.label)}<select data-filter>${options}</select></label>`;
+        }
+
+        // 絞り込み（フィルタ・キーワード検索）後の行。キーワードは一覧に表示する列の値を対象とする。
+        function visibleRows() {
+            const keyword = searchValue.trim().toLowerCase();
+            return rows.filter((r) => (
+                (!config.filter || !filterValue || config.filter.value(r) === filterValue)
+                && (keyword === '' || config.columns.some((c) => String(c.value(r)).toLowerCase().includes(keyword)))
+            ));
+        }
+
+        function bodyHtml(visible) {
+            if (visible.length === 0) {
+                const hint = rows.length === 0 ? '「追加」から最初の1件を登録できます。' : '検索条件を変えてください。';
+                return `<tr><td colspan="${config.columns.length + 1}" class="empty">該当するデータがありません。${hint}</td></tr>`;
+            }
+            return visible.map((row) => `<tr>${config.columns.map((c) => `<td${c.numeric ? ' class="num"' : ''}>${esc(c.value(row))}</td>`).join('')}
+                <td class="row-actions"><button type="button" class="sm" data-edit="${rows.indexOf(row)}">編集</button><button type="button" class="sm danger" data-delete="${rows.indexOf(row)}">削除</button></td></tr>`).join('');
+        }
+
+        function countText(visible) {
+            return visible.length === rows.length ? `${rows.length}件` : `${visible.length}件 / 全${rows.length}件`;
+        }
+
+        // 一覧の本文と件数のみを更新する（検索入力中にフォーカスを失わないため）。
+        function refreshList() {
+            const visible = visibleRows();
+            root.querySelector('[data-body]').innerHTML = bodyHtml(visible);
+            root.querySelector('[data-count]').textContent = countText(visible);
+            bindRowActions();
+        }
+
+        function bindRowActions() {
+            root.querySelectorAll('[data-edit]').forEach((b) => b.addEventListener('click', () => {
+                editing = rows[Number(b.dataset.edit)];
+                draft = null;
+                inEditScreen = true;
+                render();
+                window.scrollTo({ top: 0 });
+            }));
+            root.querySelectorAll('[data-delete]').forEach((b) => b.addEventListener('click', () => remove(rows[Number(b.dataset.delete)])));
         }
 
         function render() {
@@ -584,38 +676,37 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             if (showEditScreen) {
                 root.innerHTML = renderForm();
-            } else {
-                const visible = config.filter && filterValue
-                    ? rows.filter((r) => config.filter.value(r) === filterValue)
-                    : rows;
-                root.innerHTML = `
-                    <h2>${esc(config.title)}</h2>
-                    ${renderFilter()}
-                    ${config.separateEdit ? '<div class="actions"><button type="button" class="primary" data-add>追加</button></div>' : ''}
-                    <div class="table-wrap"><table>
-                        <tr>${config.columns.map((c) => `<th>${esc(c.label)}</th>`).join('')}<th></th></tr>
-                        ${visible.map((row) => `<tr>${config.columns.map((c) => `<td>${esc(c.value(row))}</td>`).join('')}
-                            <td><button type="button" data-edit="${rows.indexOf(row)}">編集</button> <button type="button" class="danger" data-delete="${rows.indexOf(row)}">削除</button></td></tr>`).join('')}
-                    </table></div>
-                    ${config.separateEdit ? '' : renderForm()}`;
+                const cancel = root.querySelectorAll('[data-cancel]');
+                cancel.forEach((b) => b.addEventListener('click', () => { editing = null; draft = null; inEditScreen = false; render(); }));
+                root.querySelector('form').addEventListener('submit', submit);
+                root.querySelectorAll('[data-image-field]').forEach(bindImageField);
+                return;
             }
-
-            root.querySelectorAll('[data-edit]').forEach((b) => b.addEventListener('click', () => {
-                editing = rows[Number(b.dataset.edit)];
+            const visible = visibleRows();
+            root.innerHTML = `
+                ${pageHead(config.title, { actions: '<button type="button" class="primary" data-add>＋ 追加</button>' })}
+                <div class="card">
+                    <div class="toolbar">
+                        ${renderFilter()}
+                        <label class="search">キーワード検索<input type="search" data-search value="${esc(searchValue)}" placeholder="表示中の項目から探す" /></label>
+                        <span class="count" data-count aria-live="polite">${countText(visible)}</span>
+                    </div>
+                    <div class="table-wrap"><table class="data-table">
+                        <thead><tr>${config.columns.map((c) => `<th>${esc(c.label)}</th>`).join('')}<th></th></tr></thead>
+                        <tbody data-body>${bodyHtml(visible)}</tbody>
+                    </table></div>
+                </div>`;
+            bindRowActions();
+            root.querySelector('[data-add]').addEventListener('click', () => {
+                editing = null;
                 draft = null;
                 inEditScreen = true;
                 render();
-            }));
-            root.querySelectorAll('[data-delete]').forEach((b) => b.addEventListener('click', () => remove(rows[Number(b.dataset.delete)])));
-            const add = root.querySelector('[data-add]');
-            if (add) add.addEventListener('click', () => { editing = null; draft = null; inEditScreen = true; render(); });
+                window.scrollTo({ top: 0 });
+            });
             const filter = root.querySelector('[data-filter]');
-            if (filter) filter.addEventListener('change', () => { filterValue = filter.value; render(); });
-            const cancel = root.querySelector('[data-cancel]');
-            if (cancel) cancel.addEventListener('click', () => { editing = null; draft = null; inEditScreen = false; render(); });
-            const form = root.querySelector('form');
-            if (form) form.addEventListener('submit', submit);
-            root.querySelectorAll('[data-image-field]').forEach(bindImageField);
+            if (filter) filter.addEventListener('change', () => { filterValue = filter.value; refreshList(); });
+            root.querySelector('[data-search]').addEventListener('input', (e) => { searchValue = e.target.value; refreshList(); });
         }
 
         // 画像を選択した時点でアップロードし、保存先のパスを hidden の入力欄へ保持する。
@@ -697,7 +788,7 @@ document.addEventListener('DOMContentLoaded', () => {
             { label: '種類', value: (r) => r.category },
             { label: 'サブカテゴリ', value: (r) => r.subcategory },
             { label: '項目', value: (r) => r.name },
-            { label: '経験年数', value: (r) => r.years },
+            { label: '経験年数', value: (r) => r.years, numeric: true },
         ],
         fields: [
             { name: 'skill_id', label: 'skill_id（半角英小文字・数字・ハイフン。登録後は変更不可）', readonlyOnEdit: true },
@@ -720,26 +811,27 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderCategories() {
         const last = categoryRows.length - 1;
         categoriesRoot.innerHTML = `
-            <h2>種類管理</h2>
-            <div class="table-wrap"><table>
-                <tr><th>種類</th><th>項目数</th><th></th></tr>
-                ${categoryRows.map((c, i) => `<tr>
-                    <td>${editingCategory === c.name
-                        ? `<form data-rename><input type="text" name="name" value="${esc(c.name)}" /> <button type="submit" class="primary">保存</button> <button type="button" data-rename-cancel>キャンセル</button></form>`
-                        : esc(c.name)}</td>
-                    <td>${c.skill_count}</td>
-                    <td>
-                        <button type="button" data-move="${i}" data-dir="-1"${i === 0 ? ' disabled' : ''}>↑</button>
-                        <button type="button" data-move="${i}" data-dir="1"${i === last ? ' disabled' : ''}>↓</button>
-                        <button type="button" data-rename-start="${i}">名称変更</button>
-                        <button type="button" class="danger" data-delete="${i}">削除</button>
-                    </td></tr>`).join('')}
-            </table></div>
-            <h2>追加</h2>
-            <form data-add>
-                <label>種類名<input type="text" name="name" /></label>
-                <div class="actions"><button type="submit" class="primary">追加</button></div>
-            </form>`;
+            ${pageHead('種類管理', { sub: 'スキルの種類の追加・名称変更・並び替え・削除を行います。並び順は案件登録のタブ順に反映されます。' })}
+            <div class="card">
+                <form data-add class="toolbar">
+                    <label class="search">新しい種類名<input type="text" name="name" required /></label>
+                    <button type="submit" class="primary">＋ 追加</button>
+                </form>
+                <div class="table-wrap"><table class="data-table">
+                    <thead><tr><th>種類</th><th>項目数</th><th></th></tr></thead>
+                    <tbody>${categoryRows.length === 0 ? '<tr><td colspan="3" class="empty">種類が登録されていません。上の入力欄から追加できます。</td></tr>' : categoryRows.map((c, i) => `<tr>
+                        <td>${editingCategory === c.name
+        ? `<form data-rename class="row"><input type="text" name="name" value="${esc(c.name)}" aria-label="新しい種類名" /> <button type="submit" class="primary sm">保存</button> <button type="button" class="sm" data-rename-cancel>キャンセル</button></form>`
+        : esc(c.name)}</td>
+                        <td class="num">${c.skill_count}</td>
+                        <td class="row-actions">
+                            <button type="button" class="sm" data-move="${i}" data-dir="-1" aria-label="${esc(c.name)}を上へ"${i === 0 ? ' disabled' : ''}>↑</button>
+                            <button type="button" class="sm" data-move="${i}" data-dir="1" aria-label="${esc(c.name)}を下へ"${i === last ? ' disabled' : ''}>↓</button>
+                            <button type="button" class="sm" data-rename-start="${i}">名称変更</button>
+                            <button type="button" class="sm danger" data-delete="${i}">削除</button>
+                        </td></tr>`).join('')}</tbody>
+                </table></div>
+            </div>`;
 
         categoriesRoot.querySelectorAll('[data-move]').forEach((b) => b.addEventListener('click', () => moveCategory(Number(b.dataset.move), Number(b.dataset.dir))));
         categoriesRoot.querySelectorAll('[data-rename-start]').forEach((b) => b.addEventListener('click', () => {
@@ -872,10 +964,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderSiteField(field, value) {
         if (field.type === 'textarea') {
-            return `<label>${esc(field.label)}<textarea name="${field.name}" rows="4">${esc(value)}</textarea></label>`;
+            return `<label class="wide">${esc(field.label)}<textarea name="${field.name}" rows="4">${esc(value)}</textarea></label>`;
         }
         if (field.type === 'lines') {
-            return `<label>${esc(field.label)}<textarea name="${field.name}" rows="4">${esc((value || []).join('\n'))}</textarea></label>`;
+            return `<label class="wide">${esc(field.label)}<textarea name="${field.name}" rows="4">${esc((value || []).join('\n'))}</textarea></label>`;
         }
         return `<label>${esc(field.label)}<input type="${field.type || 'text'}" name="${field.name}" value="${esc(value)}" /></label>`;
     }
@@ -889,26 +981,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderSiteView() {
         siteRoot.innerHTML = `
-            <h2>サイト情報</h2>
-            <div class="table-wrap"><table>
-                ${siteRows(siteCurrent).map(([label, value]) => `<tr><th>${esc(label)}</th><td class="pre-line">${esc(confirmValue(value))}</td></tr>`).join('')}
-            </table></div>
-            <div class="actions"><button type="button" class="primary" data-site-edit>編集</button></div>`;
+            ${pageHead('サイト情報', { sub: 'ポートフォリオサイトに表示する氏名・自己紹介・リンクなどです。', actions: '<button type="button" class="primary" data-site-edit>編集</button>' })}
+            <div class="card">
+                <div class="table-wrap"><table class="kv">
+                    ${siteRows(siteCurrent).map(([label, value]) => `<tr><th scope="row">${esc(label)}</th><td class="pre-line">${esc(confirmValue(value))}</td></tr>`).join('')}
+                </table></div>
+            </div>`;
         siteRoot.querySelector('[data-site-edit]').addEventListener('click', () => renderSiteForm(siteCurrent));
     }
 
     // 入力に戻る場合は入力途中の内容をフォームへ再表示する。
     function renderSiteForm(values) {
         siteRoot.innerHTML = `
-            <h2>サイト情報の編集</h2>
-            <form>
-                ${SITE_FIELDS.map((f) => renderSiteField(f, values[f.name])).join('')}
-                <div class="actions">
+            ${pageHead('サイト情報を編集', { back: 'data-site-cancel' })}
+            <form class="card">
+                <div class="form-grid">
+                    ${SITE_FIELDS.map((f) => renderSiteField(f, values[f.name])).join('')}
+                </div>
+                <div class="form-bar">
                     <button type="submit" class="primary">確認へ</button>
                     <button type="button" data-site-cancel>キャンセル</button>
                 </div>
             </form>`;
-        siteRoot.querySelector('[data-site-cancel]').addEventListener('click', renderSiteView);
+        siteRoot.querySelectorAll('[data-site-cancel]').forEach((b) => b.addEventListener('click', renderSiteView));
         siteRoot.querySelector('form').addEventListener('submit', (event) => {
             event.preventDefault();
             const payload = {};
@@ -919,6 +1014,7 @@ document.addEventListener('DOMContentLoaded', () => {
             showMessage('');
             renderSiteConfirm(payload);
         });
+        window.scrollTo({ top: 0 });
     }
 
     function renderSiteConfirm(payload) {
@@ -957,13 +1053,16 @@ document.addEventListener('DOMContentLoaded', () => {
             warnings.push(`使用実績がなく出力対象外のスキル項目: ${data.warnings.unused_skill_count}件`);
         }
         root.innerHTML = `
+            ${pageHead('職務経歴書エクスポート', {
+        sub: '現在の登録内容から職務経歴書用の Markdown を生成します。',
+        actions: `<button type="button" id="copy-export">クリップボードへコピー</button>
+                  <a href="${esc(urls.exportDownload)}" download><button type="button" class="primary">ダウンロード</button></a>`,
+    })}
             ${warnings.map((w) => `<p class="message warning">${esc(w)}</p>`).join('')}
-            <div class="actions">
-                <a href="${esc(urls.exportDownload)}" download><button type="button" class="primary">ダウンロード</button></a>
-                <button type="button" id="copy-export">クリップボードへコピー</button>
-            </div>
-            <h2>プレビュー</h2>
-            <pre id="export-preview"></pre>`;
+            <div class="card">
+                <h3>プレビュー</h3>
+                <pre id="export-preview"></pre>
+            </div>`;
         root.querySelector('#export-preview').textContent = data.markdown;
         root.querySelector('#copy-export').addEventListener('click', async () => {
             try {
