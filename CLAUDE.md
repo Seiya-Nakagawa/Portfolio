@@ -9,7 +9,7 @@
 ## デプロイ先（OCI ホスト）
 
 - infra-oci リポジトリが管理する OCI Compute Instance（Kubernetes・containerd）
-- パブリック IP: `217.142.230.83`（作業端末からの直接 SSH・障害調査用）
+- 作業端末からの直接 SSH・障害調査: `~/.ssh/config` のホスト別名 `oci-server` で接続する（公開リポジトリのため IP は記載しない）
 - プライベート IP: `10.0.1.60`（OCI Bastion 経由の接続用）
 - OS ユーザー: `seiya`
 - Kubernetes Namespace: `app-prod`
