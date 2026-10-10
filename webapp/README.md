@@ -48,6 +48,13 @@ infra-oci 基盤の Kubernetes 上にコンテナとして配置し、実績 DB�
 uv run python manage.py import_portfolio_data
 ```
 
+スキル項目マスタ（AWS・Azure・Google Cloud・OCI のサービスと、言語・DB などの汎用項目）は、
+次のコマンドで未登録の項目のみを追加する（登録済みの項目は変更しない。デプロイ時にも実行される）。
+
+```bash
+uv run python manage.py import_skill_master
+```
+
 ## 登録画面
 
 `/manage/` に、案件登録・会社・スキル項目管理・資格・実績・サイト情報・職務経歴書（プレビュー・PDF / Markdown ダウンロード・文章項目の編集）の画面を持つ
