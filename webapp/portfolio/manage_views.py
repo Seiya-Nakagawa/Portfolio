@@ -13,15 +13,22 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods
 
 from portfolio import export, registry, uploads
-from portfolio.models import Certification, Project, SiteInfo, Skill, Work
+from portfolio.models import (
+    SKILLSHEET_TEXT_KEYS,
+    Certification,
+    Company,
+    Project,
+    SiteInfo,
+    Skill,
+    SkillsheetText,
+    Work,
+)
 from portfolio.services import (
     build_skill_rows,
     ordered_certifications,
     ordered_skills,
     ordered_works,
 )
-
-MARKDOWN_FILENAME = "skillsheet.md"
 
 
 def _json(data, status: int = 200) -> JsonResponse:
@@ -77,11 +84,49 @@ def _project_dict(project: Project) -> dict:
         "name": project.name,
         "start_year_month": project.start_year_month,
         "end_year_month": project.end_year_month,
+        "company_id": project.company_id,
+        "team_size": project.team_size,
+        "overview": project.overview,
+        "tasks": project.tasks,
+        "phases": project.phases,
+        "environment": project.environment,
         "skills": [
             {"skill_id": ps.skill_id, "version": ps.version}
             for ps in project.project_skills.order_by("skill_id")
         ],
     }
+
+
+COMPANY_FIELDS = [
+    "company_id",
+    "name",
+    "department",
+    "employment_type",
+    "kind",
+    "start_year_month",
+    "end_year_month",
+    "capital",
+    "employees",
+    "offices",
+    "annual_sales",
+    "founded",
+]
+
+
+def _company_dict(company: Company, project_count: int) -> dict:
+    return {
+        **{name: getattr(company, name) for name in COMPANY_FIELDS},
+        "project_count": project_count,
+    }
+
+
+def _companies() -> list[dict]:
+    counts = Counter(
+        Project.objects.exclude(company=None).values_list("company_id", flat=True)
+    )
+    return [
+        _company_dict(c, counts.get(c.company_id, 0)) for c in Company.objects.all()
+    ]
 
 
 def _certification_dict(c: Certification) -> dict:
@@ -145,6 +190,7 @@ def api_bootstrap(request):
         {
             "skills": _skills_with_years(),
             "categories": registry.category_names(),
+            "companies": _companies(),
             "ongoing_projects": [
                 {"project_id": p.project_id, "name": p.name} for p in ongoing
             ],
@@ -291,59 +337,87 @@ def api_site(request):
     return _json(_site_info())
 
 
-def _skillsheet_payload() -> dict:
-    """職務経歴書画面向けのデータ。生成できない場合も本文の編集はできるよう、エラーは本文に載せる。"""
-    sheet = export.get_skillsheet()
-    payload = {
-        "body": sheet.body if sheet else "",
-        "updated_at": sheet.updated_at.isoformat() if sheet else None,
-        "preview_html": None,
-        "warnings": None,
-        "error": None,
-    }
-    try:
-        rendered = export.render_skillsheet(timezone.localdate())
-    except registry.ValidationFailed as error:
-        payload["error"] = "\n".join(error.errors)
+@api_view("GET", "POST")
+def api_companies(request):
+    if request.method == "POST":
+        registry.save_company(_body(request))
+    return _json(_companies())
+
+
+@api_view("PUT", "DELETE")
+def api_company(request, company_id):
+    if request.method == "DELETE":
+        registry.delete_company(company_id)
     else:
-        payload["preview_html"] = rendered.html
-        payload["warnings"] = rendered.warnings.as_dict()
-    return payload
+        registry.save_company(_body(request), company_id)
+    return _json(_companies())
 
 
-@api_view("GET", "PUT")
+def _skillsheet_payload() -> dict:
+    """職務経歴書画面向けのデータ。文章項目・プレビュー・警告を返す。"""
+    saved = {t.text_key: t for t in SkillsheetText.objects.all()}
+    texts = [
+        {
+            "key": key,
+            "label": label,
+            "body": saved[key].body if key in saved else "",
+            "updated_at": saved[key].updated_at.isoformat() if key in saved else None,
+        }
+        for key, label in SKILLSHEET_TEXT_KEYS.items()
+    ]
+    rendered = export.render_skillsheet(timezone.localdate())
+    return {
+        "texts": texts,
+        "preview_html": rendered.html,
+        "warnings": rendered.warnings.as_dict(),
+    }
+
+
+@api_view("GET")
 def api_skillsheet(request):
-    if request.method == "PUT":
-        data = _body(request)
-        body = data.get("body")
-        if not isinstance(body, str) or not body.strip():
-            raise registry.ValidationFailed(["本文を入力してください。"])
-        export.validate_body(body)
-        registry.save_skillsheet(body, data.get("expected_updated_at"))
     return _json(_skillsheet_payload())
+
+
+@api_view("PUT")
+def api_skillsheet_text(request, text_key):
+    data = _body(request)
+    registry.save_skillsheet_text(
+        text_key, data.get("body"), data.get("expected_updated_at")
+    )
+    return _json(_skillsheet_payload())
+
+
+def _attachment(content, content_type: str, fallback: str, filename: str):
+    """日本語のファイル名を `filename*` で指定したダウンロード応答を返す。"""
+    response = HttpResponse(content, content_type=content_type)
+    response["Content-Disposition"] = (
+        f"attachment; filename=\"{fallback}\"; filename*=UTF-8''{quote(filename)}"
+    )
+    return response
 
 
 @api_view("GET")
 def skillsheet_pdf(request):
-    rendered = export.render_skillsheet(timezone.localdate())
-    filename = f"職務経歴書_{timezone.localdate():%Y%m%d}.pdf"
-    response = HttpResponse(
-        export.build_pdf(rendered.html), content_type="application/pdf"
+    today = timezone.localdate()
+    rendered = export.render_skillsheet(today)
+    return _attachment(
+        export.build_pdf(rendered.html),
+        "application/pdf",
+        "skillsheet.pdf",
+        f"職務経歴書_{today:%Y%m%d}.pdf",
     )
-    response["Content-Disposition"] = (
-        f"attachment; filename=\"skillsheet.pdf\"; filename*=UTF-8''{quote(filename)}"
-    )
-    return response
 
 
 @api_view("GET")
 def skillsheet_markdown(request):
-    sheet = export.get_skillsheet()
-    if sheet is None:
-        raise registry.NotFound("職務経歴書の本文が登録されていません。")
-    response = HttpResponse(sheet.body, content_type="text/markdown; charset=utf-8")
-    response["Content-Disposition"] = f'attachment; filename="{MARKDOWN_FILENAME}"'
-    return response
+    today = timezone.localdate()
+    rendered = export.render_skillsheet(today)
+    return _attachment(
+        rendered.markdown,
+        "text/markdown; charset=utf-8",
+        "skillsheet.md",
+        f"職務経歴書_{today:%Y%m%d}.md",
+    )
 
 
 @api_view("POST")

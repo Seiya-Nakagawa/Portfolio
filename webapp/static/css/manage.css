@@ -476,6 +476,30 @@ pre {
   margin-top: 0.5rem;
 }
 
+/* 職務経歴書の記載内容（折りたたみカード） */
+.detail-card > summary {
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.detail-card[open] > summary {
+  margin-bottom: 0.9rem;
+}
+
+.hint {
+  margin: -0.5rem 0 0.9rem;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+/* 終了年月と「継続中」のチェックを組にする */
+.ongoing-field > label.check {
+  margin-top: -0.4rem;
+  font-weight: 400;
+}
+
 .project-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 20rem;

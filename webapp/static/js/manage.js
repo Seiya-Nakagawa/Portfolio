@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
         bootstrap: document.body.dataset.apiBootstrap,
         projects: document.body.dataset.apiProjects,
         skills: document.body.dataset.apiSkills,
+        companies: document.body.dataset.apiCompanies,
         categories: document.body.dataset.apiCategories,
         categoryOrder: document.body.dataset.apiCategoryOrder,
         certifications: document.body.dataset.apiCertifications,
@@ -118,8 +119,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const SUB_ALL = 'すべて';
 
     const project = {
-        state: null, // { project_id, name, start_year_month, end_year_month, selected: {skill_id: version} }
+        state: null, // { project_id, name, start_year_month, end_year_month, company_id, 案件の詳細, selected: {skill_id: version} }
         skills: [],
+        companies: [],
+        detailsOpen: false, // 「職務経歴書の記載内容」カードを展開中か
         ongoing: [],
         finished: [],
         activeCategory: '', // スキル選択で表示中のカテゴリ
@@ -128,15 +131,38 @@ document.addEventListener('DOMContentLoaded', () => {
         subTabs: {}, // カテゴリごとに選択中のサブカテゴリ { category: subcategory }
     };
 
+    // 職務経歴書にのみ用いる案件の詳細（1 行の入力欄）と（複数行の入力欄）。
+    const PROJECT_DETAIL_LINES = [
+        ['team_size', '体制（例: 5名体制）', 64],
+        ['phases', '担当工程（例: 基本設計、詳細設計）', 255],
+        ['environment', '環境・言語（例: AWS、Python 3.14）', 512],
+    ];
+    const PROJECT_DETAIL_TEXTS = [
+        ['overview', '案件概要'],
+        ['tasks', '業務内容（1 行に 1 項目）'],
+    ];
+
     function emptyProject() {
-        return { project_id: '', name: '', start_year_month: '', end_year_month: '', selected: {} };
+        return {
+            project_id: '', name: '', start_year_month: '', end_year_month: '', company_id: '',
+            team_size: '', overview: '', tasks: '', phases: '', environment: '', selected: {},
+        };
     }
 
     function fromServer(data) {
         if (!data) return emptyProject();
         const selected = {};
         data.skills.forEach((s) => { selected[s.skill_id] = s.version; });
-        return { ...data, selected };
+        return { ...data, company_id: data.company_id ?? '', selected };
+    }
+
+    function companyLabel(company) {
+        return [company.name, company.department].filter(Boolean).join(' ');
+    }
+
+    function companyNameOf(companyId) {
+        const company = project.companies.find((c) => String(c.company_id) === String(companyId));
+        return company ? companyLabel(company) : '';
     }
 
     // 種類マスタの並び順（スキル項目を持たない種類を含む）。スキル項目の入力候補・絞り込みに使う。
@@ -171,6 +197,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await api('GET', urls.bootstrap);
             project.skills = data.skills;
             project.categoryNames = data.categories;
+            project.companies = data.companies;
             project.ongoing = data.ongoing_projects;
             project.finished = data.finished_projects;
             return data;
@@ -197,6 +224,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const root = document.getElementById('tab-project');
         const s = project.state;
         const chosen = project.skills.filter((sk) => sk.skill_id in s.selected);
+        // 職務経歴書の記載内容は、入力のある項目のみを表示する。
+        const detailRows = [
+            ['会社', companyNameOf(s.company_id)],
+            ...PROJECT_DETAIL_LINES.map(([name, label]) => [confirmLabel(label), s[name]]),
+            ...PROJECT_DETAIL_TEXTS.map(([name, label]) => [confirmLabel(label), s[name]]),
+        ].filter(([, value]) => value !== '');
         root.innerHTML = `
             ${pageHead('入力内容の確認', { sub: '内容を確認して「登録」を押すと保存します。' })}
             <div class="card">
@@ -207,6 +240,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     <tr><th>終了年月</th><td>${s.end_year_month ? esc(s.end_year_month) : '継続中'}</td></tr>
                 </table>
             </div>
+            ${detailRows.length === 0 ? '' : `<div class="card">
+                <h3>職務経歴書の記載内容</h3>
+                <table class="kv">
+                    ${detailRows.map(([label, value]) => `<tr><th>${esc(label)}</th><td class="pre-line">${esc(value)}</td></tr>`).join('')}
+                </table>
+            </div>`}
             <div class="card">
                 <h3>選択したスキル項目（${chosen.length}件）</h3>
                 ${chosen.length === 0 ? '<p class="empty">スキル項目は選択されていません。</p>' : `<div class="table-wrap"><table class="data-table">
@@ -301,6 +340,18 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                         <p><label><input type="checkbox" id="p-ongoing"${s.end_year_month === '' ? ' checked' : ''} />継続中（終了年月を空欄のままにする）</label></p>
                     </div>
+                    <details class="card detail-card" id="detail-card"${project.detailsOpen ? ' open' : ''}>
+                        <summary>職務経歴書の記載内容（任意）</summary>
+                        <label>会社
+                            <select id="p-company">
+                                <option value="">（未設定）</option>
+                                ${project.companies.map((c) => `<option value="${esc(c.company_id)}"${String(c.company_id) === String(s.company_id) ? ' selected' : ''}>${esc(companyLabel(c))}（${c.kind === 'main' ? '本業' : '副業'}）</option>`).join('')}
+                            </select>
+                        </label>
+                        <p class="hint">会社を設定しない案件は、職務経歴書に出力されません。</p>
+                        ${PROJECT_DETAIL_LINES.map(([name, label, max]) => `<label>${esc(label)}<input type="text" data-detail="${name}" value="${esc(s[name])}" maxlength="${max}" /></label>`).join('')}
+                        ${PROJECT_DETAIL_TEXTS.map(([name, label]) => `<label>${esc(label)}<textarea data-detail="${name}" rows="4">${esc(s[name])}</textarea></label>`).join('')}
+                    </details>
                     <div class="card">
                         <h3>使用したスキル</h3>
                         <div id="skill-area"></div>
@@ -327,6 +378,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         root.querySelector('.finished-projects').addEventListener('toggle', (e) => {
             project.finishedOpen = e.target.open;
+        });
+        root.querySelector('#detail-card').addEventListener('toggle', (e) => {
+            project.detailsOpen = e.target.open;
+        });
+        root.querySelector('#p-company').addEventListener('change', (e) => { project.state.company_id = e.target.value; });
+        root.querySelectorAll('[data-detail]').forEach((input) => {
+            input.addEventListener('input', () => { project.state[input.dataset.detail] = input.value; });
         });
         root.querySelector('#new-project').addEventListener('click', () => {
             project.state = emptyProject();
@@ -480,6 +538,12 @@ document.addEventListener('DOMContentLoaded', () => {
             name: s.name,
             start_year_month: s.start_year_month,
             end_year_month: s.end_year_month,
+            company_id: s.company_id === '' ? null : Number(s.company_id),
+            team_size: s.team_size,
+            overview: s.overview,
+            tasks: s.tasks,
+            phases: s.phases,
+            environment: s.environment,
             skills: Object.entries(s.selected).map(([skill_id, version]) => ({ skill_id, version })),
         }));
         if (!saved) return;
@@ -592,6 +656,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" data-image-input />
                 </div>`;
             }
+            if (field.ongoingLabel) {
+                const ongoing = fieldValue(row, field) === '';
+                return `<div class="ongoing-field">
+                    <label>${esc(field.label)}<input type="${field.type}" name="${field.name}" value="${value}"${ongoing ? ' disabled' : ''} /></label>
+                    <label class="check"><input type="checkbox" data-ongoing="${field.name}"${ongoing ? ' checked' : ''} />${esc(field.ongoingLabel)}</label>
+                </div>`;
+            }
             const list = field.datalist ? ` list="${config.key}-${field.name}-list"` : '';
             const dl = field.datalist
                 ? `<datalist id="${config.key}-${field.name}-list">${field.datalist().map((v) => `<option value="${esc(v)}"></option>`).join('')}</datalist>`
@@ -681,6 +752,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 cancel.forEach((b) => b.addEventListener('click', () => { editing = null; draft = null; inEditScreen = false; render(); }));
                 root.querySelector('form').addEventListener('submit', submit);
                 root.querySelectorAll('[data-image-field]').forEach(bindImageField);
+                root.querySelectorAll('[data-ongoing]').forEach(bindOngoingField);
                 return;
             }
             const visible = visibleRows();
@@ -725,6 +797,15 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
+        // 「継続中」のチェックを入れると日付入力を空にして無効化する（空欄のままにする）。
+        function bindOngoingField(check) {
+            const input = root.querySelector(`input[name="${check.dataset.ongoing}"]`);
+            check.addEventListener('change', () => {
+                input.disabled = check.checked;
+                if (check.checked) input.value = '';
+            });
+        }
+
         // 入力内容を確認画面へ渡す。保存は確認画面で承認した場合のみ行う。
         function submit(event) {
             event.preventDefault();
@@ -755,6 +836,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         async function remove(row) {
+            const blocked = config.deleteBlocked ? config.deleteBlocked(row) : '';
+            if (blocked) {
+                showMessage(blocked, 'error');
+                return;
+            }
             if (!window.confirm(`「${config.label(row)}」を削除します。よろしいですか？`)) return;
             const result = await guarded(() => api('DELETE', `${config.url}/${encodeURIComponent(row[config.idKey])}`));
             if (result) {
@@ -775,6 +861,51 @@ document.addEventListener('DOMContentLoaded', () => {
             },
         };
     }
+
+    // 会社。区分（本業・副業）ごとに職務経歴書の開発経歴・副業へ出力する。
+    const COMPANY_KINDS = { main: '本業', side: '副業' };
+    const companiesPanel = crudPanel(document.getElementById('tab-companies'), {
+        key: 'company',
+        title: '会社',
+        separateEdit: true,
+        filter: { label: '区分', values: () => Object.values(COMPANY_KINDS), value: (r) => COMPANY_KINDS[r.kind] },
+        url: urls.companies,
+        idKey: 'company_id',
+        label: (row) => row.name,
+        deleteBlocked: (row) => (row.project_count > 0 ? `所属する案件がある会社は削除できません（${row.project_count}件）。` : ''),
+        columns: [
+            { label: '区分', value: (r) => COMPANY_KINDS[r.kind] },
+            { label: '在籍期間', value: (r) => `${formatYearMonth(r.start_year_month)}〜${r.end_year_month ? formatYearMonth(r.end_year_month) : '現在'}` },
+            { label: '会社名', value: (r) => companyLabel(r) },
+            { label: '雇用形態', value: (r) => r.employment_type },
+            { label: '案件数', value: (r) => r.project_count, numeric: true },
+        ],
+        fields: [
+            { name: 'name', label: '会社名' },
+            { name: 'department', label: '部署名（任意）' },
+            { name: 'employment_type', label: '雇用・契約形態（任意。例: 正社員、業務委託）' },
+            {
+                name: 'kind',
+                label: '区分',
+                type: 'select',
+                options: () => Object.entries(COMPANY_KINDS).map(([value, label]) => ({ value, label })),
+                format: (v) => COMPANY_KINDS[v] ?? v,
+            },
+            { name: 'start_year_month', label: '在籍開始年月', type: 'month', format: formatYearMonth },
+            {
+                name: 'end_year_month',
+                label: '在籍終了年月',
+                type: 'month',
+                ongoingLabel: '在籍中（終了年月を空欄のままにする）',
+                format: (v) => (v ? formatYearMonth(v) : '在籍中'),
+            },
+            { name: 'capital', label: '資本金（任意。例: 200万円）' },
+            { name: 'employees', label: '従業員数（任意。例: 連結3,387名）' },
+            { name: 'offices', label: '拠点数（任意。例: 8拠点）' },
+            { name: 'annual_sales', label: '年商（任意。例: 222億円）' },
+            { name: 'founded', label: '設立（任意。例: 2008年5月）' },
+        ],
+    });
 
     // スキル項目管理
     const skillsPanel = crudPanel(document.getElementById('tab-skills'), {
@@ -1089,70 +1220,98 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderSkillsheetView(root, data) {
         const warnings = [];
-        if (data.warnings) {
-            if (data.warnings.unmatched_projects.length > 0) {
-                warnings.push(`本文に案件見出しが見つからない案件があります: ${data.warnings.unmatched_projects.join('、')}`);
-            }
-            if (data.warnings.unused_skill_count > 0) {
-                warnings.push(`使用実績がなく出力対象外のスキル項目: ${data.warnings.unused_skill_count}件`);
-            }
+        if (data.warnings.unassigned_projects.length > 0) {
+            warnings.push(`会社が未設定のため職務経歴書に出力されない案件があります: ${data.warnings.unassigned_projects.join('、')}`);
         }
-        const updated = data.updated_at ? new Date(data.updated_at).toLocaleString('ja-JP') : '未登録';
-        const canDownload = data.preview_html !== null;
+        if (data.warnings.missing_texts.length > 0) {
+            warnings.push(`未入力の文章項目があります: ${data.warnings.missing_texts.join('、')}`);
+        }
         root.innerHTML = `
             ${pageHead('職務経歴書', {
-        sub: `本文の最終更新日時: ${updated}`,
-        actions: `<button type="button" id="edit-skillsheet">編集</button>
-                  ${data.updated_at ? `<a href="${esc(urls.skillsheetMarkdown)}" download><button type="button">本文をダウンロード</button></a>` : ''}
-                  ${canDownload ? `<a href="${esc(urls.skillsheetPdf)}" download><button type="button" class="primary">PDF をダウンロード</button></a>` : ''}`,
+        sub: '文章項目は下の一覧から編集します。会社は「会社」、案件の記載内容は「案件登録」で編集します。',
+        actions: `<a href="${esc(urls.skillsheetMarkdown)}" download><button type="button">Markdown をダウンロード</button></a>
+                  <a href="${esc(urls.skillsheetPdf)}" download><button type="button" class="primary">PDF をダウンロード</button></a>`,
     })}
-            ${data.error ? `<p class="message warning skillsheet-error pre-line">${esc(data.error)}</p>` : ''}
             ${warnings.map((w) => `<p class="message warning">${esc(w)}</p>`).join('')}
-            ${canDownload ? `<div class="card"><h3>プレビュー</h3><iframe id="skillsheet-preview" class="skillsheet-preview" title="職務経歴書のプレビュー"></iframe></div>` : ''}`;
-        if (canDownload) root.querySelector('#skillsheet-preview').srcdoc = data.preview_html;
-        root.querySelector('#edit-skillsheet').addEventListener('click', () => renderSkillsheetEdit(root, data, data.body));
+            <div class="card">
+                <h3>文章項目</h3>
+                <div class="table-wrap"><table class="data-table">
+                    <thead><tr><th>項目</th><th>入力</th><th>最終更新日時</th><th></th></tr></thead>
+                    <tbody>${data.texts.map((t, i) => `<tr>
+                        <td>${esc(t.label)}</td>
+                        <td>${t.updated_at ? '入力済み' : '未入力'}</td>
+                        <td>${t.updated_at ? esc(new Date(t.updated_at).toLocaleString('ja-JP')) : ''}</td>
+                        <td class="row-actions"><button type="button" class="sm" data-edit-text="${i}">編集</button></td></tr>`).join('')}</tbody>
+                </table></div>
+            </div>
+            <div class="card"><h3>プレビュー</h3><iframe id="skillsheet-preview" class="skillsheet-preview" title="職務経歴書のプレビュー"></iframe></div>`;
+        root.querySelector('#skillsheet-preview').srcdoc = data.preview_html;
+        root.querySelectorAll('[data-edit-text]').forEach((b) => b.addEventListener('click', () => {
+            const text = data.texts[Number(b.dataset.editText)];
+            renderSkillsheetEdit(root, data, text, text.body);
+        }));
     }
 
-    function renderSkillsheetEdit(root, data, draft) {
+    // 氏名は 1 行の入力欄、他の項目は全幅の複数行入力欄で編集する。
+    function renderSkillsheetEdit(root, data, text, draft) {
+        const isLine = text.key === 'full_name';
         root.innerHTML = `
-            ${pageHead('職務経歴書の編集', { sub: '本文を Markdown で編集します。「確認へ」で変更内容を確認してから保存します。' })}
+            ${pageHead(`${text.label}の編集`, { sub: isLine ? '' : '内容を Markdown（段落・箇条書き・太字）で編集します。見出しは出力時に付与されます。', back: 'data-cancel' })}
             <div class="card">
-                <textarea id="skillsheet-body" class="skillsheet-body" spellcheck="false"></textarea>
+                ${isLine
+        ? '<label>氏名<input type="text" id="skillsheet-text" maxlength="255" /></label>'
+        : '<textarea id="skillsheet-text" class="skillsheet-body" spellcheck="false"></textarea>'}
                 <div class="form-bar">
                     <button type="button" data-cancel>キャンセル</button>
                     <button type="button" class="primary" data-confirm>確認へ</button>
                 </div>
             </div>`;
-        const textarea = root.querySelector('#skillsheet-body');
-        textarea.value = draft;
-        root.querySelector('[data-cancel]').addEventListener('click', () => renderSkillsheetView(root, data));
+        const input = root.querySelector('#skillsheet-text');
+        input.value = draft;
+        root.querySelectorAll('[data-cancel]').forEach((b) => b.addEventListener('click', () => renderSkillsheetView(root, data)));
         root.querySelector('[data-confirm]').addEventListener('click', () => {
-            if (!textarea.value.trim()) {
-                showMessage('本文を入力してください。', 'error');
+            if (!input.value.trim()) {
+                showMessage(`${text.label}を入力してください。`, 'error');
                 return;
             }
-            renderSkillsheetConfirm(root, data, textarea.value);
+            showMessage('');
+            renderSkillsheetConfirm(root, data, text, input.value);
         });
         window.scrollTo({ top: 0 });
     }
 
-    function renderSkillsheetConfirm(root, data, draft) {
+    async function saveSkillsheetText(root, text, draft) {
+        const url = `${urls.skillsheet}/texts/${encodeURIComponent(text.key)}`;
+        const saved = await guarded(() => api('PUT', url, { body: draft, expected_updated_at: text.updated_at }));
+        if (!saved) return;
+        renderSkillsheetView(root, saved);
+        showMessage('保存しました。');
+    }
+
+    // 氏名は修正前後の 2 列、長文の項目は行単位の差分で確認する。
+    function renderSkillsheetConfirm(root, data, text, draft) {
+        if (text.key === 'full_name') {
+            renderConfirmScreen(root, {
+                title: text.label,
+                saveLabel: '保存',
+                rows: [[text.label, draft.trim()]],
+                before: [text.body],
+                onBack: () => renderSkillsheetEdit(root, data, text, draft),
+                onSave: () => saveSkillsheetText(root, text, draft),
+            });
+            return;
+        }
         root.innerHTML = `
-            ${pageHead('職務経歴書の確認', { sub: '変更内容（行単位の差分）を確認して「保存」を押すと保存します。' })}
+            ${pageHead(`${text.label}の確認`, { sub: '変更内容（行単位の差分）を確認して「保存」を押すと保存します。' })}
             <div class="card">
-                ${renderDiff(data.body, draft)}
+                ${renderDiff(text.body, draft)}
                 <div class="form-bar">
                     <button type="button" data-back>入力に戻る</button>
                     <button type="button" class="primary" data-save>保存</button>
                 </div>
             </div>`;
-        root.querySelector('[data-back]').addEventListener('click', () => renderSkillsheetEdit(root, data, draft));
-        root.querySelector('[data-save]').addEventListener('click', async () => {
-            const saved = await guarded(() => api('PUT', urls.skillsheet, { body: draft, expected_updated_at: data.updated_at }));
-            if (!saved) return;
-            renderSkillsheetView(root, saved);
-            showMessage('保存しました。');
-        });
+        root.querySelector('[data-back]').addEventListener('click', () => renderSkillsheetEdit(root, data, text, draft));
+        root.querySelector('[data-save]').addEventListener('click', () => saveSkillsheetText(root, text, draft));
         window.scrollTo({ top: 0 });
     }
 
@@ -1160,6 +1319,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const tabLoaders = {
         project: () => loadProjectTab(project.state === null),
+        companies: () => companiesPanel.load(),
         skills: async () => {
             if (project.skills.length === 0) await refreshMaster();
             await skillsPanel.load();

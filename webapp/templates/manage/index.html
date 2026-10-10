@@ -11,6 +11,7 @@
     data-api-bootstrap="{% url 'manage-api-bootstrap' %}"
     data-api-projects="{% url 'manage-api-projects' %}"
     data-api-skills="{% url 'manage-api-skills' %}"
+    data-api-companies="{% url 'manage-api-companies' %}"
     data-api-categories="{% url 'manage-api-categories' %}"
     data-api-category-order="{% url 'manage-api-category-order' %}"
     data-api-certifications="{% url 'manage-api-certifications' %}"
@@ -38,6 +39,7 @@
         <nav id="main-tabs" role="tablist" aria-orientation="vertical" aria-label="管理メニュー">
           <p class="nav-group" role="presentation">登録</p>
           <button type="button" role="tab" data-tab="project">案件登録</button>
+          <button type="button" role="tab" data-tab="companies">会社</button>
           <p class="nav-group" role="presentation">掲載内容</p>
           <button type="button" role="tab" data-tab="skills">スキル項目管理</button>
           <button type="button" role="tab" data-tab="certifications">資格</button>
@@ -53,6 +55,7 @@
 
       <main>
         <section id="tab-project" hidden></section>
+        <section id="tab-companies" hidden></section>
         <section id="tab-skills" hidden></section>
         <section id="tab-certifications" hidden></section>
         <section id="tab-works" hidden></section>

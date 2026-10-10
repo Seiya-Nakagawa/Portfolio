@@ -1,31 +1,41 @@
-"""職務経歴書の生成。本文の該当箇所を集計結果で差し替え、HTML・PDF に変換する。"""
+"""職務経歴書の生成。実績 DB の内容から Markdown を組み立て、HTML・PDF に変換する。"""
 
-import re
 from dataclasses import dataclass, field
 from datetime import date
 
 import markdown
 
-from portfolio.models import Project, Skill, Skillsheet
-from portfolio.registry import ValidationFailed
-from portfolio.services import build_skill_rows
+from portfolio.models import (
+    SKILLSHEET_TEXT_KEYS,
+    Certification,
+    Company,
+    Project,
+    SkillsheetText,
+)
+from portfolio.services import build_skill_rows, format_year_month
 
 # 継続中の案件の終了年月の表記。
 ONGOING_LABEL = "現在"
 
-SKILL_SECTION_TITLE = "■テクニカルスキル"
+# 入れ子の箇条書きの字下げ。Markdown 変換ライブラリが入れ子と解釈する幅に合わせる。
+LIST_INDENT = " " * 4
 
-# `■テクニカルスキル` 見出しと、その直下（次の `##` 見出しまで）。
-SKILL_SECTION_HEADING = re.compile(r"^## ■テクニカルスキル[ \t]*$", re.MULTILINE)
-SKILL_SECTION = re.compile(
-    r"(?P<head>^## ■テクニカルスキル[ \t]*\n\n?).*?(?=\n## |\Z)",
-    re.DOTALL | re.MULTILINE,
-)
+# 会社概要の項目。出力順に並べる。
+COMPANY_PROFILE_FIELDS = [
+    ("capital", "資本金"),
+    ("employees", "従業員数"),
+    ("offices", "拠点数"),
+    ("annual_sales", "年商"),
+    ("founded", "設立"),
+]
 
-# 案件見出し行（例: **2025年04月〜現在｜案件名**）。
-PROJECT_PERIOD_LINE = re.compile(
-    r"^\*\*(?P<period>[^\n｜]+)｜(?P<name>[^\n*]+)\*\*", re.MULTILINE
-)
+# 会社の区分ごとの見出し。出力順に並べる。
+COMPANY_SECTIONS = [
+    (Company.KIND_MAIN, "■開発経歴"),
+    (Company.KIND_SIDE, "■副業"),
+]
+
+END_MARK = "以上"
 
 # PDF・プレビュー共通のスタイル（A4・余白 上下 18mm / 左右 16mm・10.5pt の日本語ゴシック体）。
 STYLE = """
@@ -51,13 +61,15 @@ blockquote { color: #666; border-left: 3px solid #ccc; padding-left: 8px; margin
 class SkillsheetWarnings:
     """生成時の警告。"""
 
-    unmatched_projects: list[str] = field(default_factory=list)
-    unused_skill_count: int = 0
+    # 会社が未設定のため職務経歴書に出力されない案件名。
+    unassigned_projects: list[str] = field(default_factory=list)
+    # 未入力の文章項目名。
+    missing_texts: list[str] = field(default_factory=list)
 
     def as_dict(self) -> dict:
         return {
-            "unmatched_projects": self.unmatched_projects,
-            "unused_skill_count": self.unused_skill_count,
+            "unassigned_projects": self.unassigned_projects,
+            "missing_texts": self.missing_texts,
         }
 
 
@@ -81,81 +93,155 @@ def _format_period(start: str, end: str) -> str:
 
 
 def build_skill_table(today: date) -> str:
-    """`■テクニカルスキル` の表。"""
+    """`■テクニカルスキル` の表。使用実績のあるスキル項目がなければ空文字列を返す。"""
+    rows = build_skill_rows(today)
+    if not rows:
+        return ""
     lines = [
         "| 種類 | 項目 | 開始年 | 使用期間 |",
         "| --- | --- | --- | --- |",
     ]
-    for row in build_skill_rows(today):
+    for row in rows:
         skill = row.skill
         cells = [skill.category, skill.name, f"{row.start_year}年", row.years]
         lines.append("| " + " | ".join(_escape_cell(c) for c in cells) + " |")
     return "\n".join(lines)
 
 
-def build_project_periods() -> dict[str, str]:
-    """案件名ごとの期間表記。"""
-    return {
-        p.name: _format_period(p.start_year_month, p.end_year_month)
-        for p in Project.objects.all()
-    }
+def _company_label(company: Company) -> str:
+    """会社名と部署名を半角空白で連結する。"""
+    return " ".join(part for part in (company.name, company.department) if part)
 
 
-def validate_body(body: str) -> None:
-    """本文に `■テクニカルスキル` 見出しがちょうど 1 つあることを確認する。"""
-    count = len(SKILL_SECTION_HEADING.findall(body))
-    if count != 1:
-        raise ValidationFailed(
-            [
-                (
-                    f"本文の「## {SKILL_SECTION_TITLE}」見出しが"
-                    f"ちょうど 1 つである必要があります（現在 {count} 件）。"
-                )
-            ]
+def _build_company_summary(companies: list[Company]) -> str:
+    """`■職務経歴 概略` の表。"""
+    lines = ["| 期間 | 会社名 |", "| --- | --- |"]
+    for company in companies:
+        period = _format_period(company.start_year_month, company.end_year_month)
+        lines.append(
+            f"| {_escape_cell(period)} | {_escape_cell(_company_label(company))} |"
         )
+    return "\n".join(lines)
 
 
-def replace_skill_table(body: str, skill_table_md: str) -> str:
-    """`■テクニカルスキル` 見出し直下を表に差し替える。見出しがちょうど 1 つでなければエラー。"""
-    validate_body(body)
-    return SKILL_SECTION.sub(
-        lambda m: "## " + SKILL_SECTION_TITLE + "\n\n" + skill_table_md + "\n",
-        body,
-        count=1,
+def _bullet(label: str, value: str) -> list[str]:
+    """複数行の値は、2 行目以降を箇条書きの項目内の改行として字下げする。"""
+    first, *rest = value.splitlines()
+    return [f"- {label}: {first}", *(f"{LIST_INDENT}{line}" for line in rest)]
+
+
+def _build_project(project: Project) -> str:
+    heading = (
+        f"**{_format_period(project.start_year_month, project.end_year_month)}"
+        f"｜{project.name}**"
+    )
+    if project.team_size:
+        heading += f"（{project.team_size}）"
+
+    lines = [heading, ""]
+    if project.overview:
+        lines += _bullet("案件概要", project.overview)
+    tasks = [line.strip() for line in project.tasks.splitlines() if line.strip()]
+    if len(tasks) == 1:
+        lines.append(f"- 業務内容: {tasks[0]}")
+    elif tasks:
+        lines.append("- 業務内容:")
+        lines += [f"{LIST_INDENT}- {task}" for task in tasks]
+    if project.phases:
+        lines.append(f"- 担当工程: {project.phases}")
+    if project.environment:
+        lines.append(f"- 環境・言語: {project.environment}")
+    return "\n".join(lines).rstrip()
+
+
+def _build_company(company: Company, projects: list[Project]) -> str:
+    heading = f"### {_company_label(company)}"
+    if company.employment_type:
+        heading += f"（{company.employment_type}）"
+    heading += f" {_format_period(company.start_year_month, company.end_year_month)}"
+
+    blocks = [heading]
+    profile = [
+        f"【{label}】{getattr(company, key)}"
+        for key, label in COMPANY_PROFILE_FIELDS
+        if getattr(company, key)
+    ]
+    if profile:
+        blocks.append("\u3000".join(profile))
+    blocks += [_build_project(project) for project in projects]
+    return "\n\n".join(blocks)
+
+
+def _build_certifications() -> str:
+    certifications = Certification.objects.order_by("acquired_on", "certification_id")
+    return "\n".join(
+        f"- {c.name}（{format_year_month(c.acquired_on)}）" for c in certifications
     )
 
 
-def replace_project_periods(
-    body: str, periods: dict[str, str]
-) -> tuple[str, list[str]]:
-    """案件見出し行の期間部分のみを案件名の一致で差し替える。一致しなかった案件名も返す。"""
-    matched: set[str] = set()
-
-    def substitute(match: re.Match) -> str:
-        name = match.group("name")
-        if name in periods:
-            matched.add(name)
-            return f"**{periods[name]}｜{name}**"
-        return match.group(0)
-
-    new_body = PROJECT_PERIOD_LINE.sub(substitute, body)
-    return new_body, sorted(set(periods) - matched)
+def _section(title: str, body: str) -> str | None:
+    """本文が空の項目は見出しごと出力しない。"""
+    body = body.strip()
+    return f"## {title}\n\n{body}" if body else None
 
 
-def build_warnings(today: date, unmatched_projects: list[str]) -> SkillsheetWarnings:
-    used = {row.skill.skill_id for row in build_skill_rows(today)}
-    unused = Skill.objects.exclude(skill_id__in=used).count()
-    return SkillsheetWarnings(
-        unmatched_projects=unmatched_projects, unused_skill_count=unused
+def _load_texts() -> dict[str, str]:
+    return {t.text_key: t.body.strip() for t in SkillsheetText.objects.all()}
+
+
+def build_markdown(today: date) -> tuple[str, SkillsheetWarnings]:
+    """実績 DB の内容から職務経歴書の Markdown と警告を組み立てる。"""
+    texts = _load_texts()
+    companies = list(Company.objects.all())
+    projects = list(Project.objects.order_by("-start_year_month", "name"))
+
+    projects_by_company: dict[int, list[Project]] = {}
+    unassigned: list[str] = []
+    for project in projects:
+        if project.company_id is None:
+            unassigned.append(project.name)
+        else:
+            projects_by_company.setdefault(project.company_id, []).append(project)
+    warnings = SkillsheetWarnings(
+        unassigned_projects=unassigned,
+        missing_texts=[
+            label for key, label in SKILLSHEET_TEXT_KEYS.items() if not texts.get(key)
+        ],
     )
 
+    title = [
+        "# 職務経歴書",
+        f"最終更新日: {today.year}年{today.month}月{today.day}日",
+    ]
+    if texts.get("full_name"):
+        title.append(f"氏名: {texts['full_name']}")
+    sections: list[str | None] = ["\n".join(title)]
 
-def get_skillsheet() -> Skillsheet | None:
-    return Skillsheet.objects.first()
+    sections.append(_section("■職務概要", texts.get("summary", "")))
+    main_companies = [c for c in companies if c.kind == Company.KIND_MAIN]
+    if main_companies:
+        sections.append(
+            _section("■職務経歴 概略", _build_company_summary(main_companies))
+        )
+    for kind, heading in COMPANY_SECTIONS:
+        body = "\n\n".join(
+            _build_company(company, projects_by_company.get(company.company_id, []))
+            for company in companies
+            if company.kind == kind
+        )
+        sections.append(_section(heading, body))
+    sections.append(_section("■テクニカルスキル", build_skill_table(today)))
+    sections.append(_section("■活かせる経験・得意分野", texts.get("strengths", "")))
+    sections.append(_section("■保有資格", _build_certifications()))
+    sections.append(_section("■自己PR", texts.get("self_pr", "")))
+    sections.append(END_MARK)
+
+    body = "\n\n".join(section for section in sections if section)
+    return body + "\n", warnings
 
 
 def to_html_document(merged_markdown: str) -> str:
-    """差し替え後の Markdown を、PDF と同じスタイルの HTML 文書に変換する。"""
+    """Markdown を、PDF と同じスタイルの HTML 文書に変換する。"""
     body = markdown.markdown(
         merged_markdown, extensions=["tables", "fenced_code", "nl2br"]
     )
@@ -166,23 +252,17 @@ def to_html_document(merged_markdown: str) -> str:
 
 
 def render_skillsheet(today: date) -> RenderedSkillsheet:
-    """本文を読み込み、集計結果で差し替えた Markdown・HTML・警告を返す。"""
-    sheet = get_skillsheet()
-    if sheet is None or not sheet.body.strip():
-        raise ValidationFailed(["職務経歴書の本文が登録されていません。"])
-    merged = replace_skill_table(sheet.body, build_skill_table(today))
-    merged, unmatched = replace_project_periods(merged, build_project_periods())
+    """実績 DB の内容から、Markdown・HTML・警告を返す。"""
+    merged, warnings = build_markdown(today)
     return RenderedSkillsheet(
-        markdown=merged,
-        html=to_html_document(merged),
-        warnings=build_warnings(today, unmatched),
+        markdown=merged, html=to_html_document(merged), warnings=warnings
     )
 
 
 def build_url_fetcher():
     """`data:` 以外のリソース取得を拒否するフェッチャー。
 
-    本文の Markdown に生の HTML（img・link 等）が含まれていても、PDF 生成時に
+    入力した文章に生の HTML（img・link 等）が含まれていても、PDF 生成時に
     ローカルファイルや内部ネットワークを読み込まないようにする。
     """
     from weasyprint import URLFetcher

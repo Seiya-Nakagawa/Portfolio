@@ -11,21 +11,31 @@ from django.utils import timezone
 
 from portfolio.models import (
     SITE_INFO_ID,
-    SKILLSHEET_ID,
+    SKILLSHEET_TEXT_KEYS,
     YEAR_MONTH_VALIDATOR,
     Certification,
+    Company,
     Project,
     ProjectSkill,
     SiteInfo,
     Skill,
     SkillCategory,
-    Skillsheet,
+    SkillsheetText,
     Work,
 )
 from portfolio.services import ordered_skills
 
 MAX_PROJECT_NAME_LENGTH = 255
 MAX_VERSION_LENGTH = 64
+
+# 案件の詳細（職務経歴書の記載内容）のうち、1 行の文字列項目と最大文字数。
+PROJECT_DETAIL_LINE_FIELDS = {
+    "team_size": ("体制", 64),
+    "phases": ("担当工程", 255),
+    "environment": ("環境・言語", 512),
+}
+# 複数行の文字列項目。
+PROJECT_DETAIL_TEXT_FIELDS = {"overview": "案件概要", "tasks": "業務内容"}
 
 
 class ValidationFailed(Exception):
@@ -100,9 +110,40 @@ def _clean_project_payload(payload: dict) -> tuple[dict, list[dict]]:
     for skill_id in sorted(seen - existing):
         errors.append(f"存在しないスキル項目です: {skill_id}")
 
+    details = _clean_project_details(payload, errors)
+
     if errors:
         raise ValidationFailed(errors)
-    return {"name": name, "start_year_month": start, "end_year_month": end}, skills
+    return {
+        "name": name,
+        "start_year_month": start,
+        "end_year_month": end,
+        **details,
+    }, skills
+
+
+def _clean_project_details(payload: dict, errors: list[str]) -> dict:
+    """案件の詳細（会社・体制・案件概要・業務内容・担当工程・環境・言語）を検証する。"""
+    details: dict = {}
+
+    for key, (label, max_length) in PROJECT_DETAIL_LINE_FIELDS.items():
+        value = str(payload.get(key) or "").strip()
+        if len(value) > max_length:
+            errors.append(f"{label}は{max_length}文字以内で入力してください。")
+        details[key] = value
+    for key in PROJECT_DETAIL_TEXT_FIELDS:
+        details[key] = str(payload.get(key) or "").strip()
+
+    company_id = payload.get("company_id")
+    if company_id in (None, ""):
+        details["company_id"] = None
+    elif isinstance(company_id, bool) or not str(company_id).isdigit():
+        errors.append("会社の形式が不正です。")
+    elif not Company.objects.filter(pk=int(company_id)).exists():
+        errors.append("存在しない会社です。")
+    else:
+        details["company_id"] = int(company_id)
+    return details
 
 
 def save_project(payload: dict) -> Project:
@@ -436,27 +477,98 @@ def save_site_info(payload: dict) -> SiteInfo:
     return info
 
 
-def save_skillsheet(body: str, expected_updated_at: str | None) -> Skillsheet:
-    """職務経歴書本文（1 行のみ）を保存する。
+MAX_FULL_NAME_LENGTH = 255
+COMPANY_TEXT_FIELDS = [
+    "name",
+    "department",
+    "employment_type",
+    "capital",
+    "employees",
+    "offices",
+    "annual_sales",
+    "founded",
+]
+
+
+def save_company(payload: dict, company_id: int | None = None) -> Company:
+    """会社を追加（company_id 未指定）または変更する。"""
+    with transaction.atomic():
+        if company_id is None:
+            company = Company()
+        else:
+            try:
+                company = Company.objects.select_for_update().get(pk=company_id)
+            except Company.DoesNotExist:
+                raise NotFound("会社が見つかりません。") from None
+        _apply(company, payload, COMPANY_TEXT_FIELDS)
+        company.kind = str(payload.get("kind") or "").strip()
+        company.start_year_month = str(payload.get("start_year_month") or "").strip()
+        company.end_year_month = str(payload.get("end_year_month") or "").strip()
+
+        errors: list[str] = []
+        if company.kind not in dict(Company.KIND_CHOICES):
+            errors.append("区分は本業または副業を選択してください。")
+        if not company.start_year_month:
+            errors.append("在籍開始年月を入力してください。")
+        if (
+            not errors
+            and company.end_year_month
+            and company.end_year_month < company.start_year_month
+        ):
+            errors.append("在籍終了年月は在籍開始年月以降にしてください。")
+        if errors:
+            raise ValidationFailed(errors)
+        _save_model(company)
+    return company
+
+
+def delete_company(company_id: int) -> None:
+    """所属する案件がない会社のみ削除できる。"""
+    with transaction.atomic():
+        try:
+            company = Company.objects.select_for_update().get(pk=company_id)
+        except Company.DoesNotExist:
+            raise NotFound("会社が見つかりません。") from None
+        if company.projects.exists():
+            raise ValidationFailed(["所属する案件がある会社は削除できません。"])
+        company.delete()
+
+
+def save_skillsheet_text(
+    key: str, body: str, expected_updated_at: str | None
+) -> SkillsheetText:
+    """職務経歴書の文章項目を保存する。
 
     編集開始時の `updated_at` と保存時点の値が一致しない場合は、他のタブ等での保存との
-    競合として保存しない。未登録の場合は `expected_updated_at` を空として作成する。
+    競合として保存しない。行が存在しない項目は `expected_updated_at` を空として作成する。
     """
+    label = SKILLSHEET_TEXT_KEYS.get(key)
+    if label is None:
+        raise NotFound("職務経歴書の項目が見つかりません。")
+    if not isinstance(body, str) or not body.strip():
+        raise ValidationFailed([f"{label}を入力してください。"])
+    if key == "full_name":
+        body = body.strip()
+        if "\n" in body or len(body) > MAX_FULL_NAME_LENGTH:
+            raise ValidationFailed(
+                [f"{label}は{MAX_FULL_NAME_LENGTH}文字以内の 1 行で入力してください。"]
+            )
+
     with transaction.atomic():
-        sheet = Skillsheet.objects.select_for_update().filter(pk=SKILLSHEET_ID).first()
-        current = sheet.updated_at.isoformat() if sheet else None
+        text = SkillsheetText.objects.select_for_update().filter(pk=key).first()
+        current = text.updated_at.isoformat() if text else None
         if (expected_updated_at or None) != current:
             raise ValidationFailed(
                 [
                     (
-                        "編集を開始した後に職務経歴書が更新されています。"
+                        f"編集を開始した後に{label}が更新されています。"
                         "内容を確認するため、画面を開き直してください。"
                     )
                 ]
             )
-        if sheet is None:
-            sheet = Skillsheet(skillsheet_id=SKILLSHEET_ID)
-        sheet.body = body
-        sheet.updated_at = timezone.now()
-        sheet.save()
-    return sheet
+        if text is None:
+            text = SkillsheetText(text_key=key)
+        text.body = body
+        text.updated_at = timezone.now()
+        text.save()
+    return text
