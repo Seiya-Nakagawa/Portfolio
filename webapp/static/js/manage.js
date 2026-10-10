@@ -11,8 +11,9 @@ document.addEventListener('DOMContentLoaded', () => {
         site: document.body.dataset.apiSite,
         upload: document.body.dataset.apiUpload,
         mediaBase: document.body.dataset.mediaBase,
-        export: document.body.dataset.apiExport,
-        exportDownload: document.body.dataset.exportDownload,
+        skillsheet: document.body.dataset.apiSkillsheet,
+        skillsheetPdf: document.body.dataset.skillsheetPdf,
+        skillsheetMarkdown: document.body.dataset.skillsheetMarkdown,
     };
     // --- 共通処理 ---
 
@@ -1042,36 +1043,117 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- エクスポート ---
+    // --- 職務経歴書 ---
 
-    async function loadExport() {
-        const root = document.getElementById('tab-export');
-        const data = await guarded(() => api('GET', urls.export));
-        if (!data) return;
-        const warnings = [];
-        if (data.warnings.unused_skill_count > 0) {
-            warnings.push(`使用実績がなく出力対象外のスキル項目: ${data.warnings.unused_skill_count}件`);
-        }
-        root.innerHTML = `
-            ${pageHead('職務経歴書エクスポート', {
-        sub: '現在の登録内容から職務経歴書用の Markdown を生成します。',
-        actions: `<button type="button" id="copy-export">クリップボードへコピー</button>
-                  <a href="${esc(urls.exportDownload)}" download><button type="button" class="primary">ダウンロード</button></a>`,
-    })}
-            ${warnings.map((w) => `<p class="message warning">${esc(w)}</p>`).join('')}
-            <div class="card">
-                <h3>プレビュー</h3>
-                <pre id="export-preview"></pre>
-            </div>`;
-        root.querySelector('#export-preview').textContent = data.markdown;
-        root.querySelector('#copy-export').addEventListener('click', async () => {
-            try {
-                await navigator.clipboard.writeText(data.markdown);
-                showMessage('コピーしました。');
-            } catch (error) {
-                showMessage('コピーに失敗しました。', 'error');
+    // 行単位の差分（最長共通部分列）。修正前・修正後の各行に追加・削除の印を付けて返す。
+    function lineDiff(before, after) {
+        const a = before.split('\n');
+        const b = after.split('\n');
+        const lcs = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0));
+        for (let i = a.length - 1; i >= 0; i--) {
+            for (let j = b.length - 1; j >= 0; j--) {
+                lcs[i][j] = a[i] === b[j] ? lcs[i + 1][j + 1] + 1 : Math.max(lcs[i + 1][j], lcs[i][j + 1]);
             }
+        }
+        const result = [];
+        let i = 0;
+        let j = 0;
+        while (i < a.length && j < b.length) {
+            if (a[i] === b[j]) {
+                result.push({ kind: 'same', text: a[i] });
+                i++; j++;
+            } else if (lcs[i + 1][j] >= lcs[i][j + 1]) {
+                result.push({ kind: 'del', text: a[i++] });
+            } else {
+                result.push({ kind: 'add', text: b[j++] });
+            }
+        }
+        while (i < a.length) result.push({ kind: 'del', text: a[i++] });
+        while (j < b.length) result.push({ kind: 'add', text: b[j++] });
+        return result;
+    }
+
+    function renderDiff(before, after) {
+        const lines = lineDiff(before, after);
+        if (lines.every((l) => l.kind === 'same')) return '<p class="empty">変更された箇所はありません。</p>';
+        const mark = { same: ' ', add: '+', del: '-' };
+        return `<pre class="diff">${lines.map((l) => `<span class="diff-${l.kind}">${mark[l.kind]} ${esc(l.text)}</span>`).join('\n')}</pre>`;
+    }
+
+    async function loadSkillsheet() {
+        const root = document.getElementById('tab-skillsheet');
+        const data = await guarded(() => api('GET', urls.skillsheet));
+        if (!data) return;
+        renderSkillsheetView(root, data);
+    }
+
+    function renderSkillsheetView(root, data) {
+        const warnings = [];
+        if (data.warnings) {
+            if (data.warnings.unmatched_projects.length > 0) {
+                warnings.push(`本文に案件見出しが見つからない案件があります: ${data.warnings.unmatched_projects.join('、')}`);
+            }
+            if (data.warnings.unused_skill_count > 0) {
+                warnings.push(`使用実績がなく出力対象外のスキル項目: ${data.warnings.unused_skill_count}件`);
+            }
+        }
+        const updated = data.updated_at ? new Date(data.updated_at).toLocaleString('ja-JP') : '未登録';
+        const canDownload = data.preview_html !== null;
+        root.innerHTML = `
+            ${pageHead('職務経歴書', {
+        sub: `本文の最終更新日時: ${updated}`,
+        actions: `<button type="button" id="edit-skillsheet">編集</button>
+                  ${data.updated_at ? `<a href="${esc(urls.skillsheetMarkdown)}" download><button type="button">本文をダウンロード</button></a>` : ''}
+                  ${canDownload ? `<a href="${esc(urls.skillsheetPdf)}" download><button type="button" class="primary">PDF をダウンロード</button></a>` : ''}`,
+    })}
+            ${data.error ? `<p class="message warning skillsheet-error pre-line">${esc(data.error)}</p>` : ''}
+            ${warnings.map((w) => `<p class="message warning">${esc(w)}</p>`).join('')}
+            ${canDownload ? `<div class="card"><h3>プレビュー</h3><iframe id="skillsheet-preview" class="skillsheet-preview" title="職務経歴書のプレビュー"></iframe></div>` : ''}`;
+        if (canDownload) root.querySelector('#skillsheet-preview').srcdoc = data.preview_html;
+        root.querySelector('#edit-skillsheet').addEventListener('click', () => renderSkillsheetEdit(root, data, data.body));
+    }
+
+    function renderSkillsheetEdit(root, data, draft) {
+        root.innerHTML = `
+            ${pageHead('職務経歴書の編集', { sub: '本文を Markdown で編集します。「確認へ」で変更内容を確認してから保存します。' })}
+            <div class="card">
+                <textarea id="skillsheet-body" class="skillsheet-body" spellcheck="false"></textarea>
+                <div class="form-bar">
+                    <button type="button" data-cancel>キャンセル</button>
+                    <button type="button" class="primary" data-confirm>確認へ</button>
+                </div>
+            </div>`;
+        const textarea = root.querySelector('#skillsheet-body');
+        textarea.value = draft;
+        root.querySelector('[data-cancel]').addEventListener('click', () => renderSkillsheetView(root, data));
+        root.querySelector('[data-confirm]').addEventListener('click', () => {
+            if (!textarea.value.trim()) {
+                showMessage('本文を入力してください。', 'error');
+                return;
+            }
+            renderSkillsheetConfirm(root, data, textarea.value);
         });
+        window.scrollTo({ top: 0 });
+    }
+
+    function renderSkillsheetConfirm(root, data, draft) {
+        root.innerHTML = `
+            ${pageHead('職務経歴書の確認', { sub: '変更内容（行単位の差分）を確認して「保存」を押すと保存します。' })}
+            <div class="card">
+                ${renderDiff(data.body, draft)}
+                <div class="form-bar">
+                    <button type="button" data-back>入力に戻る</button>
+                    <button type="button" class="primary" data-save>保存</button>
+                </div>
+            </div>`;
+        root.querySelector('[data-back]').addEventListener('click', () => renderSkillsheetEdit(root, data, draft));
+        root.querySelector('[data-save]').addEventListener('click', async () => {
+            const saved = await guarded(() => api('PUT', urls.skillsheet, { body: draft, expected_updated_at: data.updated_at }));
+            if (!saved) return;
+            renderSkillsheetView(root, saved);
+            showMessage('保存しました。');
+        });
+        window.scrollTo({ top: 0 });
     }
 
     // --- タブ切り替え ---
@@ -1085,7 +1167,7 @@ document.addEventListener('DOMContentLoaded', () => {
         certifications: () => certificationsPanel.load(),
         works: () => worksPanel.load(),
         site: loadSiteInfo,
-        export: loadExport,
+        skillsheet: loadSkillsheet,
         categories: loadCategories,
     };
 

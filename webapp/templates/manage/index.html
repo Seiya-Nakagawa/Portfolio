@@ -18,8 +18,9 @@
     data-api-upload="{% url 'manage-api-upload-image' %}"
     data-media-base="{{ MEDIA_URL }}"
     data-api-site="{% url 'manage-api-site' %}"
-    data-api-export="{% url 'manage-api-export' %}"
-    data-export-download="{% url 'manage-export-download' %}"
+    data-api-skillsheet="{% url 'manage-api-skillsheet' %}"
+    data-skillsheet-pdf="{% url 'manage-skillsheet-pdf' %}"
+    data-skillsheet-markdown="{% url 'manage-skillsheet-markdown' %}"
   >
     <div class="app-shell">
       <header class="app-header">
@@ -43,7 +44,7 @@
           <button type="button" role="tab" data-tab="works">実績</button>
           <button type="button" role="tab" data-tab="site">サイト情報</button>
           <p class="nav-group" role="presentation">出力・設定</p>
-          <button type="button" role="tab" data-tab="export">職務経歴書エクスポート</button>
+          <button type="button" role="tab" data-tab="skillsheet">職務経歴書</button>
           <button type="button" role="tab" data-tab="categories">種類管理</button>
         </nav>
       </aside>
@@ -56,7 +57,7 @@
         <section id="tab-certifications" hidden></section>
         <section id="tab-works" hidden></section>
         <section id="tab-site" hidden></section>
-        <section id="tab-export" hidden></section>
+        <section id="tab-skillsheet" hidden></section>
         <section id="tab-categories" hidden></section>
       </main>
     </div>

@@ -210,3 +210,22 @@ class SiteInfo(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+
+# 職務経歴書本文は常に 1 行のみとし、この固定値の主キーで参照する。
+SKILLSHEET_ID = 1
+
+
+class Skillsheet(models.Model):
+    """職務経歴書本文（Markdown）。1 行のみ・最新版のみを保持する。"""
+
+    skillsheet_id = models.PositiveSmallIntegerField(
+        "職務経歴書ID", primary_key=True, default=SKILLSHEET_ID, editable=False
+    )
+    body = models.TextField("本文")
+    updated_at = models.DateTimeField("最終更新日時")
+
+    class Meta:
+        db_table = "skillsheet"
+        verbose_name = "職務経歴書"
+        verbose_name_plural = "職務経歴書"

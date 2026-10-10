@@ -6,6 +6,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     default-libmysqlclient-dev \
     pkg-config \
     build-essential \
+    libpango-1.0-0 \
+    libpangoft2-1.0-0 \
+    fonts-noto-cjk \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
@@ -24,6 +27,9 @@ FROM python:3.14-slim AS runtime
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libmariadb3 \
     default-mysql-client \
+    libpango-1.0-0 \
+    libpangoft2-1.0-0 \
+    fonts-noto-cjk \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --create-home --uid 1000 appuser
 

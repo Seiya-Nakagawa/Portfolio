@@ -48,8 +48,9 @@ class AuthenticationTests(TestCase):
             "manage-api-categories",
             "manage-api-certifications",
             "manage-api-works",
-            "manage-api-export",
-            "manage-export-download",
+            "manage-api-skillsheet",
+            "manage-skillsheet-pdf",
+            "manage-skillsheet-markdown",
         ):
             self.assertEqual(self.client.get(reverse(name)).status_code, 401, name)
 
@@ -539,53 +540,3 @@ class ImageUploadTests(LoggedInTestCase):
     def test_未ログインでは401を返す(self):
         self.client.logout()
         self.assertEqual(self._upload().status_code, 401)
-
-
-class ExportTests(LoggedInTestCase):
-    def setUp(self):
-        super().setUp()
-        java = _skill("java", "言語", "Java", 10)
-        python = _skill("python", "言語", "Python", 20)
-        _skill("cobol", "言語", "COBOL", 30)
-        old = Project.objects.create(
-            name="旧案件", start_year_month="2023-07", end_year_month="2025-03"
-        )
-        new = Project.objects.create(name="新案件 | 移行", start_year_month="2025-04")
-        ProjectSkill.objects.create(project=old, skill=java)
-        ProjectSkill.objects.create(project=new, skill=python)
-
-    def _get(self, name):
-        with patch("portfolio.manage_views.timezone.localdate", return_value=TODAY):
-            return self.call("get", name)
-
-    def test_マークダウンの形式(self):
-        markdown = self._get("manage-api-export").json()["markdown"]
-        table, periods = markdown.split("\n\n")
-        self.assertEqual(
-            table.splitlines()[:3],
-            [
-                "| 種類 | 項目 | 開始年 | 使用期間 |",
-                "| --- | --- | --- | --- |",
-                "| 言語 | Java | 2023年 | 1年9ヶ月 |",
-            ],
-        )
-        self.assertEqual(
-            periods.splitlines(),
-            [
-                "**2023年07月〜2025年03月｜旧案件**",
-                "**2025年04月〜現在｜新案件 | 移行**",
-            ],
-        )
-
-    def test_使用実績のない項目は表に含まない(self):
-        self.assertNotIn("COBOL", self._get("manage-api-export").json()["markdown"])
-
-    def test_警告に出力対象外の件数を含む(self):
-        warnings = self._get("manage-api-export").json()["warnings"]
-        self.assertEqual(warnings["unused_skill_count"], 1)
-
-    def test_ダウンロード(self):
-        response = self._get("manage-export-download")
-        self.assertEqual(response.status_code, 200)
-        self.assertIn("attachment", response["Content-Disposition"])
-        self.assertTrue(response.content.decode().startswith("| 種類 |"))

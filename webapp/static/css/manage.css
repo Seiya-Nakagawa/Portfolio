@@ -822,3 +822,38 @@ pre {
     transition: none;
   }
 }
+
+/* 職務経歴書 */
+.skillsheet-preview {
+  width: 100%;
+  height: 70vh;
+  border: 1px solid var(--border, #ccc);
+  background: #fff;
+}
+
+.skillsheet-body {
+  width: 100%;
+  min-height: 60vh;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.diff {
+  overflow-x: auto;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.diff-add {
+  background: #e6ffed;
+}
+
+.diff-del {
+  background: #ffeef0;
+}
+
+.message.skillsheet-error {
+  background: #fef3f2;
+  color: #b42318;
+}
