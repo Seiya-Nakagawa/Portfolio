@@ -179,8 +179,19 @@ def render_skillsheet(today: date) -> RenderedSkillsheet:
     )
 
 
+def build_url_fetcher():
+    """`data:` 以外のリソース取得を拒否するフェッチャー。
+
+    本文の Markdown に生の HTML（img・link 等）が含まれていても、PDF 生成時に
+    ローカルファイルや内部ネットワークを読み込まないようにする。
+    """
+    from weasyprint import URLFetcher
+
+    return URLFetcher(allowed_protocols={"data"})
+
+
 def build_pdf(html: str) -> bytes:
     # WeasyPrint は依存ライブラリ（Pango 等）が重いため、PDF 生成時にのみ読み込む。
     from weasyprint import HTML
 
-    return HTML(string=html).write_pdf()
+    return HTML(string=html, url_fetcher=build_url_fetcher()).write_pdf()

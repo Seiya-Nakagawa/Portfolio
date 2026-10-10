@@ -184,3 +184,29 @@ class ApiTests(SkillsheetTestCase):
 
     def test_本文未登録のPDFはエラー(self):
         self.assertEqual(self._get("manage-skillsheet-pdf").status_code, 400)
+
+
+class PdfSecurityTests(SkillsheetTestCase):
+    def test_外部URLとローカルファイルは取得しない(self):
+        from portfolio import export
+
+        fetcher = export.build_url_fetcher()
+        for url in (
+            "file:///etc/passwd",
+            "http://127.0.0.1:9/x",
+            "https://example.com/",
+        ):
+            with self.subTest(url=url), self.assertRaises(ValueError):
+                fetcher.fetch(url)
+
+    def test_データURIは取得できる(self):
+        from portfolio import export
+
+        response = export.build_url_fetcher().fetch("data:text/plain;base64,YQ==")
+        self.assertEqual(response.read(), b"a")
+
+    def test_生HTMLの外部参照を含んでもPDFを生成できる(self):
+        from portfolio import export
+
+        html = export.to_html_document('<img src="file:///etc/passwd">\n')
+        self.assertTrue(export.build_pdf(html).startswith(b"%PDF"))
