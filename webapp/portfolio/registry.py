@@ -32,10 +32,11 @@ MAX_VERSION_LENGTH = 64
 PROJECT_DETAIL_LINE_FIELDS = {
     "team_size": ("体制", 64),
     "phases": ("担当工程", 255),
-    "environment": ("環境・言語", 512),
 }
 # 複数行の文字列項目。
 PROJECT_DETAIL_TEXT_FIELDS = {"overview": "案件概要", "tasks": "業務内容"}
+# 1 行を 1 項目とする項目と、整形後の最大文字数。
+PROJECT_DETAIL_ITEM_FIELDS = {"environment": ("環境・言語", 512)}
 
 
 class ValidationFailed(Exception):
@@ -133,6 +134,12 @@ def _clean_project_details(payload: dict, errors: list[str]) -> dict:
         details[key] = value
     for key in PROJECT_DETAIL_TEXT_FIELDS:
         details[key] = str(payload.get(key) or "").strip()
+    for key, (label, max_length) in PROJECT_DETAIL_ITEM_FIELDS.items():
+        lines = str(payload.get(key) or "").splitlines()
+        value = "\n".join(line.strip() for line in lines if line.strip())
+        if len(value) > max_length:
+            errors.append(f"{label}は{max_length}文字以内で入力してください。")
+        details[key] = value
 
     company_id = payload.get("company_id")
     if company_id in (None, ""):

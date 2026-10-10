@@ -107,7 +107,8 @@ class Project(models.Model):
     # 1 行を 1 項目とする。
     tasks = models.TextField("業務内容", blank=True, default="")
     phases = models.CharField("担当工程", max_length=255, blank=True, default="")
-    environment = models.CharField("環境・言語", max_length=512, blank=True, default="")
+    # 1 行を 1 項目（例: AWS、Python 3.14）とする。
+    environment = models.TextField("環境・言語", blank=True, default="")
 
     class Meta:
         db_table = "projects"

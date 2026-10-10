@@ -35,6 +35,9 @@ COMPANY_SECTIONS = [
     (Company.KIND_SIDE, "■副業"),
 ]
 
+# 環境・言語の項目を 1 行に並べるときの区切り。
+ENVIRONMENT_SEPARATOR = "、"
+
 END_MARK = "以上"
 
 # PDF・プレビュー共通のスタイル（A4・余白 上下 18mm / 左右 16mm・10.5pt の日本語ゴシック体）。
@@ -149,8 +152,11 @@ def _build_project(project: Project) -> str:
         lines += [f"{LIST_INDENT}- {task}" for task in tasks]
     if project.phases:
         lines.append(f"- 担当工程: {project.phases}")
-    if project.environment:
-        lines.append(f"- 環境・言語: {project.environment}")
+    environment = [line.strip() for line in project.environment.splitlines()]
+    if any(environment):
+        lines.append(
+            f"- 環境・言語: {ENVIRONMENT_SEPARATOR.join(filter(None, environment))}"
+        )
     return "\n".join(lines).rstrip()
 
 

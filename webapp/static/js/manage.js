@@ -135,11 +135,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const PROJECT_DETAIL_LINES = [
         ['team_size', '体制（例: 5名体制）', 64],
         ['phases', '担当工程（例: 基本設計、詳細設計）', 255],
-        ['environment', '環境・言語（例: AWS、Python 3.14）', 512],
     ];
     const PROJECT_DETAIL_TEXTS = [
         ['overview', '案件概要'],
         ['tasks', '業務内容（1 行に 1 項目）'],
+        ['environment', '環境・言語（1 行に 1 項目。例: AWS、Python 3.14）'],
     ];
 
     function emptyProject() {
@@ -350,7 +350,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         </label>
                         <p class="hint">会社を設定しない案件は、職務経歴書に出力されません。</p>
                         ${PROJECT_DETAIL_LINES.map(([name, label, max]) => `<label>${esc(label)}<input type="text" data-detail="${name}" value="${esc(s[name])}" maxlength="${max}" /></label>`).join('')}
-                        ${PROJECT_DETAIL_TEXTS.map(([name, label]) => `<label>${esc(label)}<textarea data-detail="${name}" rows="4">${esc(s[name])}</textarea></label>`).join('')}
+                        ${PROJECT_DETAIL_TEXTS.map(([name, label]) => `<label>${esc(label)}<textarea data-detail="${name}" rows="${name === 'environment' ? 3 : 4}">${esc(s[name])}</textarea></label>`).join('')}
                     </details>
                     <div class="card">
                         <h3>使用したスキル</h3>
