@@ -92,6 +92,22 @@ class Project(models.Model):
     skills = models.ManyToManyField(
         Skill, through="ProjectSkill", related_name="projects"
     )
+    # 以下は職務経歴書にのみ用いる任意項目。
+    company = models.ForeignKey(
+        "Company",
+        verbose_name="会社",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        db_column="company_id",
+        related_name="projects",
+    )
+    team_size = models.CharField("体制", max_length=64, blank=True, default="")
+    overview = models.TextField("案件概要", blank=True, default="")
+    # 1 行を 1 項目とする。
+    tasks = models.TextField("業務内容", blank=True, default="")
+    phases = models.CharField("担当工程", max_length=255, blank=True, default="")
+    environment = models.CharField("環境・言語", max_length=512, blank=True, default="")
 
     class Meta:
         db_table = "projects"
@@ -212,20 +228,68 @@ class SiteInfo(models.Model):
         return self.name
 
 
-# 職務経歴書本文は常に 1 行のみとし、この固定値の主キーで参照する。
-SKILLSHEET_ID = 1
+class Company(models.Model):
+    """会社（職務経歴書の開発経歴・副業の見出し単位）。"""
 
+    KIND_MAIN = "main"
+    KIND_SIDE = "side"
+    KIND_CHOICES = [(KIND_MAIN, "本業"), (KIND_SIDE, "副業")]
 
-class Skillsheet(models.Model):
-    """職務経歴書本文（Markdown）。1 行のみ・最新版のみを保持する。"""
-
-    skillsheet_id = models.PositiveSmallIntegerField(
-        "職務経歴書ID", primary_key=True, default=SKILLSHEET_ID, editable=False
+    company_id = models.AutoField("会社ID", primary_key=True)
+    name = models.CharField("会社名", max_length=255)
+    department = models.CharField("部署名", max_length=255, blank=True, default="")
+    employment_type = models.CharField(
+        "雇用・契約形態", max_length=64, blank=True, default=""
     )
-    body = models.TextField("本文")
+    kind = models.CharField("区分", max_length=8, choices=KIND_CHOICES)
+    start_year_month = models.CharField(
+        "在籍開始年月", max_length=7, validators=[YEAR_MONTH_VALIDATOR]
+    )
+    # 在籍中は空文字列とする。
+    end_year_month = models.CharField(
+        "在籍終了年月",
+        max_length=7,
+        blank=True,
+        default="",
+        validators=[YEAR_MONTH_VALIDATOR],
+    )
+    # 会社概要は職務経歴書に記載する文言をそのまま保持する（集計に用いない）。
+    capital = models.CharField("資本金", max_length=64, blank=True, default="")
+    employees = models.CharField("従業員数", max_length=64, blank=True, default="")
+    offices = models.CharField("拠点数", max_length=64, blank=True, default="")
+    annual_sales = models.CharField("年商", max_length=64, blank=True, default="")
+    founded = models.CharField("設立", max_length=64, blank=True, default="")
+
+    class Meta:
+        db_table = "companies"
+        verbose_name = "会社"
+        verbose_name_plural = "会社"
+        ordering = ["kind", "-start_year_month", "company_id"]
+
+    def __str__(self) -> str:
+        return self.name
+
+
+# 職務経歴書の文章項目のキー。画面から追加・削除しない。
+SKILLSHEET_TEXT_KEYS = {
+    "full_name": "氏名",
+    "summary": "職務概要",
+    "strengths": "活かせる経験・得意分野",
+    "self_pr": "自己PR",
+}
+
+
+class SkillsheetText(models.Model):
+    """職務経歴書の文章項目。項目ごとに最新版のみを保持する。"""
+
+    text_key = models.CharField("項目キー", max_length=32, primary_key=True)
+    body = models.TextField("内容")
     updated_at = models.DateTimeField("最終更新日時")
 
     class Meta:
-        db_table = "skillsheet"
-        verbose_name = "職務経歴書"
-        verbose_name_plural = "職務経歴書"
+        db_table = "skillsheet_texts"
+        verbose_name = "職務経歴書の文章項目"
+        verbose_name_plural = "職務経歴書の文章項目"
+
+    def __str__(self) -> str:
+        return self.text_key

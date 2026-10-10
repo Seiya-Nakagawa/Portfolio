@@ -9,7 +9,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from portfolio.models import Certification, Project, ProjectSkill, Skill, Work
+from portfolio.models import Certification, Company, Project, ProjectSkill, Skill, Work
 
 TODAY = date(2026, 9, 25)
 
@@ -48,6 +48,7 @@ class AuthenticationTests(TestCase):
             "manage-api-categories",
             "manage-api-certifications",
             "manage-api-works",
+            "manage-api-companies",
             "manage-api-skillsheet",
             "manage-skillsheet-pdf",
             "manage-skillsheet-markdown",
@@ -207,6 +208,166 @@ class ProjectApiTests(LoggedInTestCase):
         body = self.call("get", "manage-api-bootstrap").json()
         self.assertIsNone(body["initial_project"])
         self.assertEqual(body["ongoing_projects"], [])
+
+
+class ProjectDetailApiTests(LoggedInTestCase):
+    def setUp(self):
+        super().setUp()
+        self.company = Company.objects.create(
+            name="架空株式会社", kind="main", start_year_month="2020-04"
+        )
+
+    def _payload(self, **overrides):
+        payload = {
+            "name": "案件A",
+            "start_year_month": "2025-04",
+            "end_year_month": "",
+            "company_id": self.company.company_id,
+            "team_size": "5名体制",
+            "overview": "ダミーの概要",
+            "tasks": "設計\n実装",
+            "phases": "基本設計、詳細設計",
+            "environment": "AWS、Python",
+            "skills": [],
+        }
+        payload.update(overrides)
+        return payload
+
+    def test_案件の詳細を保存して取得できる(self):
+        project_id = self.call("post", "manage-api-projects", self._payload()).json()[
+            "project_id"
+        ]
+        data = self.call("get", "manage-api-project", project_id=project_id).json()
+        self.assertEqual(data["company_id"], self.company.company_id)
+        self.assertEqual(data["team_size"], "5名体制")
+        self.assertEqual(data["overview"], "ダミーの概要")
+        self.assertEqual(data["tasks"], "設計\n実装")
+        self.assertEqual(data["phases"], "基本設計、詳細設計")
+        self.assertEqual(data["environment"], "AWS、Python")
+
+    def test_詳細は省略でき会社は未設定になる(self):
+        payload = {"name": "案件B", "start_year_month": "2025-04"}
+        project_id = self.call("post", "manage-api-projects", payload).json()[
+            "project_id"
+        ]
+        project = Project.objects.get(pk=project_id)
+        self.assertIsNone(project.company_id)
+        self.assertEqual(project.tasks, "")
+
+    def test_会社を未設定に戻せる(self):
+        project_id = self.call("post", "manage-api-projects", self._payload()).json()[
+            "project_id"
+        ]
+        self.call(
+            "post",
+            "manage-api-projects",
+            self._payload(project_id=project_id, company_id=None),
+        )
+        self.assertIsNone(Project.objects.get().company_id)
+
+    def test_詳細の検証エラー(self):
+        cases = {
+            "存在しない会社": self._payload(company_id=999999),
+            "会社の形式": self._payload(company_id="abc"),
+            "体制が長すぎる": self._payload(team_size="あ" * 65),
+            "環境が長すぎる": self._payload(environment="あ" * 513),
+        }
+        for label, payload in cases.items():
+            with self.subTest(label):
+                response = self.call("post", "manage-api-projects", payload)
+                self.assertEqual(response.status_code, 400)
+        self.assertEqual(Project.objects.count(), 0)
+
+    def test_初期表示に会社の一覧と案件の詳細を含む(self):
+        self.call("post", "manage-api-projects", self._payload())
+        data = self.call("get", "manage-api-bootstrap").json()
+        self.assertEqual(data["companies"][0]["name"], "架空株式会社")
+        self.assertEqual(data["companies"][0]["project_count"], 1)
+        self.assertEqual(data["initial_project"]["team_size"], "5名体制")
+
+
+class CompanyApiTests(LoggedInTestCase):
+    def _payload(self, **overrides):
+        payload = {
+            "name": "架空株式会社",
+            "department": "開発部",
+            "employment_type": "正社員",
+            "kind": "main",
+            "start_year_month": "2020-04",
+            "end_year_month": "",
+            "capital": "200万円",
+        }
+        payload.update(overrides)
+        return payload
+
+    def test_追加_変更_削除(self):
+        companies = self.call("post", "manage-api-companies", self._payload()).json()
+        company_id = companies[0]["company_id"]
+        self.assertEqual(companies[0]["capital"], "200万円")
+        self.assertEqual(companies[0]["project_count"], 0)
+
+        companies = self.call(
+            "put",
+            "manage-api-company",
+            self._payload(name="架空株式会社改", end_year_month="2023-03"),
+            company_id=company_id,
+        ).json()
+        self.assertEqual(companies[0]["name"], "架空株式会社改")
+        self.assertEqual(companies[0]["end_year_month"], "2023-03")
+
+        companies = self.call(
+            "delete", "manage-api-company", company_id=company_id
+        ).json()
+        self.assertEqual(companies, [])
+
+    def test_一覧は区分ごとに在籍開始の新しい順(self):
+        for name, kind, start in (
+            ("本業旧", "main", "2015-01"),
+            ("副業", "side", "2024-01"),
+            ("本業新", "main", "2020-04"),
+        ):
+            self.call(
+                "post",
+                "manage-api-companies",
+                self._payload(name=name, kind=kind, start_year_month=start),
+            )
+        names = [c["name"] for c in self.call("get", "manage-api-companies").json()]
+        self.assertEqual(names, ["本業新", "本業旧", "副業"])
+
+    def test_入力値の検証エラー(self):
+        cases = {
+            "会社名なし": self._payload(name=" "),
+            "区分が不正": self._payload(kind="other"),
+            "開始年月なし": self._payload(start_year_month=""),
+            "開始年月の形式": self._payload(start_year_month="2020/04"),
+            "終了が開始より前": self._payload(end_year_month="2019-03"),
+        }
+        for label, payload in cases.items():
+            with self.subTest(label):
+                response = self.call("post", "manage-api-companies", payload)
+                self.assertEqual(response.status_code, 400)
+        self.assertEqual(Company.objects.count(), 0)
+
+    def test_存在しない会社の変更と削除は404(self):
+        response = self.call(
+            "put", "manage-api-company", self._payload(), company_id=999999
+        )
+        self.assertEqual(response.status_code, 404)
+        response = self.call("delete", "manage-api-company", company_id=999999)
+        self.assertEqual(response.status_code, 404)
+
+    def test_所属する案件がある会社は削除できない(self):
+        company = Company.objects.create(
+            name="架空株式会社", kind="main", start_year_month="2020-04"
+        )
+        Project.objects.create(
+            name="案件A", start_year_month="2025-04", company=company
+        )
+        response = self.call(
+            "delete", "manage-api-company", company_id=company.company_id
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertTrue(Company.objects.filter(pk=company.pk).exists())
 
 
 class CategoryApiTests(LoggedInTestCase):

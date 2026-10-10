@@ -66,6 +66,16 @@ urlpatterns = [
         manage_views.api_work,
         name="manage-api-work",
     ),
+    path(
+        "manage/api/companies",
+        manage_views.api_companies,
+        name="manage-api-companies",
+    ),
+    path(
+        "manage/api/companies/<int:company_id>",
+        manage_views.api_company,
+        name="manage-api-company",
+    ),
     path("manage/api/site", manage_views.api_site, name="manage-api-site"),
     path(
         "manage/api/uploads",
@@ -76,6 +86,11 @@ urlpatterns = [
         "manage/api/skillsheet",
         manage_views.api_skillsheet,
         name="manage-api-skillsheet",
+    ),
+    path(
+        "manage/api/skillsheet/texts/<str:text_key>",
+        manage_views.api_skillsheet_text,
+        name="manage-api-skillsheet-text",
     ),
     path(
         "manage/skillsheet.pdf",
