@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('portfolio', '0016_skillsheet_structured_data'),
+        ('portfolio', '0017_environment_one_item_per_line'),
     ]
 
     operations = [
