@@ -369,12 +369,14 @@ def save_skill(payload: dict, skill_id: str | None = None) -> Skill:
 
 
 def delete_skill(skill_id: str) -> None:
-    """使用実績が紐づかないスキル項目のみ削除できる。"""
+    """マスタ項目ではなく、使用実績が紐づかないスキル項目のみ削除できる。"""
     with transaction.atomic():
         try:
             skill = Skill.objects.select_for_update().get(pk=skill_id)
         except Skill.DoesNotExist:
             raise NotFound("スキル項目が見つかりません。") from None
+        if skill.is_master:
+            raise ValidationFailed(["マスタに登録されたスキル項目は削除できません。"])
         if skill.project_skills.exists():
             raise ValidationFailed(["使用実績が紐づくスキル項目は削除できません。"])
         skill.delete()

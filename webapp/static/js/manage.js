@@ -707,7 +707,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return `<tr><td colspan="${config.columns.length + 1}" class="empty">該当するデータがありません。${hint}</td></tr>`;
             }
             return visible.map((row) => `<tr>${config.columns.map((c) => `<td${c.numeric ? ' class="num"' : ''}>${esc(c.value(row))}</td>`).join('')}
-                <td class="row-actions"><button type="button" class="sm" data-edit="${rows.indexOf(row)}">編集</button><button type="button" class="sm danger" data-delete="${rows.indexOf(row)}">削除</button></td></tr>`).join('');
+                <td class="row-actions"><button type="button" class="sm" data-edit="${rows.indexOf(row)}">編集</button>${config.canDelete && !config.canDelete(row) ? '' : `<button type="button" class="sm danger" data-delete="${rows.indexOf(row)}">削除</button>`}</td></tr>`).join('');
         }
 
         function countText(visible) {
@@ -916,6 +916,8 @@ document.addEventListener('DOMContentLoaded', () => {
         url: urls.skills,
         idKey: 'skill_id',
         label: (row) => row.name,
+        // マスタに登録された項目は削除できない（利用者が追加した項目のみ削除できる）。
+        canDelete: (row) => !row.is_master,
         columns: [
             { label: '種類', value: (r) => r.category },
             { label: 'サブカテゴリ', value: (r) => r.subcategory },

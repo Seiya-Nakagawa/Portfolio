@@ -528,6 +528,21 @@ class SkillApiTests(LoggedInTestCase):
         )
         self.assertEqual(Skill.objects.count(), 0)
 
+    def test_マスタ項目は削除できない(self):
+        skill = _skill("ec2", "AWS", "EC2", 10)
+        skill.is_master = True
+        skill.save()
+        response = self.call("delete", "manage-api-skill", skill_id="ec2")
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(Skill.objects.count(), 1)
+        rows = self.call("get", "manage-api-skills").json()
+        self.assertTrue(rows[0]["is_master"])
+
+    def test_画面から追加した項目はマスタ項目にならない(self):
+        payload = {"skill_id": "mine", "category": "AWS", "name": "Mine"}
+        self.call("post", "manage-api-skills", payload)
+        self.assertFalse(Skill.objects.get(skill_id="mine").is_master)
+
     def test_使用実績のある項目は削除できない(self):
         skill = _skill("ec2", "AWS", "EC2", 10)
         project = Project.objects.create(name="A", start_year_month="2025-01")

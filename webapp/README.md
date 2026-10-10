@@ -50,6 +50,8 @@ uv run python manage.py import_portfolio_data
 
 スキル項目マスタ（AWS・Azure・Google Cloud・OCI のサービスと、言語・DB などの汎用項目）は、
 次のコマンドで未登録の項目のみを追加する（登録済みの項目は変更しない。デプロイ時にも実行される）。
+追加した項目はマスタ項目となり、管理画面から削除できない。クラウドのサービス一覧は
+`scripts/fetch_cloud_services.py` で各社の公式サイトから再取得して種データを更新する。
 
 ```bash
 uv run python manage.py import_skill_master

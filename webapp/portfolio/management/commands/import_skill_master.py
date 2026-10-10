@@ -118,6 +118,7 @@ class Command(BaseCommand):
                             subcategory=item.get("subcategory", ""),
                             name=item["name"],
                             sort_order=0,
+                            is_master=True,
                         )
                     )
             for skill in new_skills:
