@@ -3,10 +3,6 @@ __pycache__/
 *.pyc
 .venv/
 
-# 職務経歴書ローカル作業ディレクトリ（Googleドライブへのシンボリックリンク、実データは非公開）
-# 末尾にスラッシュを付けない: シンボリックリンクは trailing slash パターンにマッチしないため
-skillsheet
-
 # webapp（Django）のローカル生成物・機密設定
 webapp/.env
 webapp/staticfiles/
