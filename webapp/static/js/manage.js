@@ -1276,10 +1276,10 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="card">
                 <h3>文章項目</h3>
                 <div class="table-wrap"><table class="data-table">
-                    <thead><tr><th>項目</th><th>入力</th><th>最終更新日時</th><th></th></tr></thead>
+                    <thead><tr><th>項目</th><th>内容</th><th>最終更新日時</th><th></th></tr></thead>
                     <tbody>${data.texts.map((t, i) => `<tr>
                         <td>${esc(t.label)}</td>
-                        <td>${t.updated_at ? '入力済み' : '未入力'}</td>
+                        <td class="skillsheet-text-cell">${t.body ? esc(t.body) : '<span class="skillsheet-text-empty">未入力</span>'}</td>
                         <td>${t.updated_at ? esc(new Date(t.updated_at).toLocaleString('ja-JP')) : ''}</td>
                         <td class="row-actions"><button type="button" class="sm" data-edit-text="${i}">編集</button></td></tr>`).join('')}</tbody>
                 </table></div>
