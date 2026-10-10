@@ -75,6 +75,7 @@ def _skill_dict(skill: Skill, years: str = "") -> dict:
         "category": skill.category,
         "subcategory": skill.subcategory,
         "name": skill.name,
+        "is_master": skill.is_master,
         "years": years,
     }
 

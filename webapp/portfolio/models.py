@@ -56,6 +56,8 @@ class Skill(models.Model):
     )
     name = models.CharField("表示名", max_length=128)
     sort_order = models.PositiveIntegerField("表示順")
+    # 種データ（マスタ）から登録した項目は真とし、画面から削除できない。利用者が追加した項目は偽。
+    is_master = models.BooleanField("マスタ項目", default=False)
 
     class Meta:
         db_table = "skills"

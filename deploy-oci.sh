@@ -62,6 +62,8 @@ echo "Target Pod: $POD_NAME"
 remote_ssh "kubectl exec -n ${NAMESPACE} $POD_NAME -c web -- python manage.py migrate"
 # 資格・実績は、データが既にあるテーブルへは投入しない（再デプロイしても二重登録にならない）。
 remote_ssh "kubectl exec -n ${NAMESPACE} $POD_NAME -c web -- python manage.py import_portfolio_data"
+# スキル項目マスタは、未登録の項目だけを追加する（登録済みの項目は変更しない）。
+remote_ssh "kubectl exec -n ${NAMESPACE} $POD_NAME -c web -- python manage.py import_skill_master"
 
 echo "=================================================="
 echo "🎉 デプロイが完了しました！"
