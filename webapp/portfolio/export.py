@@ -31,7 +31,7 @@ PROJECT_PERIOD_LINE = re.compile(
 STYLE = """
 @page { size: A4; margin: 18mm 16mm; }
 body {
-  font-family: "Noto Sans CJK JP", "Noto Sans JP", sans-serif;
+  font-family: "IPAexGothic", "Noto Sans CJK JP", sans-serif;
   font-size: 10.5pt;
   line-height: 1.6;
   color: #222;

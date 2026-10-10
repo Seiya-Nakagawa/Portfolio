@@ -21,7 +21,7 @@ Issue #132 の対応。職務経歴書 PDF の生成を、ローカルのビル�
 | 区分 | 内容 |
 | ---- | ---- |
 | 依存ライブラリ | `weasyprint`・`markdown` を追加（`uv add`）。PDF エンジンを `wkhtmltopdf` から WeasyPrint に変更 |
-| コンテナ | `webapp/Dockerfile` の runtime に `libpango-1.0-0`・`libpangoft2-1.0-0`・`fonts-noto-cjk` を追加 |
+| コンテナ | `webapp/Dockerfile` の runtime に `libpango-1.0-0`・`libpangoft2-1.0-0`・`fonts-ipaexfont-gothic` を追加 |
 | DB | モデル `Skillsheet`（テーブル `skillsheet`）とマイグレーション `0015_skillsheet` を追加 |
 | アプリ | `portfolio/export.py` を差し替えロジック・HTML/PDF 生成に置き換え。API・画面を「職務経歴書」に更新 |
 | 削除 | `tools/skillsheet-builder/`、`.gitignore` のビルド生成物の行 |
@@ -58,3 +58,18 @@ docker compose -f webapp/docker-compose.yml up --build
 1. ローカルの `skillsheet/` シンボリックリンクを解除する（`rm skillsheet`。リンクのみ削除し、
    Google ドライブ上の実体とローカル git `~/.local/share/skillsheet/` はアーカイブとして残す）
 2. `.gitignore` の `skillsheet` の行を削除する
+
+## 追補: PDF 生成のリソース対策（#138）
+
+PDF 生成が本番の制限（メモリ 256Mi・gunicorn 既定タイムアウト 30 秒）に収まらず、本番 Pod が OOMKilled となった。
+
+| 項目 | 変更前（Noto Sans CJK JP） | 変更後（IPAex ゴシック） |
+| ---- | ---- | ---- |
+| PDF 生成時間（12 ページ相当） | 約 60〜85 秒 | 約 3 秒 |
+| 最大メモリ | 約 260MiB | 約 130MiB |
+
+- 原因: WeasyPrint のフォントサブセット化で、全 65,000 字超の CFF フォント（`.ttc`）全体を処理していた。
+  TrueType の IPAex ゴシック（日本語専用）では処理量が大幅に小さい
+- `k8s/web.yaml` の memory limit を 256Mi から 512Mi に引き上げた
+- gunicorn の `--timeout` を 120 秒に設定した
+- 太字は IPAex に専用書体がないため、合成太字となる

@@ -65,7 +65,7 @@ uv run python manage.py createsuperuser
 
 職務経歴書本文（Markdown）は実績 DB の `skillsheet` に保持し、登録画面の「職務経歴書」で編集する。
 PDF はダウンロードのたびに、本文の `■テクニカルスキル` 表と案件見出しの期間を最新の実績で差し替えて
-WeasyPrint で生成する。実行環境に Pango と日本語フォント（Noto Sans CJK JP）が必要で、
+WeasyPrint で生成する。実行環境に Pango と日本語フォント（IPAex ゴシック）が必要で、
 コンテナイメージには `webapp/Dockerfile` で導入している。
 ローカル（Docker を使わない場合）で PDF を生成するには、これらを OS にインストールする。
 実データはリポジトリに含めない（テストは架空のダミー本文を使う）。

@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpango-1.0-0 \
     libpangoft2-1.0-0 \
-    fonts-noto-cjk \
+    fonts-ipaexfont-gothic \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
@@ -29,7 +29,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     default-mysql-client \
     libpango-1.0-0 \
     libpangoft2-1.0-0 \
-    fonts-noto-cjk \
+    fonts-ipaexfont-gothic \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --create-home --uid 1000 appuser
 
@@ -55,4 +55,4 @@ USER appuser
 
 EXPOSE 8000
 
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "config.wsgi:application"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--timeout", "120", "config.wsgi:application"]
