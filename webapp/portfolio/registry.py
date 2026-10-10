@@ -7,9 +7,11 @@ from datetime import date
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.utils import timezone
 
 from portfolio.models import (
     SITE_INFO_ID,
+    SKILLSHEET_ID,
     YEAR_MONTH_VALIDATOR,
     Certification,
     Project,
@@ -17,6 +19,7 @@ from portfolio.models import (
     SiteInfo,
     Skill,
     SkillCategory,
+    Skillsheet,
     Work,
 )
 from portfolio.services import ordered_skills
@@ -431,3 +434,29 @@ def save_site_info(payload: dict) -> SiteInfo:
         )
         _save_model(info)
     return info
+
+
+def save_skillsheet(body: str, expected_updated_at: str | None) -> Skillsheet:
+    """職務経歴書本文（1 行のみ）を保存する。
+
+    編集開始時の `updated_at` と保存時点の値が一致しない場合は、他のタブ等での保存との
+    競合として保存しない。未登録の場合は `expected_updated_at` を空として作成する。
+    """
+    with transaction.atomic():
+        sheet = Skillsheet.objects.select_for_update().filter(pk=SKILLSHEET_ID).first()
+        current = sheet.updated_at.isoformat() if sheet else None
+        if (expected_updated_at or None) != current:
+            raise ValidationFailed(
+                [
+                    (
+                        "編集を開始した後に職務経歴書が更新されています。"
+                        "内容を確認するため、画面を開き直してください。"
+                    )
+                ]
+            )
+        if sheet is None:
+            sheet = Skillsheet(skillsheet_id=SKILLSHEET_ID)
+        sheet.body = body
+        sheet.updated_at = timezone.now()
+        sheet.save()
+    return sheet

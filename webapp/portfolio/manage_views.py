@@ -3,6 +3,7 @@
 import json
 from collections import Counter
 from functools import wraps
+from urllib.parse import quote
 
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, JsonResponse
@@ -20,7 +21,7 @@ from portfolio.services import (
     ordered_works,
 )
 
-EXPORT_FILENAME = "skillsheet_output.md"
+MARKDOWN_FILENAME = "skillsheet.md"
 
 
 def _json(data, status: int = 200) -> JsonResponse:
@@ -290,18 +291,58 @@ def api_site(request):
     return _json(_site_info())
 
 
-@api_view("GET")
-def api_export(request):
-    return _json(export.build_export(timezone.localdate()))
+def _skillsheet_payload() -> dict:
+    """職務経歴書画面向けのデータ。生成できない場合も本文の編集はできるよう、エラーは本文に載せる。"""
+    sheet = export.get_skillsheet()
+    payload = {
+        "body": sheet.body if sheet else "",
+        "updated_at": sheet.updated_at.isoformat() if sheet else None,
+        "preview_html": None,
+        "warnings": None,
+        "error": None,
+    }
+    try:
+        rendered = export.render_skillsheet(timezone.localdate())
+    except registry.ValidationFailed as error:
+        payload["error"] = "\n".join(error.errors)
+    else:
+        payload["preview_html"] = rendered.html
+        payload["warnings"] = rendered.warnings.as_dict()
+    return payload
+
+
+@api_view("GET", "PUT")
+def api_skillsheet(request):
+    if request.method == "PUT":
+        data = _body(request)
+        body = data.get("body")
+        if not isinstance(body, str) or not body.strip():
+            raise registry.ValidationFailed(["本文を入力してください。"])
+        export.validate_body(body)
+        registry.save_skillsheet(body, data.get("expected_updated_at"))
+    return _json(_skillsheet_payload())
 
 
 @api_view("GET")
-def export_download(request):
-    result = export.build_export(timezone.localdate())
+def skillsheet_pdf(request):
+    rendered = export.render_skillsheet(timezone.localdate())
+    filename = f"職務経歴書_{timezone.localdate():%Y%m%d}.pdf"
     response = HttpResponse(
-        result["markdown"], content_type="text/markdown; charset=utf-8"
+        export.build_pdf(rendered.html), content_type="application/pdf"
     )
-    response["Content-Disposition"] = f'attachment; filename="{EXPORT_FILENAME}"'
+    response["Content-Disposition"] = (
+        f"attachment; filename=\"skillsheet.pdf\"; filename*=UTF-8''{quote(filename)}"
+    )
+    return response
+
+
+@api_view("GET")
+def skillsheet_markdown(request):
+    sheet = export.get_skillsheet()
+    if sheet is None:
+        raise registry.NotFound("職務経歴書の本文が登録されていません。")
+    response = HttpResponse(sheet.body, content_type="text/markdown; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="{MARKDOWN_FILENAME}"'
     return response
 
 

@@ -72,9 +72,20 @@ urlpatterns = [
         manage_views.api_upload_image,
         name="manage-api-upload-image",
     ),
-    path("manage/api/export", manage_views.api_export, name="manage-api-export"),
     path(
-        "manage/export.md", manage_views.export_download, name="manage-export-download"
+        "manage/api/skillsheet",
+        manage_views.api_skillsheet,
+        name="manage-api-skillsheet",
+    ),
+    path(
+        "manage/skillsheet.pdf",
+        manage_views.skillsheet_pdf,
+        name="manage-skillsheet-pdf",
+    ),
+    path(
+        "manage/skillsheet.md",
+        manage_views.skillsheet_markdown,
+        name="manage-skillsheet-markdown",
     ),
     path("admin/", admin.site.urls),
 ]

@@ -50,7 +50,7 @@ uv run python manage.py import_portfolio_data
 
 ## 登録画面
 
-`/manage/` に、案件登録・スキル項目管理・資格・実績・サイト情報・職務経歴書エクスポートの画面を持つ
+`/manage/` に、案件登録・スキル項目管理・資格・実績・サイト情報・職務経歴書（プレビュー・PDF ダウンロード・本文編集）の画面を持つ
 1 ページのアプリを配置する。本人のログインが必須で、未ログインの API 呼び出しは 401 を返す。
 入力値の検証はサーバー側（`portfolio/registry.py`）で行い、書き込みはトランザクション内で
 対象行をロックして排他制御する。
@@ -60,6 +60,15 @@ uv run python manage.py import_portfolio_data
 ```bash
 uv run python manage.py createsuperuser
 ```
+
+## 職務経歴書
+
+職務経歴書本文（Markdown）は実績 DB の `skillsheet` に保持し、登録画面の「職務経歴書」で編集する。
+PDF はダウンロードのたびに、本文の `■テクニカルスキル` 表と案件見出しの期間を最新の実績で差し替えて
+WeasyPrint で生成する。実行環境に Pango と日本語フォント（Noto Sans CJK JP）が必要で、
+コンテナイメージには `webapp/Dockerfile` で導入している。
+ローカル（Docker を使わない場合）で PDF を生成するには、これらを OS にインストールする。
+実データはリポジトリに含めない（テストは架空のダミー本文を使う）。
 
 ## 旧実績シートの移行
 
