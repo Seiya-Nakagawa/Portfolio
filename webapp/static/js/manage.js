@@ -122,6 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
         state: null, // { project_id, name, start_year_month, end_year_month, company_id, 案件の詳細, selected: {skill_id: version} }
         skills: [],
         companies: [],
+        phaseOptions: [], // 担当工程の選択肢
         detailsOpen: false, // 「職務経歴書の記載内容」カードを展開中か
         ongoing: [],
         finished: [],
@@ -134,7 +135,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // 職務経歴書にのみ用いる案件の詳細（1 行の入力欄）と（複数行の入力欄）。
     const PROJECT_DETAIL_LINES = [
         ['team_size', '体制（例: 5名体制）', 64],
-        ['phases', '担当工程（例: 基本設計、詳細設計）', 255],
     ];
     const PROJECT_DETAIL_TEXTS = [
         ['overview', '案件概要'],
@@ -142,10 +142,15 @@ document.addEventListener('DOMContentLoaded', () => {
         ['environment', '環境・言語（1 行に 1 項目。例: AWS、Python 3.14）'],
     ];
 
+    // 担当工程のチェック項目。選択肢にない旧データの値は、失わないよう末尾に加える。
+    function phaseChoices(selected) {
+        return [...project.phaseOptions, ...selected.filter((p) => !project.phaseOptions.includes(p))];
+    }
+
     function emptyProject() {
         return {
             project_id: '', name: '', start_year_month: '', end_year_month: '', company_id: '',
-            team_size: '', overview: '', tasks: '', phases: '', environment: '', selected: {},
+            team_size: '', overview: '', tasks: '', phases: [], environment: '', selected: {},
         };
     }
 
@@ -198,6 +203,7 @@ document.addEventListener('DOMContentLoaded', () => {
             project.skills = data.skills;
             project.categoryNames = data.categories;
             project.companies = data.companies;
+            project.phaseOptions = data.phases;
             project.ongoing = data.ongoing_projects;
             project.finished = data.finished_projects;
             return data;
@@ -228,6 +234,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const detailRows = [
             ['会社', companyNameOf(s.company_id)],
             ...PROJECT_DETAIL_LINES.map(([name, label]) => [confirmLabel(label), s[name]]),
+            ['担当工程', s.phases.join('、')],
             ...PROJECT_DETAIL_TEXTS.map(([name, label]) => [confirmLabel(label), s[name]]),
         ].filter(([, value]) => value !== '');
         root.innerHTML = `
@@ -350,6 +357,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         </label>
                         <p class="hint">会社を設定しない案件は、職務経歴書に出力されません。</p>
                         ${PROJECT_DETAIL_LINES.map(([name, label, max]) => `<label>${esc(label)}<input type="text" data-detail="${name}" value="${esc(s[name])}" maxlength="${max}" /></label>`).join('')}
+                        <fieldset class="phase-list">
+                            <legend>担当工程</legend>
+                            ${phaseChoices(s.phases).map((phase) => `<label class="phase-item"><input type="checkbox" data-phase="${esc(phase)}"${s.phases.includes(phase) ? ' checked' : ''} />${esc(phase)}</label>`).join('')}
+                        </fieldset>
                         ${PROJECT_DETAIL_TEXTS.map(([name, label]) => `<label>${esc(label)}<textarea data-detail="${name}" rows="${name === 'environment' ? 3 : 4}">${esc(s[name])}</textarea></label>`).join('')}
                     </details>
                     <div class="card">
@@ -383,6 +394,13 @@ document.addEventListener('DOMContentLoaded', () => {
             project.detailsOpen = e.target.open;
         });
         root.querySelector('#p-company').addEventListener('change', (e) => { project.state.company_id = e.target.value; });
+        root.querySelectorAll('[data-phase]').forEach((input) => {
+            input.addEventListener('change', () => {
+                // 画面上の並び（選択肢の順、旧データの値は末尾）のまま、チェックされた工程を保持する。
+                project.state.phases = [...root.querySelectorAll('[data-phase]:checked')]
+                    .map((c) => c.dataset.phase);
+            });
+        });
         root.querySelectorAll('[data-detail]').forEach((input) => {
             input.addEventListener('input', () => { project.state[input.dataset.detail] = input.value; });
         });
