@@ -60,7 +60,7 @@ class SkillsheetTestCase(LoggedInTestCase):
             overview="ダミーの概要",
             tasks="設計\n実装",
             phases="基本設計",
-            environment="Java 21",
+            environment="Java 21\n\nAWS\n",
         )
         self.new = Project.objects.create(
             name="新案件",
@@ -146,7 +146,7 @@ class RenderTests(SkillsheetTestCase):
         self.assertIn("- 案件概要: ダミーの概要", markdown)
         self.assertIn("- 業務内容:\n    - 設計\n    - 実装", markdown)
         self.assertIn("- 担当工程: 基本設計", markdown)
-        self.assertIn("- 環境・言語: Java 21", markdown)
+        self.assertIn("- 環境・言語: Java 21、AWS", markdown)
 
     def test_空の詳細は出力しない(self):
         self._save_texts()
