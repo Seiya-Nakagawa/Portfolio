@@ -227,7 +227,7 @@ class ProjectDetailApiTests(LoggedInTestCase):
             "overview": "ダミーの概要",
             "tasks": "設計\n実装",
             "phases": ["詳細設計", "基本設計"],
-            "environment": "AWS、Python",
+            "environment": "AWS\nPython",
             "skills": [],
         }
         payload.update(overrides)
@@ -244,7 +244,7 @@ class ProjectDetailApiTests(LoggedInTestCase):
         self.assertEqual(data["tasks"], "設計\n実装")
         self.assertEqual(data["phases"], ["基本設計", "詳細設計"])
         self.assertEqual(Project.objects.get().phases, "基本設計、詳細設計")
-        self.assertEqual(data["environment"], "AWS、Python")
+        self.assertEqual(data["environment"], "AWS\nPython")
 
     def test_詳細は省略でき会社は未設定になる(self):
         payload = {"name": "案件B", "start_year_month": "2025-04"}

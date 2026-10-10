@@ -123,7 +123,8 @@ class Project(models.Model):
     tasks = models.TextField("業務内容", blank=True, default="")
     # 選択した工程を PROJECT_PHASES の順に PROJECT_PHASE_SEPARATOR で連結して保持する。
     phases = models.CharField("担当工程", max_length=255, blank=True, default="")
-    environment = models.CharField("環境・言語", max_length=512, blank=True, default="")
+    # 1 行を 1 項目（例: AWS、Python 3.14）とする。
+    environment = models.TextField("環境・言語", blank=True, default="")
 
     class Meta:
         db_table = "projects"

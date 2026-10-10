@@ -855,6 +855,16 @@ pre {
   background: #fff;
 }
 
+.skillsheet-text-cell {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  min-width: 16rem;
+}
+
+.skillsheet-text-empty {
+  color: var(--muted);
+}
+
 .skillsheet-body {
   width: 100%;
   min-height: 60vh;
