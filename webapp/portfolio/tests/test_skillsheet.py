@@ -94,7 +94,7 @@ class RenderTests(SkillsheetTestCase):
 
         self._save_body()
         html = export.render_skillsheet(TODAY).html
-        self.assertIn("Noto Sans CJK JP", html)
+        self.assertIn("IPAexGothic", html)
         self.assertIn("<table>", html)
 
     def test_本文未登録はエラー(self):
