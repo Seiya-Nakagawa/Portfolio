@@ -855,6 +855,16 @@ pre {
   background: #fff;
 }
 
+.skillsheet-text-cell {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  min-width: 16rem;
+}
+
+.skillsheet-text-empty {
+  color: var(--muted);
+}
+
 .skillsheet-body {
   width: 100%;
   min-height: 60vh;
@@ -880,4 +890,23 @@ pre {
 .message.skillsheet-error {
   background: #fef3f2;
   color: #b42318;
+}
+
+/* 案件の担当工程（チェックリスト） */
+.phase-list {
+  margin: 0 0 1rem;
+  padding: 0;
+  border: 0;
+}
+
+.phase-list legend {
+  padding: 0;
+  font-weight: 600;
+}
+
+.phase-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin: 0.25rem 1rem 0.25rem 0;
 }

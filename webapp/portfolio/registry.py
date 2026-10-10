@@ -10,6 +10,8 @@ from django.db import transaction
 from django.utils import timezone
 
 from portfolio.models import (
+    PROJECT_PHASE_SEPARATOR,
+    PROJECT_PHASES,
     SITE_INFO_ID,
     SKILLSHEET_TEXT_KEYS,
     YEAR_MONTH_VALIDATOR,
@@ -31,11 +33,18 @@ MAX_VERSION_LENGTH = 64
 # 案件の詳細（職務経歴書の記載内容）のうち、1 行の文字列項目と最大文字数。
 PROJECT_DETAIL_LINE_FIELDS = {
     "team_size": ("体制", 64),
-    "phases": ("担当工程", 255),
-    "environment": ("環境・言語", 512),
 }
+
+
+def split_phases(value: str) -> list[str]:
+    """保持している担当工程の文字列を、工程の一覧に分ける。"""
+    return [p for p in value.split(PROJECT_PHASE_SEPARATOR) if p]
+
+
 # 複数行の文字列項目。
 PROJECT_DETAIL_TEXT_FIELDS = {"overview": "案件概要", "tasks": "業務内容"}
+# 1 行を 1 項目とする項目と、整形後の最大文字数。
+PROJECT_DETAIL_ITEM_FIELDS = {"environment": ("環境・言語", 512)}
 
 
 class ValidationFailed(Exception):
@@ -110,7 +119,13 @@ def _clean_project_payload(payload: dict) -> tuple[dict, list[dict]]:
     for skill_id in sorted(seen - existing):
         errors.append(f"存在しないスキル項目です: {skill_id}")
 
-    details = _clean_project_details(payload, errors)
+    project_id = str(payload.get("project_id") or "")
+    current_phases = (
+        Project.objects.filter(pk=project_id).values_list("phases", flat=True).first()
+        if project_id
+        else None
+    )
+    details = _clean_project_details(payload, errors, current_phases or "")
 
     if errors:
         raise ValidationFailed(errors)
@@ -122,7 +137,28 @@ def _clean_project_payload(payload: dict) -> tuple[dict, list[dict]]:
     }, skills
 
 
-def _clean_project_details(payload: dict, errors: list[str]) -> dict:
+def _clean_phases(payload: dict, errors: list[str], current_phases: str) -> str:
+    """担当工程（選択された工程の配列）を検証し、保持する文字列に整える。
+
+    選択肢にない工程は、その案件に既に保持されている値に限り許可する
+    （選択肢の導入前に自由入力された値を、編集時に失わないため）。
+    """
+    raw = payload.get("phases") or []
+    if not isinstance(raw, list) or not all(isinstance(p, str) for p in raw):
+        errors.append("担当工程の形式が不正です。")
+        return ""
+    legacy = [p for p in split_phases(current_phases) if p not in PROJECT_PHASES]
+    unknown = sorted(set(raw) - set(PROJECT_PHASES) - set(legacy))
+    if unknown:
+        errors.append(f"存在しない担当工程です: {'、'.join(unknown)}")
+        return ""
+    ordered = [p for p in PROJECT_PHASES if p in raw] + [p for p in legacy if p in raw]
+    return PROJECT_PHASE_SEPARATOR.join(ordered)
+
+
+def _clean_project_details(
+    payload: dict, errors: list[str], current_phases: str
+) -> dict:
     """案件の詳細（会社・体制・案件概要・業務内容・担当工程・環境・言語）を検証する。"""
     details: dict = {}
 
@@ -133,6 +169,14 @@ def _clean_project_details(payload: dict, errors: list[str]) -> dict:
         details[key] = value
     for key in PROJECT_DETAIL_TEXT_FIELDS:
         details[key] = str(payload.get(key) or "").strip()
+    for key, (label, max_length) in PROJECT_DETAIL_ITEM_FIELDS.items():
+        lines = str(payload.get(key) or "").splitlines()
+        value = "\n".join(line.strip() for line in lines if line.strip())
+        if len(value) > max_length:
+            errors.append(f"{label}は{max_length}文字以内で入力してください。")
+        details[key] = value
+
+    details["phases"] = _clean_phases(payload, errors, current_phases)
 
     company_id = payload.get("company_id")
     if company_id in (None, ""):

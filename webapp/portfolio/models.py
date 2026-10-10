@@ -69,6 +69,21 @@ class Skill(models.Model):
         return f"{self.category} / {self.name}"
 
 
+# 担当工程の選択肢。出力順に並べる。
+PROJECT_PHASES = [
+    "要件定義",
+    "基本設計",
+    "詳細設計",
+    "実装",
+    "単体テスト",
+    "結合テスト",
+    "総合テスト",
+    "運用・保守",
+]
+# 担当工程を 1 つの文字列に保持するときの区切り。
+PROJECT_PHASE_SEPARATOR = "、"
+
+
 class Project(models.Model):
     """案件実績（期間）。"""
 
@@ -108,8 +123,10 @@ class Project(models.Model):
     overview = models.TextField("案件概要", blank=True, default="")
     # 1 行を 1 項目とする。
     tasks = models.TextField("業務内容", blank=True, default="")
+    # 選択した工程を PROJECT_PHASES の順に PROJECT_PHASE_SEPARATOR で連結して保持する。
     phases = models.CharField("担当工程", max_length=255, blank=True, default="")
-    environment = models.CharField("環境・言語", max_length=512, blank=True, default="")
+    # 1 行を 1 項目（例: AWS、Python 3.14）とする。
+    environment = models.TextField("環境・言語", blank=True, default="")
 
     class Meta:
         db_table = "projects"
