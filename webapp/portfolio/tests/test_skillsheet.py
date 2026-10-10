@@ -98,6 +98,11 @@ class RenderTests(SkillsheetTestCase):
 
         return export.render_skillsheet(TODAY)
 
+    def test_案件ごとにHTMLでは枠で囲みMarkdownには枠を含めない(self):
+        rendered = self._render()
+        self.assertEqual(rendered.html.count('<div class="project">'), 3)
+        self.assertNotIn("<div", rendered.markdown)
+
     def test_構成の順に出力する(self):
         self._save_texts()
         markdown = self._render().markdown

@@ -53,6 +53,9 @@ table { border-collapse: collapse; width: 100%; margin: 8px 0; }
 th, td { border: 1px solid #999; padding: 4px 8px; font-size: 9.5pt; text-align: left; }
 th { background-color: #eee; }
 ul { margin: 4px 0; padding-left: 20px; }
+.project { border: 1px solid #999; margin: 12px 0; page-break-inside: avoid; }
+.project > p:first-child { margin: 0; padding: 4px 8px; background-color: #eee; border-bottom: 1px solid #999; }
+.project > ul { margin: 0; padding: 6px 8px 6px 28px; }
 blockquote { color: #666; border-left: 3px solid #ccc; padding-left: 8px; margin: 8px 0; }
 """
 
@@ -130,7 +133,7 @@ def _bullet(label: str, value: str) -> list[str]:
     return [f"- {label}: {first}", *(f"{LIST_INDENT}{line}" for line in rest)]
 
 
-def _build_project(project: Project) -> str:
+def _build_project(project: Project, framed: bool) -> str:
     heading = (
         f"**{_format_period(project.start_year_month, project.end_year_month)}"
         f"｜{project.name}**"
@@ -151,10 +154,13 @@ def _build_project(project: Project) -> str:
         lines.append(f"- 担当工程: {project.phases}")
     if project.environment:
         lines.append(f"- 環境・言語: {project.environment}")
-    return "\n".join(lines).rstrip()
+    block = "\n".join(lines).rstrip()
+    if framed:
+        return f'<div class="project" markdown="1">\n\n{block}\n\n</div>'
+    return block
 
 
-def _build_company(company: Company, projects: list[Project]) -> str:
+def _build_company(company: Company, projects: list[Project], framed: bool) -> str:
     heading = f"### {_company_label(company)}"
     if company.employment_type:
         heading += f"（{company.employment_type}）"
@@ -168,7 +174,7 @@ def _build_company(company: Company, projects: list[Project]) -> str:
     ]
     if profile:
         blocks.append("\u3000".join(profile))
-    blocks += [_build_project(project) for project in projects]
+    blocks += [_build_project(project, framed) for project in projects]
     return "\n\n".join(blocks)
 
 
@@ -189,8 +195,12 @@ def _load_texts() -> dict[str, str]:
     return {t.text_key: t.body.strip() for t in SkillsheetText.objects.all()}
 
 
-def build_markdown(today: date) -> tuple[str, SkillsheetWarnings]:
-    """実績 DB の内容から職務経歴書の Markdown と警告を組み立てる。"""
+def build_markdown(today: date, framed: bool = False) -> tuple[str, SkillsheetWarnings]:
+    """実績 DB の内容から職務経歴書の Markdown と警告を組み立てる。
+
+    `framed` が真の場合は、各案件を枠で囲むための `div` を付ける（HTML・PDF 用）。
+    ダウンロードする Markdown には付けない。
+    """
     texts = _load_texts()
     companies = list(Company.objects.all())
     projects = list(Project.objects.order_by("-start_year_month", "name"))
@@ -225,7 +235,9 @@ def build_markdown(today: date) -> tuple[str, SkillsheetWarnings]:
         )
     for kind, heading in COMPANY_SECTIONS:
         body = "\n\n".join(
-            _build_company(company, projects_by_company.get(company.company_id, []))
+            _build_company(
+                company, projects_by_company.get(company.company_id, []), framed
+            )
             for company in companies
             if company.kind == kind
         )
@@ -243,7 +255,7 @@ def build_markdown(today: date) -> tuple[str, SkillsheetWarnings]:
 def to_html_document(merged_markdown: str) -> str:
     """Markdown を、PDF と同じスタイルの HTML 文書に変換する。"""
     body = markdown.markdown(
-        merged_markdown, extensions=["tables", "fenced_code", "nl2br"]
+        merged_markdown, extensions=["tables", "fenced_code", "nl2br", "md_in_html"]
     )
     return (
         '<!DOCTYPE html>\n<html lang="ja">\n<head>\n<meta charset="utf-8">\n'
@@ -254,8 +266,9 @@ def to_html_document(merged_markdown: str) -> str:
 def render_skillsheet(today: date) -> RenderedSkillsheet:
     """実績 DB の内容から、Markdown・HTML・警告を返す。"""
     merged, warnings = build_markdown(today)
+    framed, _ = build_markdown(today, framed=True)
     return RenderedSkillsheet(
-        markdown=merged, html=to_html_document(merged), warnings=warnings
+        markdown=merged, html=to_html_document(framed), warnings=warnings
     )
 
 
