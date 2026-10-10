@@ -1218,6 +1218,46 @@ document.addEventListener('DOMContentLoaded', () => {
         renderSkillsheetView(root, data);
     }
 
+    const SKILLSHEET_FORMATS = {
+        pdf: { ext: 'pdf', mime: 'application/pdf', label: 'PDF', url: () => urls.skillsheetPdf },
+        markdown: { ext: 'md', mime: 'text/markdown', label: 'Markdown', url: () => urls.skillsheetMarkdown },
+    };
+
+    // 保存ダイアログ（File System Access API）で保存先を選んで保存する。
+    // 非対応のブラウザは従来どおりブラウザの既定のダウンロードにフォールバックする。
+    // ダイアログはクリック直後でないと開けないため、生成（fetch）より先に開く。
+    async function downloadSkillsheet(format) {
+        const spec = SKILLSHEET_FORMATS[format];
+        if (typeof window.showSaveFilePicker !== 'function') {
+            const link = document.createElement('a');
+            link.href = spec.url();
+            link.download = '';
+            link.click();
+            return;
+        }
+        const now = new Date();
+        const ymd = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+        let handle;
+        try {
+            handle = await window.showSaveFilePicker({
+                suggestedName: `職務経歴書_${ymd}.${spec.ext}`,
+                types: [{ description: spec.label, accept: { [spec.mime]: [`.${spec.ext}`] } }],
+            });
+        } catch (error) {
+            if (error.name === 'AbortError') return; // ユーザーが取り消した
+            showMessage(`保存先を選べませんでした: ${error.message}`, 'error');
+            return;
+        }
+        await guarded(async () => {
+            const response = await fetch(spec.url());
+            if (!response.ok) throw new Error(`${spec.label} の生成に失敗しました。`);
+            const writable = await handle.createWritable();
+            await writable.write(await response.blob());
+            await writable.close();
+            showMessage(`${spec.label} を保存しました。`);
+        });
+    }
+
     function renderSkillsheetView(root, data) {
         const warnings = [];
         if (data.warnings.unassigned_projects.length > 0) {
@@ -1229,8 +1269,8 @@ document.addEventListener('DOMContentLoaded', () => {
         root.innerHTML = `
             ${pageHead('職務経歴書', {
         sub: '文章項目は下の一覧から編集します。会社は「会社」、案件の記載内容は「案件登録」で編集します。',
-        actions: `<a href="${esc(urls.skillsheetMarkdown)}" download><button type="button">Markdown をダウンロード</button></a>
-                  <a href="${esc(urls.skillsheetPdf)}" download><button type="button" class="primary">PDF をダウンロード</button></a>`,
+        actions: `<button type="button" data-download="markdown">Markdown をダウンロード</button>
+                  <button type="button" class="primary" data-download="pdf">PDF をダウンロード</button>`,
     })}
             ${warnings.map((w) => `<p class="message warning">${esc(w)}</p>`).join('')}
             <div class="card">
@@ -1246,6 +1286,10 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
             <div class="card"><h3>プレビュー</h3><iframe id="skillsheet-preview" class="skillsheet-preview" title="職務経歴書のプレビュー"></iframe></div>`;
         root.querySelector('#skillsheet-preview').srcdoc = data.preview_html;
+        root.querySelectorAll('[data-download]').forEach((b) => b.addEventListener('click', () => {
+            b.disabled = true;
+            downloadSkillsheet(b.dataset.download).finally(() => { b.disabled = false; });
+        }));
         root.querySelectorAll('[data-edit-text]').forEach((b) => b.addEventListener('click', () => {
             const text = data.texts[Number(b.dataset.editText)];
             renderSkillsheetEdit(root, data, text, text.body);
