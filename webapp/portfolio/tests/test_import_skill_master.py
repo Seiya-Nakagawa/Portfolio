@@ -116,7 +116,7 @@ class ImportSkillMasterTests(TestCase):
         self.assertIn("2 件", self._run())
         ec2 = Skill.objects.get(skill_id="ec2")
         self.assertEqual((ec2.name, ec2.subcategory), ("Amazon EC2", ""))
-        self.assertFalse(ec2.is_master)
+        self.assertTrue(ec2.is_master)
         self.assertFalse(Skill.objects.filter(skill_id="aws-ec2").exists())
         self.assertIn("0 件", self._run())
         self.assertEqual(Skill.objects.count(), 3)
