@@ -88,12 +88,16 @@ class Command(BaseCommand):
             used_ids = set(Skill.objects.values_list("skill_id", flat=True))
             known_categories = set(registry.category_names())
             existing_keys: dict[str, set[str]] = {}
-            for category, name in Skill.objects.values_list("category", "name"):
-                existing_keys.setdefault(category, set()).update(comparison_keys(name))
+            existing_skills = list(Skill.objects.all())
+            for skill in existing_skills:
+                existing_keys.setdefault(skill.category, set()).update(
+                    comparison_keys(skill.name)
+                )
 
             last = SkillCategory.objects.order_by("-sort_order").first()
             next_category_order = (last.sort_order if last else 0) + 1
             new_skills = []
+            seed_keys: dict[str, set[str]] = {}
             for entry in categories:
                 category = entry["name"]
                 if category not in known_categories:
@@ -104,8 +108,10 @@ class Command(BaseCommand):
                     next_category_order += 1
                     known_categories.add(category)
                 keys = existing_keys.setdefault(category, set())
+                matched = seed_keys.setdefault(category, set())
                 for item in entry["skills"]:
                     item_keys = comparison_keys(item["name"])
+                    matched.update(item_keys)
                     if item_keys & keys:
                         continue
                     keys.update(item_keys)
@@ -124,6 +130,17 @@ class Command(BaseCommand):
             for skill in new_skills:
                 skill.full_clean(validate_unique=False)
             Skill.objects.bulk_create(new_skills)
+            # 種データと一致した既存の項目も、マスタ項目にする（名称などは変更しない）。
+            promoted = [
+                skill.skill_id
+                for skill in existing_skills
+                if not skill.is_master
+                and comparison_keys(skill.name) & seed_keys.get(skill.category, set())
+            ]
+            Skill.objects.filter(skill_id__in=promoted).update(is_master=True)
             registry.resequence_skills()
 
-        self.stdout.write(f"スキル項目を {len(new_skills)} 件追加しました。")
+        self.stdout.write(
+            f"スキル項目を {len(new_skills)} 件追加し、"
+            f"既存の {len(promoted)} 件をマスタ項目にしました。"
+        )
