@@ -6,6 +6,7 @@ from datetime import date
 import markdown
 
 from portfolio.models import (
+    PROJECT_PHASE_SEPARATOR,
     SKILLSHEET_TEXT_KEYS,
     Certification,
     Company,
@@ -16,9 +17,6 @@ from portfolio.services import build_skill_rows, format_year_month
 
 # 継続中の案件の終了年月の表記。
 ONGOING_LABEL = "現在"
-
-# 入れ子の箇条書きの字下げ。Markdown 変換ライブラリが入れ子と解釈する幅に合わせる。
-LIST_INDENT = " " * 4
 
 # 会社概要の項目。出力順に並べる。
 COMPANY_PROFILE_FIELDS = [
@@ -34,9 +32,6 @@ COMPANY_SECTIONS = [
     (Company.KIND_MAIN, "■開発経歴"),
     (Company.KIND_SIDE, "■副業"),
 ]
-
-# 環境・言語の項目を 1 行に並べるときの区切り。
-ENVIRONMENT_SEPARATOR = "、"
 
 END_MARK = "以上"
 
@@ -55,6 +50,8 @@ h3 { font-size: 11.5pt; margin-top: 16px; }
 table { border-collapse: collapse; width: 100%; margin: 8px 0; }
 th, td { border: 1px solid #999; padding: 4px 8px; font-size: 9.5pt; text-align: left; }
 th { background-color: #eee; }
+th, td:first-child { white-space: nowrap; }
+td { vertical-align: top; }
 ul { margin: 4px 0; padding-left: 20px; }
 blockquote { color: #666; border-left: 3px solid #ccc; padding-left: 8px; margin: 8px 0; }
 """
@@ -127,37 +124,45 @@ def _build_company_summary(companies: list[Company]) -> str:
     return "\n".join(lines)
 
 
-def _bullet(label: str, value: str) -> list[str]:
-    """複数行の値は、2 行目以降を箇条書きの項目内の改行として字下げする。"""
-    first, *rest = value.splitlines()
-    return [f"- {label}: {first}", *(f"{LIST_INDENT}{line}" for line in rest)]
+def _cell(lines: list[str]) -> str:
+    """表のセルに入れる複数行の値。行ごとに `<br>` で改行し、空行は空の行として残す。"""
+    return "<br>".join(_escape_cell(line) for line in lines)
 
 
-def _build_project(project: Project) -> str:
-    heading = (
-        f"**{_format_period(project.start_year_month, project.end_year_month)}"
-        f"｜{project.name}**"
-    )
-    if project.team_size:
-        heading += f"（{project.team_size}）"
+def _build_project_row(project: Project) -> str:
+    """案件 1 件分の表の行。"""
+    first, last = _format_period(
+        project.start_year_month, project.end_year_month
+    ).split("〜")
+    period = _cell([first, "〜", last])
 
-    lines = [heading, ""]
+    content = [f"**{_escape_cell(project.name)}**"]
     if project.overview:
-        lines += _bullet("案件概要", project.overview)
+        content += ["", "【案件概要】", *project.overview.splitlines()]
     tasks = [line.strip() for line in project.tasks.splitlines() if line.strip()]
-    if len(tasks) == 1:
-        lines.append(f"- 業務内容: {tasks[0]}")
-    elif tasks:
-        lines.append("- 業務内容:")
-        lines += [f"{LIST_INDENT}- {task}" for task in tasks]
-    if project.phases:
-        lines.append(f"- 担当工程: {project.phases}")
+    if tasks:
+        content += ["", "【業務内容】", *tasks]
+
+    phases = [p for p in project.phases.split(PROJECT_PHASE_SEPARATOR) if p]
     environment = [line.strip() for line in project.environment.splitlines()]
-    if any(environment):
-        lines.append(
-            f"- 環境・言語: {ENVIRONMENT_SEPARATOR.join(filter(None, environment))}"
-        )
-    return "\n".join(lines).rstrip()
+    cells = [
+        period,
+        _cell(content),
+        _cell(phases),
+        _cell([line for line in environment if line]),
+        _escape_cell(project.team_size),
+    ]
+    return "| " + " | ".join(cells) + " |"
+
+
+def _build_project_table(projects: list[Project]) -> str:
+    """会社に所属する案件の表。案件 1 件を 1 行とする。"""
+    lines = [
+        "| 開発期間 | プロジェクト名・内容 | 担当工程 | 環境・言語 | 役割・規模 |",
+        "| --- | --- | --- | --- | --- |",
+    ]
+    lines += [_build_project_row(project) for project in projects]
+    return "\n".join(lines)
 
 
 def _build_company(company: Company, projects: list[Project]) -> str:
@@ -174,7 +179,8 @@ def _build_company(company: Company, projects: list[Project]) -> str:
     ]
     if profile:
         blocks.append("\u3000".join(profile))
-    blocks += [_build_project(project) for project in projects]
+    if projects:
+        blocks.append(_build_project_table(projects))
     return "\n\n".join(blocks)
 
 
