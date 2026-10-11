@@ -226,8 +226,8 @@ class ProjectDetailApiTests(LoggedInTestCase):
             "team_size": "5名体制",
             "overview": "ダミーの概要",
             "tasks": "設計\n実装",
-            "phases": "基本設計、詳細設計",
-            "environment": "AWS、Python",
+            "phases": ["詳細設計", "基本設計"],
+            "environment": "AWS\nPython",
             "skills": [],
         }
         payload.update(overrides)
@@ -242,8 +242,9 @@ class ProjectDetailApiTests(LoggedInTestCase):
         self.assertEqual(data["team_size"], "5名体制")
         self.assertEqual(data["overview"], "ダミーの概要")
         self.assertEqual(data["tasks"], "設計\n実装")
-        self.assertEqual(data["phases"], "基本設計、詳細設計")
-        self.assertEqual(data["environment"], "AWS、Python")
+        self.assertEqual(data["phases"], ["基本設計", "詳細設計"])
+        self.assertEqual(Project.objects.get().phases, "基本設計、詳細設計")
+        self.assertEqual(data["environment"], "AWS\nPython")
 
     def test_詳細は省略でき会社は未設定になる(self):
         payload = {"name": "案件B", "start_year_month": "2025-04"}
@@ -264,6 +265,40 @@ class ProjectDetailApiTests(LoggedInTestCase):
             self._payload(project_id=project_id, company_id=None),
         )
         self.assertIsNone(Project.objects.get().company_id)
+
+    def test_選択肢にない担当工程は保存できない(self):
+        response = self.call(
+            "post", "manage-api-projects", self._payload(phases=["基本設計", "占い"])
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(Project.objects.count(), 0)
+
+    def test_選択肢導入前の担当工程は編集時に残せる(self):
+        project = Project.objects.create(
+            name="旧", start_year_month="2025-01", phases="基本設計、製造"
+        )
+        payload = self._payload(
+            project_id=project.project_id, phases=["基本設計", "製造", "実装"]
+        )
+        response = self.call("post", "manage-api-projects", payload)
+        self.assertEqual(response.status_code, 200, response.content.decode())
+        project.refresh_from_db()
+        self.assertEqual(project.phases, "基本設計、実装、製造")
+        # 他の案件では、同じ値でも選択肢にないため保存できない。
+        response = self.call(
+            "post", "manage-api-projects", self._payload(phases=["製造"])
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_担当工程の形式が不正(self):
+        response = self.call(
+            "post", "manage-api-projects", self._payload(phases="基本設計")
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_初期表示で担当工程の選択肢を返す(self):
+        body = self.call("get", "manage-api-bootstrap").json()
+        self.assertEqual(body["phases"][:2], ["要件定義", "基本設計"])
 
     def test_詳細の検証エラー(self):
         cases = {
@@ -527,6 +562,21 @@ class SkillApiTests(LoggedInTestCase):
             self.call("delete", "manage-api-skill", skill_id="ec2").status_code, 200
         )
         self.assertEqual(Skill.objects.count(), 0)
+
+    def test_マスタ項目は削除できない(self):
+        skill = _skill("ec2", "AWS", "EC2", 10)
+        skill.is_master = True
+        skill.save()
+        response = self.call("delete", "manage-api-skill", skill_id="ec2")
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(Skill.objects.count(), 1)
+        rows = self.call("get", "manage-api-skills").json()
+        self.assertTrue(rows[0]["is_master"])
+
+    def test_画面から追加した項目はマスタ項目にならない(self):
+        payload = {"skill_id": "mine", "category": "AWS", "name": "Mine"}
+        self.call("post", "manage-api-skills", payload)
+        self.assertFalse(Skill.objects.get(skill_id="mine").is_master)
 
     def test_使用実績のある項目は削除できない(self):
         skill = _skill("ec2", "AWS", "EC2", 10)

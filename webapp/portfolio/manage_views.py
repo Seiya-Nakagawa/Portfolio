@@ -14,6 +14,7 @@ from django.views.decorators.http import require_http_methods
 
 from portfolio import export, registry, uploads
 from portfolio.models import (
+    PROJECT_PHASES,
     SKILLSHEET_TEXT_KEYS,
     Certification,
     Company,
@@ -74,6 +75,7 @@ def _skill_dict(skill: Skill, years: str = "") -> dict:
         "category": skill.category,
         "subcategory": skill.subcategory,
         "name": skill.name,
+        "is_master": skill.is_master,
         "years": years,
     }
 
@@ -88,7 +90,7 @@ def _project_dict(project: Project) -> dict:
         "team_size": project.team_size,
         "overview": project.overview,
         "tasks": project.tasks,
-        "phases": project.phases,
+        "phases": registry.split_phases(project.phases),
         "environment": project.environment,
         "skills": [
             {"skill_id": ps.skill_id, "version": ps.version}
@@ -191,6 +193,7 @@ def api_bootstrap(request):
             "skills": _skills_with_years(),
             "categories": registry.category_names(),
             "companies": _companies(),
+            "phases": PROJECT_PHASES,
             "ongoing_projects": [
                 {"project_id": p.project_id, "name": p.name} for p in ongoing
             ],

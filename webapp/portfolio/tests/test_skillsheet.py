@@ -60,7 +60,7 @@ class SkillsheetTestCase(LoggedInTestCase):
             overview="ダミーの概要",
             tasks="設計\n実装",
             phases="基本設計",
-            environment="Java 21",
+            environment="Java 21\n\nAWS\n",
         )
         self.new = Project.objects.create(
             name="新案件",
@@ -97,11 +97,6 @@ class RenderTests(SkillsheetTestCase):
         from portfolio import export
 
         return export.render_skillsheet(TODAY)
-
-    def test_案件ごとにHTMLでは枠で囲みMarkdownには枠を含めない(self):
-        rendered = self._render()
-        self.assertEqual(rendered.html.count('<div class="project">'), 3)
-        self.assertNotIn("<div", rendered.markdown)
 
     def test_構成の順に出力する(self):
         self._save_texts()
@@ -141,24 +136,38 @@ class RenderTests(SkillsheetTestCase):
         self.assertIn("【資本金】200万円\u3000【設立】2008年5月", markdown)
         self.assertIn("### 副業先 2025年01月〜2025年06月", markdown)
 
-    def test_案件は開始年月の降順で詳細を出力する(self):
+    def test_案件は会社ごとの表に開始年月の降順で1行ずつ出力する(self):
         self._save_texts()
         markdown = self._render().markdown
-        self.assertLess(markdown.index("｜新案件**"), markdown.index("｜旧案件**"))
-        self.assertIn("**2025年04月〜現在｜新案件**\n", markdown)
-        self.assertIn("- 業務内容: 単一の業務", markdown)
-        self.assertIn("**2023年07月〜2025年03月｜旧案件**（3名体制）", markdown)
-        self.assertIn("- 案件概要: ダミーの概要", markdown)
-        self.assertIn("- 業務内容:\n    - 設計\n    - 実装", markdown)
-        self.assertIn("- 担当工程: 基本設計", markdown)
-        self.assertIn("- 環境・言語: Java 21", markdown)
+        header = (
+            "| 開発期間 | プロジェクト名・内容 | 担当工程 | 環境・言語 | 役割・規模 |"
+        )
+        self.assertEqual(markdown.count(header), 2)
+        self.assertLess(markdown.index("**新案件**"), markdown.index("**旧案件**"))
+        self.assertIn(
+            "| 2025年04月<br>〜<br>現在 | **新案件**<br><br>【業務内容】<br>単一の業務 |  |  |  |",
+            markdown,
+        )
+        self.assertIn(
+            "| 2023年07月<br>〜<br>2025年03月 | **旧案件**<br><br>【案件概要】<br>ダミーの概要"
+            "<br><br>【業務内容】<br>設計<br>実装 | 基本設計 | Java 21<br>AWS | 3名体制 |",
+            markdown,
+        )
+
+    def test_案件のない会社は表を出力しない(self):
+        Project.objects.filter(company=self.side).delete()
+        self._save_texts()
+        markdown = self._render().markdown
+        self.assertEqual(markdown.count("| 開発期間 |"), 1)
 
     def test_空の詳細は出力しない(self):
         self._save_texts()
-        block = self._render().markdown.split("｜新案件**")[1].split("**")[0]
-        self.assertNotIn("案件概要", block)
-        self.assertNotIn("担当工程", block)
-        self.assertNotIn("環境・言語", block)
+        row = next(
+            line
+            for line in self._render().markdown.splitlines()
+            if "**新案件**" in line
+        )
+        self.assertNotIn("案件概要", row)
 
     def test_スキル表と資格(self):
         self._save_texts()
@@ -219,12 +228,12 @@ class RenderTests(SkillsheetTestCase):
         self.assertEqual(warnings.unassigned_projects, [])
         self.assertEqual(warnings.missing_texts, [])
 
-    def test_HTMLにスタイルと表と入れ子の箇条書きが含まれる(self):
+    def test_HTMLにスタイルと案件の表が含まれる(self):
         self._save_texts()
         html = self._render().html
         self.assertIn("IPAexGothic", html)
         self.assertIn("<table>", html)
-        self.assertRegex(html, r"業務内容:\s*<ul>\s*<li>設計</li>")
+        self.assertIn("設計<br>実装", html)
 
 
 class SkillsheetApiTests(SkillsheetTestCase):

@@ -6,6 +6,7 @@ from datetime import date
 import markdown
 
 from portfolio.models import (
+    PROJECT_PHASE_SEPARATOR,
     SKILLSHEET_TEXT_KEYS,
     Certification,
     Company,
@@ -16,9 +17,6 @@ from portfolio.services import build_skill_rows, format_year_month
 
 # 継続中の案件の終了年月の表記。
 ONGOING_LABEL = "現在"
-
-# 入れ子の箇条書きの字下げ。Markdown 変換ライブラリが入れ子と解釈する幅に合わせる。
-LIST_INDENT = " " * 4
 
 # 会社概要の項目。出力順に並べる。
 COMPANY_PROFILE_FIELDS = [
@@ -52,10 +50,9 @@ h3 { font-size: 11.5pt; margin-top: 16px; }
 table { border-collapse: collapse; width: 100%; margin: 8px 0; }
 th, td { border: 1px solid #999; padding: 4px 8px; font-size: 9.5pt; text-align: left; }
 th { background-color: #eee; }
+th, td:first-child { white-space: nowrap; }
+td { vertical-align: top; }
 ul { margin: 4px 0; padding-left: 20px; }
-.project { border: 1px solid #999; margin: 12px 0; page-break-inside: avoid; }
-.project > p:first-child { margin: 0; padding: 4px 8px; background-color: #eee; border-bottom: 1px solid #999; }
-.project > ul { margin: 0; padding: 6px 8px 6px 28px; }
 blockquote { color: #666; border-left: 3px solid #ccc; padding-left: 8px; margin: 8px 0; }
 """
 
@@ -127,40 +124,48 @@ def _build_company_summary(companies: list[Company]) -> str:
     return "\n".join(lines)
 
 
-def _bullet(label: str, value: str) -> list[str]:
-    """複数行の値は、2 行目以降を箇条書きの項目内の改行として字下げする。"""
-    first, *rest = value.splitlines()
-    return [f"- {label}: {first}", *(f"{LIST_INDENT}{line}" for line in rest)]
+def _cell(lines: list[str]) -> str:
+    """表のセルに入れる複数行の値。行ごとに `<br>` で改行し、空行は空の行として残す。"""
+    return "<br>".join(_escape_cell(line) for line in lines)
 
 
-def _build_project(project: Project, framed: bool) -> str:
-    heading = (
-        f"**{_format_period(project.start_year_month, project.end_year_month)}"
-        f"｜{project.name}**"
-    )
-    if project.team_size:
-        heading += f"（{project.team_size}）"
+def _build_project_row(project: Project) -> str:
+    """案件 1 件分の表の行。"""
+    first, last = _format_period(
+        project.start_year_month, project.end_year_month
+    ).split("〜")
+    period = _cell([first, "〜", last])
 
-    lines = [heading, ""]
+    content = [f"**{_escape_cell(project.name)}**"]
     if project.overview:
-        lines += _bullet("案件概要", project.overview)
+        content += ["", "【案件概要】", *project.overview.splitlines()]
     tasks = [line.strip() for line in project.tasks.splitlines() if line.strip()]
-    if len(tasks) == 1:
-        lines.append(f"- 業務内容: {tasks[0]}")
-    elif tasks:
-        lines.append("- 業務内容:")
-        lines += [f"{LIST_INDENT}- {task}" for task in tasks]
-    if project.phases:
-        lines.append(f"- 担当工程: {project.phases}")
-    if project.environment:
-        lines.append(f"- 環境・言語: {project.environment}")
-    block = "\n".join(lines).rstrip()
-    if framed:
-        return f'<div class="project" markdown="1">\n\n{block}\n\n</div>'
-    return block
+    if tasks:
+        content += ["", "【業務内容】", *tasks]
+
+    phases = [p for p in project.phases.split(PROJECT_PHASE_SEPARATOR) if p]
+    environment = [line.strip() for line in project.environment.splitlines()]
+    cells = [
+        period,
+        _cell(content),
+        _cell(phases),
+        _cell([line for line in environment if line]),
+        _escape_cell(project.team_size),
+    ]
+    return "| " + " | ".join(cells) + " |"
 
 
-def _build_company(company: Company, projects: list[Project], framed: bool) -> str:
+def _build_project_table(projects: list[Project]) -> str:
+    """会社に所属する案件の表。案件 1 件を 1 行とする。"""
+    lines = [
+        "| 開発期間 | プロジェクト名・内容 | 担当工程 | 環境・言語 | 役割・規模 |",
+        "| --- | --- | --- | --- | --- |",
+    ]
+    lines += [_build_project_row(project) for project in projects]
+    return "\n".join(lines)
+
+
+def _build_company(company: Company, projects: list[Project]) -> str:
     heading = f"### {_company_label(company)}"
     if company.employment_type:
         heading += f"（{company.employment_type}）"
@@ -174,7 +179,8 @@ def _build_company(company: Company, projects: list[Project], framed: bool) -> s
     ]
     if profile:
         blocks.append("\u3000".join(profile))
-    blocks += [_build_project(project, framed) for project in projects]
+    if projects:
+        blocks.append(_build_project_table(projects))
     return "\n\n".join(blocks)
 
 
@@ -195,12 +201,8 @@ def _load_texts() -> dict[str, str]:
     return {t.text_key: t.body.strip() for t in SkillsheetText.objects.all()}
 
 
-def build_markdown(today: date, framed: bool = False) -> tuple[str, SkillsheetWarnings]:
-    """実績 DB の内容から職務経歴書の Markdown と警告を組み立てる。
-
-    `framed` が真の場合は、各案件を枠で囲むための `div` を付ける（HTML・PDF 用）。
-    ダウンロードする Markdown には付けない。
-    """
+def build_markdown(today: date) -> tuple[str, SkillsheetWarnings]:
+    """実績 DB の内容から職務経歴書の Markdown と警告を組み立てる。"""
     texts = _load_texts()
     companies = list(Company.objects.all())
     projects = list(Project.objects.order_by("-start_year_month", "name"))
@@ -235,9 +237,7 @@ def build_markdown(today: date, framed: bool = False) -> tuple[str, SkillsheetWa
         )
     for kind, heading in COMPANY_SECTIONS:
         body = "\n\n".join(
-            _build_company(
-                company, projects_by_company.get(company.company_id, []), framed
-            )
+            _build_company(company, projects_by_company.get(company.company_id, []))
             for company in companies
             if company.kind == kind
         )
@@ -255,7 +255,7 @@ def build_markdown(today: date, framed: bool = False) -> tuple[str, SkillsheetWa
 def to_html_document(merged_markdown: str) -> str:
     """Markdown を、PDF と同じスタイルの HTML 文書に変換する。"""
     body = markdown.markdown(
-        merged_markdown, extensions=["tables", "fenced_code", "nl2br", "md_in_html"]
+        merged_markdown, extensions=["tables", "fenced_code", "nl2br"]
     )
     return (
         '<!DOCTYPE html>\n<html lang="ja">\n<head>\n<meta charset="utf-8">\n'
@@ -266,9 +266,8 @@ def to_html_document(merged_markdown: str) -> str:
 def render_skillsheet(today: date) -> RenderedSkillsheet:
     """実績 DB の内容から、Markdown・HTML・警告を返す。"""
     merged, warnings = build_markdown(today)
-    framed, _ = build_markdown(today, framed=True)
     return RenderedSkillsheet(
-        markdown=merged, html=to_html_document(framed), warnings=warnings
+        markdown=merged, html=to_html_document(merged), warnings=warnings
     )
 
 
