@@ -139,7 +139,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const PROJECT_DETAIL_TEXTS = [
         ['overview', '案件概要'],
         ['tasks', '業務内容（1 行に 1 項目）'],
-        ['environment', '環境・言語（1 行に 1 項目。例: AWS、Python 3.14）'],
     ];
 
     // 担当工程のチェック項目。選択肢にない旧データの値は、失わないよう末尾に加える。
@@ -150,7 +149,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function emptyProject() {
         return {
             project_id: '', name: '', start_year_month: '', end_year_month: '', company_id: '',
-            team_size: '', overview: '', tasks: '', phases: [], environment: '', selected: {},
+            team_size: '', overview: '', tasks: '', phases: [], environment: '', environmentItems: [''], selected: {},
         };
     }
 
@@ -158,7 +157,20 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!data) return emptyProject();
         const selected = {};
         data.skills.forEach((s) => { selected[s.skill_id] = s.version; });
-        return { ...data, company_id: data.company_id ?? '', selected };
+        const environmentItems = data.environment === '' ? [''] : data.environment.split('\n');
+        return { ...data, company_id: data.company_id ?? '', environmentItems, selected };
+    }
+
+    // 環境・言語の入力ボックス（1 項目 1 ボックス）。保存・確認画面用の改行区切りの値は、空欄を除いて作る。
+    function environmentBoxesHtml(items) {
+        return items.map((item, i) => `<div class="env-item">
+            <input type="text" data-env="${i}" value="${esc(item)}" maxlength="128" aria-label="環境・言語 ${i + 1}" placeholder="例: AWS、Python 3.14" />
+            <button type="button" class="sm" data-env-remove="${i}" aria-label="この項目を削除"${items.length === 1 ? ' disabled' : ''}>削除</button>
+        </div>`).join('');
+    }
+
+    function syncEnvironment(state) {
+        state.environment = state.environmentItems.map((v) => v.trim()).filter(Boolean).join('\n');
     }
 
     function companyLabel(company) {
@@ -236,6 +248,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ...PROJECT_DETAIL_LINES.map(([name, label]) => [confirmLabel(label), s[name]]),
             ['担当工程', s.phases.join('、')],
             ...PROJECT_DETAIL_TEXTS.map(([name, label]) => [confirmLabel(label), s[name]]),
+            ['環境・言語', s.environment.split('\n').join('、')],
         ].filter(([, value]) => value !== '');
         root.innerHTML = `
             ${pageHead('入力内容の確認', { sub: '内容を確認して「登録」を押すと保存します。' })}
@@ -361,7 +374,12 @@ document.addEventListener('DOMContentLoaded', () => {
                             <legend>担当工程</legend>
                             ${phaseChoices(s.phases).map((phase) => `<label class="phase-item"><input type="checkbox" data-phase="${esc(phase)}"${s.phases.includes(phase) ? ' checked' : ''} />${esc(phase)}</label>`).join('')}
                         </fieldset>
-                        ${PROJECT_DETAIL_TEXTS.map(([name, label]) => `<label>${esc(label)}<textarea data-detail="${name}" rows="${name === 'environment' ? 3 : 4}">${esc(s[name])}</textarea></label>`).join('')}
+                        ${PROJECT_DETAIL_TEXTS.map(([name, label]) => `<label>${esc(label)}<textarea data-detail="${name}" rows="4">${esc(s[name])}</textarea></label>`).join('')}
+                        <fieldset class="env-list">
+                            <legend>環境・言語（1 項目ずつ入力）</legend>
+                            <div id="env-boxes">${environmentBoxesHtml(s.environmentItems)}</div>
+                            <button type="button" class="sm" id="env-add">項目を追加</button>
+                        </fieldset>
                     </details>
                     <div class="card">
                         <h3>使用したスキル</h3>
@@ -403,6 +421,27 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         root.querySelectorAll('[data-detail]').forEach((input) => {
             input.addEventListener('input', () => { project.state[input.dataset.detail] = input.value; });
+        });
+        const envBoxes = root.querySelector('#env-boxes');
+        const renderEnvironment = () => {
+            envBoxes.innerHTML = environmentBoxesHtml(project.state.environmentItems);
+        };
+        envBoxes.addEventListener('input', (e) => {
+            if (e.target.dataset.env === undefined) return;
+            project.state.environmentItems[Number(e.target.dataset.env)] = e.target.value;
+            syncEnvironment(project.state);
+        });
+        envBoxes.addEventListener('click', (e) => {
+            const button = e.target.closest('[data-env-remove]');
+            if (!button) return;
+            project.state.environmentItems.splice(Number(button.dataset.envRemove), 1);
+            syncEnvironment(project.state);
+            renderEnvironment();
+        });
+        root.querySelector('#env-add').addEventListener('click', () => {
+            project.state.environmentItems.push('');
+            renderEnvironment();
+            envBoxes.querySelector('.env-item:last-child input').focus();
         });
         root.querySelector('#new-project').addEventListener('click', () => {
             project.state = emptyProject();
