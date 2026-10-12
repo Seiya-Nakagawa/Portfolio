@@ -7,8 +7,8 @@ from django.contrib.auth import views as auth_views
 from django.urls import include, path
 from django.views.generic import RedirectView
 
+from portfolio import account_views, manage_views, views
 from portfolio import auth_views as portfolio_auth_views
-from portfolio import manage_views, views
 
 # サービスホストのルート（/）で公開する。
 urlpatterns = [
@@ -103,6 +103,17 @@ urlpatterns = [
         name="manage-api-company",
     ),
     path("manage/api/site", manage_views.api_site, name="manage-api-site"),
+    path("manage/api/account", account_views.api_account, name="manage-api-account"),
+    path(
+        "manage/api/account/providers/<str:provider>",
+        account_views.api_account_provider,
+        name="manage-api-account-provider",
+    ),
+    path(
+        "manage/api/account/withdraw",
+        account_views.api_account_withdraw,
+        name="manage-api-account-withdraw",
+    ),
     path(
         "manage/api/uploads",
         manage_views.api_upload_image,

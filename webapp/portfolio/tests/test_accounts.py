@@ -5,6 +5,7 @@ from allauth.socialaccount.adapter import get_adapter
 from allauth.socialaccount.models import SocialAccount
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import ValidationError
 from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
@@ -138,6 +139,7 @@ class PreSocialLoginTests(TestCase):
         self.adapter = SocialAccountAdapter()
         self.request = RequestFactory().get("/")
         self.request.session = self.client.session
+        self.request.user = AnonymousUser()
 
     def test_検証済みのメールアドレスが一致すれば既存ユーザーに紐づける(self):
         user = create_user("taro", email="Taro@example.com")
@@ -264,6 +266,7 @@ class SignupTests(TestCase):
         adapter = SocialAccountAdapter()
         request = RequestFactory().get("/")
         request.session = self.client.session
+        request.user = AnonymousUser()
         with self.assertRaises(ImmediateHttpResponse):
             adapter.pre_social_login(request, make_sociallogin())
 

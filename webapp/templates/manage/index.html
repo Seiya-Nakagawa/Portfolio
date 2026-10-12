@@ -19,6 +19,8 @@
     data-api-upload="{% url 'manage-api-upload-image' %}"
     data-media-base="{{ MEDIA_URL }}"
     data-api-site="{% url 'manage-api-site' %}"
+    data-api-account="{% url 'manage-api-account' %}"
+    data-api-account-withdraw="{% url 'manage-api-account-withdraw' %}"
     data-api-skillsheet="{% url 'manage-api-skillsheet' %}"
     data-skillsheet-pdf="{% url 'manage-skillsheet-pdf' %}"
     data-skillsheet-markdown="{% url 'manage-skillsheet-markdown' %}"
@@ -48,6 +50,7 @@
           <p class="nav-group" role="presentation">出力・設定</p>
           <button type="button" role="tab" data-tab="skillsheet">職務経歴書</button>
           <button type="button" role="tab" data-tab="categories">種類管理</button>
+          <button type="button" role="tab" data-tab="account">アカウント</button>
         </nav>
       </aside>
 
@@ -62,6 +65,7 @@
         <section id="tab-site" hidden></section>
         <section id="tab-skillsheet" hidden></section>
         <section id="tab-categories" hidden></section>
+        <section id="tab-account" hidden></section>
       </main>
     </div>
 

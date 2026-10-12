@@ -12,6 +12,7 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.shortcuts import render
+from django.urls import reverse
 from django.utils import timezone
 
 from portfolio import usage
@@ -115,6 +116,9 @@ def _verified_emails(sociallogin) -> list[str]:
 class SocialAccountAdapter(DefaultSocialAccountAdapter):
     def pre_social_login(self, request, sociallogin):
         """既存ユーザーとの紐づけと、利用停止中のユーザーのログイン拒否を行う。"""
+        if request.user.is_authenticated:
+            # ログイン中のユーザーによる追加連携。メールアドレスによる他のユーザーへの紐づけは行わない。
+            return
         if not sociallogin.is_existing:
             user = self._find_user_by_verified_email(sociallogin)
             if user is None:
@@ -125,6 +129,10 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
             return
         if not sociallogin.user.is_active:
             raise _stopped_response(request)
+
+    def get_connect_redirect_url(self, request, socialaccount):
+        """追加連携の完了後は、アカウント画面を含む登録画面へ戻る。"""
+        return reverse("manage")
 
     @staticmethod
     def _find_user_by_verified_email(sociallogin):
