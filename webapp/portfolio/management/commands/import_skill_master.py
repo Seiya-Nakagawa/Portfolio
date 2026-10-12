@@ -86,9 +86,10 @@ class Command(BaseCommand):
 
         with transaction.atomic():
             used_ids = set(Skill.objects.values_list("skill_id", flat=True))
-            known_categories = set(registry.category_names())
+            # 種データは共通マスタ（所有者なし）のみを対象とし、ユーザーの独自スキル項目には触れない。
+            known_categories = set(registry.category_names(None))
             existing_keys: dict[str, set[str]] = {}
-            existing_skills = list(Skill.objects.all())
+            existing_skills = list(Skill.objects.filter(owner__isnull=True))
             for skill in existing_skills:
                 existing_keys.setdefault(skill.category, set()).update(
                     comparison_keys(skill.name)
@@ -138,7 +139,7 @@ class Command(BaseCommand):
                 and comparison_keys(skill.name) & seed_keys.get(skill.category, set())
             ]
             Skill.objects.filter(skill_id__in=promoted).update(is_master=True)
-            registry.resequence_skills()
+            registry.resequence_skills(None)
 
         self.stdout.write(
             f"スキル項目を {len(new_skills)} 件追加し、"

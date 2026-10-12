@@ -7,6 +7,7 @@ from django.urls import reverse
 
 from portfolio.models import SiteInfo
 from portfolio.services import calculate_age, format_copyright
+from portfolio.tests.helpers import create_operator, create_user
 from portfolio.tests.test_manage import LoggedInTestCase
 
 VALID_PAYLOAD = {
@@ -44,11 +45,12 @@ class FormatCopyrightTests(SimpleTestCase):
 
 class PublicSiteApiTests(TestCase):
     def test_未登録なら404(self):
+        create_operator()
         self.assertEqual(self.client.get(reverse("api-site")).status_code, 404)
 
     def test_年齢を返し生年月日を含まない(self):
         payload = dict(VALID_PAYLOAD, birth_date=date(1990, 5, 10))
-        SiteInfo.objects.create(**payload)
+        SiteInfo.objects.create(owner=create_operator(), **payload)
         response = self.client.get(reverse("api-site"))
         self.assertEqual(response.status_code, 200)
         body = response.json()
@@ -93,9 +95,10 @@ class ManageSiteApiTests(LoggedInTestCase):
 
 class ImportSiteInfoTests(TestCase):
     def test_空のときのみ投入され再実行では変更しない(self):
-        call_command("import_portfolio_data", stdout=StringIO())
+        owner = create_user("importer")
+        call_command("import_portfolio_data", owner=owner.username, stdout=StringIO())
         info = SiteInfo.objects.get()
         info.job = "変更済み"
         info.save()
-        call_command("import_portfolio_data", stdout=StringIO())
+        call_command("import_portfolio_data", owner=owner.username, stdout=StringIO())
         self.assertEqual(SiteInfo.objects.get().job, "変更済み")

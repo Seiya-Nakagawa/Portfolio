@@ -32,13 +32,13 @@ class SkillRow:
     years: str
 
 
-def ordered_skills() -> list[Skill]:
-    """種類 → サブカテゴリ → 表示順の順で返す。
+def ordered_skills(owner) -> list[Skill]:
+    """共通マスタと指定ユーザーの独自スキル項目を、種類 → サブカテゴリ → 表示順の順で返す。
 
     種類間は各種類の sort_order 最小値の昇順、種類内のサブカテゴリ間は各サブカテゴリの
     sort_order 最小値の昇順とし、サブカテゴリ未設定の項目は種類内の末尾に置く。
     """
-    skills = list(Skill.objects.order_by("sort_order"))
+    skills = list(Skill.objects.visible_to(owner).order_by("sort_order"))
     category_order: dict[str, int] = {}
     subcategory_order: dict[tuple[str, str], int] = {}
     for skill in skills:
@@ -65,34 +65,40 @@ def format_year_month(value: date) -> str:
     return f"{value.year}年{value.month:02d}月"
 
 
-def ordered_certifications() -> list[Certification]:
+def ordered_certifications(owner) -> list[Certification]:
     """取得年月の古い順（同じ取得年月は登録の古い順）で返す。"""
-    return list(Certification.objects.order_by("acquired_on", "certification_id"))
-
-
-def ordered_works() -> list[Work]:
-    """実績年月の新しい順（未設定は末尾。同じ年月は登録の新しい順）で返す。"""
     return list(
-        Work.objects.order_by(F("achieved_on").desc(nulls_last=True), "-work_id")
+        Certification.objects.for_owner(owner).order_by(
+            "acquired_on", "certification_id"
+        )
     )
 
 
-def build_skill_rows(today: date) -> list[SkillRow]:
-    """使用実績のあるスキル項目を表示順に集計して返す。"""
+def ordered_works(owner) -> list[Work]:
+    """実績年月の新しい順（未設定は末尾。同じ年月は登録の新しい順）で返す。"""
+    return list(
+        Work.objects.for_owner(owner).order_by(
+            F("achieved_on").desc(nulls_last=True), "-work_id"
+        )
+    )
+
+
+def build_skill_rows(owner, today: date) -> list[SkillRow]:
+    """指定ユーザーの使用実績のあるスキル項目を表示順に集計して返す。"""
     projects = [
         ProjectPeriod(p.project_id, p.start_year_month, p.end_year_month)
-        for p in Project.objects.all()
+        for p in Project.objects.for_owner(owner)
     ]
     usages = [
         SkillUsage(project_id, skill_id)
-        for project_id, skill_id in ProjectSkill.objects.values_list(
-            "project_id", "skill_id"
-        )
+        for project_id, skill_id in ProjectSkill.objects.filter(
+            project__owner=owner
+        ).values_list("project_id", "skill_id")
     ]
     experiences = aggregate_skill_experience(projects, usages, today)
 
     rows = []
-    for skill in ordered_skills():
+    for skill in ordered_skills(owner):
         experience = experiences.get(skill.skill_id)
         if experience is None:
             continue
@@ -107,7 +113,7 @@ def build_skill_rows(today: date) -> list[SkillRow]:
     return rows
 
 
-def build_skills_payload(today: date) -> dict:
+def build_skills_payload(owner, today: date) -> dict:
     """スキル API のレスポンス。案件情報は含めない。"""
     return {
         "generated_at": today.isoformat(),
@@ -119,22 +125,22 @@ def build_skills_payload(today: date) -> dict:
                 "years": row.years,
                 "stars": calculate_stars(row.months),
             }
-            for row in build_skill_rows(today)
+            for row in build_skill_rows(owner, today)
         ],
     }
 
 
-def build_certifications_payload() -> list[dict]:
+def build_certifications_payload(owner) -> list[dict]:
     return [
         {"name": c.name, "date": format_year_month(c.acquired_on), "org": c.org}
-        for c in ordered_certifications()
+        for c in ordered_certifications(owner)
     ]
 
 
-def build_works_payload() -> list[dict]:
+def build_works_payload(owner) -> list[dict]:
     """実績 API のレスポンス。未設定の任意項目（サムネイル・リンク）はキーごと省略する。"""
     payload = []
-    for work in ordered_works():
+    for work in ordered_works(owner):
         item = {
             "title": work.title,
             "desc_ja": work.desc_ja,
@@ -164,9 +170,9 @@ def format_copyright(start_year: int, today: date) -> str:
     return f"{start_year}-{today.year}"
 
 
-def build_site_payload(today: date) -> dict | None:
+def build_site_payload(owner, today: date) -> dict | None:
     """サイト情報 API のレスポンス。生年月日は含めず、年齢のみ返す。未登録の場合は None。"""
-    info = SiteInfo.objects.first()
+    info = SiteInfo.objects.for_owner(owner).first()
     if info is None:
         return None
     return {

@@ -1,5 +1,6 @@
 import uuid
 
+from django.conf import settings
 from django.core.validators import RegexValidator
 from django.db import models
 
@@ -23,6 +24,35 @@ PROJECT_ID_HEX_LENGTH = 12
 def generate_project_id() -> str:
     """案件の識別子をサーバー側で自動採番する。"""
     return f"{PROJECT_ID_PREFIX}{uuid.uuid4().hex[:PROJECT_ID_HEX_LENGTH]}"
+
+
+class OwnedQuerySet(models.QuerySet):
+    """所有者（`owner`）で絞り込む共通の取得口。
+
+    所有者ごとのデータは必ず `for_owner` を経由して取得し、各 API・集計・生成の個別実装に
+    所有者の絞り込みを委ねない（基本設計書 4.13）。
+    """
+
+    def for_owner(self, owner):
+        """指定したユーザー（またはユーザーの id）が所有する行のみを返す。"""
+        return self.filter(owner=owner)
+
+
+class SkillQuerySet(OwnedQuerySet):
+    def visible_to(self, owner):
+        """共通マスタ（所有者なし）と、指定したユーザーの独自スキル項目を返す。"""
+        return self.filter(models.Q(owner__isnull=True) | models.Q(owner=owner))
+
+
+def owner_field() -> models.ForeignKey:
+    """所有するユーザー。ユーザーの削除時は所有する行をまとめて削除する。"""
+    return models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="所有者",
+        on_delete=models.CASCADE,
+        db_column="owner_id",
+        related_name="+",
+    )
 
 
 class SkillCategory(models.Model):
@@ -58,6 +88,18 @@ class Skill(models.Model):
     sort_order = models.PositiveIntegerField("表示順")
     # 種データ（マスタ）から登録した項目は真とし、画面から削除できない。利用者が追加した項目は偽。
     is_master = models.BooleanField("マスタ項目", default=False)
+    # 共通マスタは所有者なし（空）、独自スキル項目はそのユーザーが所有する。
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="所有者",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        db_column="owner_id",
+        related_name="+",
+    )
+
+    objects = SkillQuerySet.as_manager()
 
     class Meta:
         db_table = "skills"
@@ -115,7 +157,7 @@ class Project(models.Model):
         verbose_name="会社",
         null=True,
         blank=True,
-        on_delete=models.PROTECT,
+        on_delete=models.RESTRICT,
         db_column="company_id",
         related_name="projects",
     )
@@ -127,6 +169,9 @@ class Project(models.Model):
     phases = models.CharField("担当工程", max_length=255, blank=True, default="")
     # 1 行を 1 項目（例: AWS、Python 3.14）とする。
     environment = models.TextField("環境・言語", blank=True, default="")
+    owner = owner_field()
+
+    objects = OwnedQuerySet.as_manager()
 
     class Meta:
         db_table = "projects"
@@ -153,7 +198,7 @@ class ProjectSkill(models.Model):
     skill = models.ForeignKey(
         Skill,
         verbose_name="スキル項目",
-        on_delete=models.PROTECT,
+        on_delete=models.RESTRICT,
         db_column="skill_id",
         related_name="project_skills",
     )
@@ -177,6 +222,9 @@ class Certification(models.Model):
     # 年月の粒度で管理し、その月の 1 日を保持する。表示（YYYY年MM月）は出力時に整形する。
     acquired_on = models.DateField("取得年月")
     org = models.CharField("発行団体", max_length=255)
+    owner = owner_field()
+
+    objects = OwnedQuerySet.as_manager()
 
     class Meta:
         db_table = "certifications"
@@ -202,6 +250,9 @@ class Work(models.Model):
     live_url = models.URLField("公開 URL", max_length=255, blank=True, default="")
     # 年月の粒度で管理し、その月の 1 日を保持する。日付導入前の登録分は未設定（null）を許容する。
     achieved_on = models.DateField("実績年月", null=True)
+    owner = owner_field()
+
+    objects = OwnedQuerySet.as_manager()
 
     class Meta:
         db_table = "works"
@@ -213,15 +264,16 @@ class Work(models.Model):
         return self.title
 
 
-# サイト情報は常に 1 行のみとし、この固定値の主キーで参照する。
-SITE_INFO_ID = 1
-
-
 class SiteInfo(models.Model):
-    """サイト全体の表示情報（Hero・About・Contact・フッター）。1 行のみ。"""
+    """サイト全体の表示情報（Hero・About・Contact・フッター）。ユーザーごとに 1 行。"""
 
-    site_info_id = models.PositiveSmallIntegerField(
-        "サイト情報ID", primary_key=True, default=SITE_INFO_ID, editable=False
+    site_info_id = models.AutoField("サイト情報ID", primary_key=True)
+    owner = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        verbose_name="所有者",
+        on_delete=models.CASCADE,
+        db_column="owner_id",
+        related_name="+",
     )
     name = models.CharField("氏名", max_length=255)
     # Hero のタイピングアニメーションに表示する肩書きの一覧（JSON 配列）。
@@ -237,6 +289,8 @@ class SiteInfo(models.Model):
     contact_message = models.TextField("Contact の案内文")
     contact_form_url = models.URLField("問い合わせフォーム URL", max_length=1024)
     copyright_start_year = models.PositiveSmallIntegerField("著作権の開始年")
+
+    objects = OwnedQuerySet.as_manager()
 
     class Meta:
         db_table = "site_info"
@@ -278,6 +332,9 @@ class Company(models.Model):
     offices = models.CharField("拠点数", max_length=64, blank=True, default="")
     annual_sales = models.CharField("年商", max_length=64, blank=True, default="")
     founded = models.CharField("設立", max_length=64, blank=True, default="")
+    owner = owner_field()
+
+    objects = OwnedQuerySet.as_manager()
 
     class Meta:
         db_table = "companies"
@@ -301,14 +358,81 @@ SKILLSHEET_TEXT_KEYS = {
 class SkillsheetText(models.Model):
     """職務経歴書の文章項目。項目ごとに最新版のみを保持する。"""
 
-    text_key = models.CharField("項目キー", max_length=32, primary_key=True)
+    skillsheet_text_id = models.AutoField("文章項目ID", primary_key=True)
+    owner = owner_field()
+    text_key = models.CharField("項目キー", max_length=32)
     body = models.TextField("内容")
     updated_at = models.DateTimeField("最終更新日時")
 
+    objects = OwnedQuerySet.as_manager()
+
     class Meta:
         db_table = "skillsheet_texts"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["owner", "text_key"], name="uniq_skillsheet_text_owner_key"
+            )
+        ]
         verbose_name = "職務経歴書の文章項目"
         verbose_name_plural = "職務経歴書の文章項目"
 
     def __str__(self) -> str:
         return self.text_key
+
+
+class UserProfile(models.Model):
+    """ユーザーのプロフィール（公開設定・規約の同意状況）。1 ユーザーに 1 行。"""
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        verbose_name="ユーザー",
+        primary_key=True,
+        on_delete=models.CASCADE,
+        db_column="user_id",
+        related_name="profile",
+    )
+    is_public = models.BooleanField("公開する", default=False)
+    # 未同意の場合は空。
+    terms_version = models.CharField(
+        "同意した利用規約の版", max_length=32, blank=True, default=""
+    )
+    privacy_version = models.CharField(
+        "同意したプライバシーポリシーの版", max_length=32, blank=True, default=""
+    )
+    agreed_at = models.DateTimeField("同意日時", null=True, blank=True)
+
+    class Meta:
+        db_table = "user_profiles"
+        verbose_name = "ユーザーのプロフィール"
+        verbose_name_plural = "ユーザーのプロフィール"
+
+    def __str__(self) -> str:
+        return str(self.user_id)
+
+
+class UsageDaily(models.Model):
+    """利用状況の日次集計値。ユーザーを参照しない（退会後も集計値を残すため）。"""
+
+    METRIC_SIGNUP = "signup"
+    METRIC_WITHDRAWAL = "withdrawal"
+    METRIC_SKILLSHEET_PDF = "skillsheet_pdf"
+    METRIC_SKILLSHEET_MD = "skillsheet_md"
+    METRIC_CHOICES = [
+        (METRIC_SIGNUP, "サインアップ数"),
+        (METRIC_WITHDRAWAL, "退会数"),
+        (METRIC_SKILLSHEET_PDF, "職務経歴書 PDF の生成回数"),
+        (METRIC_SKILLSHEET_MD, "職務経歴書 Markdown の生成回数"),
+    ]
+
+    pk = models.CompositePrimaryKey("usage_date", "metric")
+    usage_date = models.DateField("集計日")
+    metric = models.CharField("指標", max_length=32, choices=METRIC_CHOICES)
+    count = models.PositiveIntegerField("件数", default=0)
+
+    class Meta:
+        db_table = "usage_daily"
+        verbose_name = "利用状況の日次集計"
+        verbose_name_plural = "利用状況の日次集計"
+
+    def __str__(self) -> str:
+        return f"{self.usage_date} / {self.metric}"

@@ -37,6 +37,7 @@ class SkillsheetTestCase(LoggedInTestCase):
         python = _skill("python", "言語", "Python", 20)
         _skill("cobol", "言語", "COBOL", 30)
         self.main = Company.objects.create(
+            owner=self.user,
             name="架空株式会社",
             department="開発部",
             employment_type="正社員",
@@ -46,12 +47,14 @@ class SkillsheetTestCase(LoggedInTestCase):
             founded="2008年5月",
         )
         self.side = Company.objects.create(
+            owner=self.user,
             name="副業先",
             kind="side",
             start_year_month="2025-01",
             end_year_month="2025-06",
         )
         self.old = Project.objects.create(
+            owner=self.user,
             name="旧案件",
             start_year_month="2023-07",
             end_year_month="2025-03",
@@ -63,12 +66,14 @@ class SkillsheetTestCase(LoggedInTestCase):
             environment="Java 21\n\nAWS\n",
         )
         self.new = Project.objects.create(
+            owner=self.user,
             name="新案件",
             start_year_month="2025-04",
             company=self.main,
             tasks="単一の業務",
         )
         self.side_project = Project.objects.create(
+            owner=self.user,
             name="副業案件",
             start_year_month="2025-01",
             end_year_month="2025-06",
@@ -77,14 +82,17 @@ class SkillsheetTestCase(LoggedInTestCase):
         ProjectSkill.objects.create(project=self.old, skill=java)
         ProjectSkill.objects.create(project=self.new, skill=python)
         Certification.objects.create(
-            name="ダミー資格", acquired_on=date(2020, 5, 1), org="ダミー団体"
+            owner=self.user,
+            name="ダミー資格",
+            acquired_on=date(2020, 5, 1),
+            org="ダミー団体",
         )
 
     def _save_texts(self, **overrides):
         for key, body in (TEXTS | overrides).items():
             if body is not None:
                 SkillsheetText.objects.create(
-                    text_key=key, body=body, updated_at=timezone.now()
+                    owner=self.user, text_key=key, body=body, updated_at=timezone.now()
                 )
 
     def _get(self, name, **kwargs):
@@ -96,7 +104,7 @@ class RenderTests(SkillsheetTestCase):
     def _render(self):
         from portfolio import export
 
-        return export.render_skillsheet(TODAY)
+        return export.render_skillsheet(self.user, TODAY)
 
     def test_構成の順に出力する(self):
         self._save_texts()
@@ -185,13 +193,13 @@ class RenderTests(SkillsheetTestCase):
     def test_空の項目は見出しごと出力しない(self):
         from portfolio import export
 
-        markdown, _ = export.build_markdown(TODAY)
+        markdown, _ = export.build_markdown(self.user, TODAY)
         for heading in ("■職務概要", "■活かせる経験・得意分野", "■自己PR"):
             self.assertNotIn(heading, markdown)
         self.assertNotIn("氏名:", markdown)
         Certification.objects.all().delete()
         ProjectSkill.objects.all().delete()
-        markdown, _ = export.build_markdown(TODAY)
+        markdown, _ = export.build_markdown(self.user, TODAY)
         self.assertNotIn("■保有資格", markdown)
         self.assertNotIn("■テクニカルスキル", markdown)
 
@@ -200,7 +208,7 @@ class RenderTests(SkillsheetTestCase):
 
         Project.objects.update(company=None)
         Company.objects.all().delete()
-        markdown, _ = export.build_markdown(TODAY)
+        markdown, _ = export.build_markdown(self.user, TODAY)
         for heading in ("■職務経歴 概略", "■開発経歴", "■副業"):
             self.assertNotIn(heading, markdown)
 
@@ -210,7 +218,7 @@ class RenderTests(SkillsheetTestCase):
         self._save_texts()
         self.main.name = "A|B"
         self.main.save()
-        markdown, _ = export.build_markdown(TODAY)
+        markdown, _ = export.build_markdown(self.user, TODAY)
         self.assertIn("| 2023年07月〜現在 | A\\|B 開発部 |", markdown)
 
     def test_警告は会社未設定の案件と未入力の文章項目(self):
@@ -267,18 +275,18 @@ class SkillsheetApiTests(SkillsheetTestCase):
 
     def test_更新日時が一致すれば更新できる(self):
         self._save_texts()
-        text = SkillsheetText.objects.get(pk="summary")
+        text = SkillsheetText.objects.get(text_key="summary")
         response = self._put("summary", "更新後", text.updated_at.isoformat())
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(SkillsheetText.objects.get(pk="summary").body, "更新後")
+        self.assertEqual(SkillsheetText.objects.get(text_key="summary").body, "更新後")
 
     def test_更新日時が古い場合は保存しない(self):
         self._save_texts()
-        text = SkillsheetText.objects.get(pk="summary")
+        text = SkillsheetText.objects.get(text_key="summary")
         stale = (text.updated_at - timedelta(minutes=1)).isoformat()
         self.assertEqual(self._put("summary", "更新後", stale).status_code, 400)
         self.assertEqual(
-            SkillsheetText.objects.get(pk="summary").body, TEXTS["summary"]
+            SkillsheetText.objects.get(text_key="summary").body, TEXTS["summary"]
         )
 
     def test_登録済みなのに更新日時なしでは保存しない(self):
@@ -288,7 +296,7 @@ class SkillsheetApiTests(SkillsheetTestCase):
     def test_項目ごとに競合を判定する(self):
         self._save_texts()
         self.assertEqual(self._put("self_pr", "新規", None).status_code, 400)
-        SkillsheetText.objects.filter(pk="self_pr").delete()
+        SkillsheetText.objects.filter(text_key="self_pr").delete()
         self.assertEqual(self._put("self_pr", "新規", None).status_code, 200)
 
     def test_空の内容や不正な氏名は保存しない(self):

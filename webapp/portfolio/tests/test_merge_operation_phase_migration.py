@@ -4,6 +4,7 @@ from django.apps import apps
 from django.test import TestCase
 
 from portfolio.models import Project
+from portfolio.tests.helpers import create_user
 
 migration = import_module("portfolio.migrations.0019_merge_operation_phase")
 
@@ -14,10 +15,16 @@ class MergeOperationPhaseMigrationTests(TestCase):
 
     def test_保守運用を運用保守へ統合する(self):
         Project.objects.create(
-            name="A", start_year_month="2025-01", phases="基本設計、保守・運用"
+            owner=create_user(),
+            name="A",
+            start_year_month="2025-01",
+            phases="基本設計、保守・運用",
         )
         Project.objects.create(
-            name="B", start_year_month="2025-01", phases="保守・運用"
+            owner=create_user(),
+            name="B",
+            start_year_month="2025-01",
+            phases="保守・運用",
         )
 
         migration.merge_operation_phase(apps, None)
@@ -27,6 +34,7 @@ class MergeOperationPhaseMigrationTests(TestCase):
 
     def test_両方ある場合は1つにまとめ_選択肢の順に並べる(self):
         Project.objects.create(
+            owner=create_user(),
             name="A",
             start_year_month="2025-01",
             phases="運用・保守、製造、保守・運用、詳細設計",
@@ -38,9 +46,14 @@ class MergeOperationPhaseMigrationTests(TestCase):
 
     def test_対象外の案件は変更しない(self):
         Project.objects.create(
-            name="A", start_year_month="2025-01", phases="運用・保守、基本設計"
+            owner=create_user(),
+            name="A",
+            start_year_month="2025-01",
+            phases="運用・保守、基本設計",
         )
-        Project.objects.create(name="B", start_year_month="2025-01")
+        Project.objects.create(
+            owner=create_user(), name="B", start_year_month="2025-01"
+        )
 
         migration.merge_operation_phase(apps, None)
 

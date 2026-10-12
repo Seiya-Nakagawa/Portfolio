@@ -122,12 +122,15 @@ def _company_dict(company: Company, project_count: int) -> dict:
     }
 
 
-def _companies() -> list[dict]:
+def _companies(owner) -> list[dict]:
     counts = Counter(
-        Project.objects.exclude(company=None).values_list("company_id", flat=True)
+        Project.objects.for_owner(owner)
+        .exclude(company=None)
+        .values_list("company_id", flat=True)
     )
     return [
-        _company_dict(c, counts.get(c.company_id, 0)) for c in Company.objects.all()
+        _company_dict(c, counts.get(c.company_id, 0))
+        for c in Company.objects.for_owner(owner)
     ]
 
 
@@ -154,26 +157,32 @@ def _work_dict(w: Work) -> dict:
     }
 
 
-def _ongoing_projects():
+def _ongoing_projects(owner):
     """継続中（終了年月が未設定）の案件を、開始年月の降順で返す。"""
-    return Project.objects.filter(end_year_month="").order_by(
-        "-start_year_month", "project_id"
+    return (
+        Project.objects.for_owner(owner)
+        .filter(end_year_month="")
+        .order_by("-start_year_month", "project_id")
     )
 
 
-def _finished_projects():
+def _finished_projects(owner):
     """終了済み（終了年月が設定済み）の案件を、終了年月・開始年月の降順で返す。"""
-    return Project.objects.exclude(end_year_month="").order_by(
-        "-end_year_month", "-start_year_month", "project_id"
+    return (
+        Project.objects.for_owner(owner)
+        .exclude(end_year_month="")
+        .order_by("-end_year_month", "-start_year_month", "project_id")
     )
 
 
-def _skills_with_years() -> list[dict]:
+def _skills_with_years(owner) -> list[dict]:
     years_by_skill = {
-        row.skill.skill_id: row.years for row in build_skill_rows(timezone.localdate())
+        row.skill.skill_id: row.years
+        for row in build_skill_rows(owner, timezone.localdate())
     }
     return [
-        _skill_dict(s, years_by_skill.get(s.skill_id, "")) for s in ordered_skills()
+        _skill_dict(s, years_by_skill.get(s.skill_id, ""))
+        for s in ordered_skills(owner)
     ]
 
 
@@ -187,12 +196,13 @@ def index(request):
 @api_view("GET")
 def api_bootstrap(request):
     """案件登録の初期表示データ。"""
-    ongoing = list(_ongoing_projects())
+    owner = request.user
+    ongoing = list(_ongoing_projects(owner))
     return _json(
         {
-            "skills": _skills_with_years(),
-            "categories": registry.category_names(),
-            "companies": _companies(),
+            "skills": _skills_with_years(owner),
+            "categories": registry.category_names(owner),
+            "companies": _companies(owner),
             "phases": PROJECT_PHASES,
             "ongoing_projects": [
                 {"project_id": p.project_id, "name": p.name} for p in ongoing
@@ -204,7 +214,7 @@ def api_bootstrap(request):
                     "start_year_month": p.start_year_month,
                     "end_year_month": p.end_year_month,
                 }
-                for p in _finished_projects()
+                for p in _finished_projects(owner)
             ],
             "initial_project": _project_dict(ongoing[0]) if ongoing else None,
         }
@@ -214,105 +224,107 @@ def api_bootstrap(request):
 @api_view("GET", "DELETE")
 def api_project(request, project_id):
     if request.method == "DELETE":
-        registry.delete_project(project_id)
+        registry.delete_project(request.user, project_id)
         return _json({"ok": True})
     try:
-        return _json(_project_dict(Project.objects.get(pk=project_id)))
+        return _json(
+            _project_dict(Project.objects.for_owner(request.user).get(pk=project_id))
+        )
     except Project.DoesNotExist:
         raise registry.NotFound("案件が見つかりません。") from None
 
 
 @api_view("POST")
 def api_projects(request):
-    project = registry.save_project(_body(request))
+    project = registry.save_project(request.user, _body(request))
     return _json(_project_dict(project))
 
 
 @api_view("GET", "POST")
 def api_skills(request):
     if request.method == "POST":
-        registry.save_skill(_body(request))
-    return _json(_skills_with_years())
+        registry.save_skill(request.user, _body(request))
+    return _json(_skills_with_years(request.user))
 
 
-def _categories() -> list[dict]:
-    counts = Counter(Skill.objects.values_list("category", flat=True))
+def _categories(owner) -> list[dict]:
+    counts = Counter(Skill.objects.visible_to(owner).values_list("category", flat=True))
     return [
         {"name": name, "skill_count": counts.get(name, 0)}
-        for name in registry.category_names()
+        for name in registry.category_names(owner)
     ]
 
 
 @api_view("GET", "POST")
 def api_categories(request):
     if request.method == "POST":
-        registry.add_skill_category(_body(request))
-    return _json(_categories())
+        registry.add_skill_category(request.user, _body(request))
+    return _json(_categories(request.user))
 
 
 @api_view("POST")
 def api_category_order(request):
     """種類単位の並び順を保存する。"""
-    registry.reorder_skill_categories(_body(request))
-    return _json(_categories())
+    registry.reorder_skill_categories(request.user, _body(request))
+    return _json(_categories(request.user))
 
 
 @api_view("PUT", "DELETE")
 def api_category(request, category_name):
     if request.method == "DELETE":
-        registry.delete_skill_category(category_name)
+        registry.delete_skill_category(request.user, category_name)
     else:
-        registry.rename_skill_category(category_name, _body(request))
-    return _json(_categories())
+        registry.rename_skill_category(request.user, category_name, _body(request))
+    return _json(_categories(request.user))
 
 
 @api_view("PUT", "DELETE")
 def api_skill(request, skill_id):
     if request.method == "DELETE":
-        registry.delete_skill(skill_id)
+        registry.delete_skill(request.user, skill_id)
     else:
-        registry.save_skill(_body(request), skill_id)
-    return _json(_skills_with_years())
+        registry.save_skill(request.user, _body(request), skill_id)
+    return _json(_skills_with_years(request.user))
 
 
-def _certifications() -> list[dict]:
-    return [_certification_dict(c) for c in ordered_certifications()]
+def _certifications(owner) -> list[dict]:
+    return [_certification_dict(c) for c in ordered_certifications(owner)]
 
 
 @api_view("GET", "POST")
 def api_certifications(request):
     if request.method == "POST":
-        registry.save_certification(_body(request))
-    return _json(_certifications())
+        registry.save_certification(request.user, _body(request))
+    return _json(_certifications(request.user))
 
 
 @api_view("PUT", "DELETE")
 def api_certification(request, certification_id):
     if request.method == "DELETE":
-        registry.delete_certification(certification_id)
+        registry.delete_certification(request.user, certification_id)
     else:
-        registry.save_certification(_body(request), certification_id)
-    return _json(_certifications())
+        registry.save_certification(request.user, _body(request), certification_id)
+    return _json(_certifications(request.user))
 
 
-def _works() -> list[dict]:
-    return [_work_dict(w) for w in ordered_works()]
+def _works(owner) -> list[dict]:
+    return [_work_dict(w) for w in ordered_works(owner)]
 
 
 @api_view("GET", "POST")
 def api_works(request):
     if request.method == "POST":
-        registry.save_work(_body(request))
-    return _json(_works())
+        registry.save_work(request.user, _body(request))
+    return _json(_works(request.user))
 
 
 @api_view("PUT", "DELETE")
 def api_work(request, work_id):
     if request.method == "DELETE":
-        registry.delete_work(work_id)
+        registry.delete_work(request.user, work_id)
     else:
-        registry.save_work(_body(request), work_id)
-    return _json(_works())
+        registry.save_work(request.user, _body(request), work_id)
+    return _json(_works(request.user))
 
 
 SITE_INFO_FIELDS = [
@@ -323,9 +335,9 @@ SITE_INFO_FIELDS = [
 ]
 
 
-def _site_info() -> dict:
+def _site_info(owner) -> dict:
     """管理画面向けのサイト情報。未登録の場合は空のフォームを表示するため空の値を返す。"""
-    info = SiteInfo.objects.first()
+    info = SiteInfo.objects.for_owner(owner).first()
     if info is None:
         return {name: "" for name in SITE_INFO_FIELDS} | {"typing_titles": []}
     data = {name: getattr(info, name) for name in SITE_INFO_FIELDS}
@@ -336,29 +348,29 @@ def _site_info() -> dict:
 @api_view("GET", "PUT")
 def api_site(request):
     if request.method == "PUT":
-        registry.save_site_info(_body(request))
-    return _json(_site_info())
+        registry.save_site_info(request.user, _body(request))
+    return _json(_site_info(request.user))
 
 
 @api_view("GET", "POST")
 def api_companies(request):
     if request.method == "POST":
-        registry.save_company(_body(request))
-    return _json(_companies())
+        registry.save_company(request.user, _body(request))
+    return _json(_companies(request.user))
 
 
 @api_view("PUT", "DELETE")
 def api_company(request, company_id):
     if request.method == "DELETE":
-        registry.delete_company(company_id)
+        registry.delete_company(request.user, company_id)
     else:
-        registry.save_company(_body(request), company_id)
-    return _json(_companies())
+        registry.save_company(request.user, _body(request), company_id)
+    return _json(_companies(request.user))
 
 
-def _skillsheet_payload() -> dict:
+def _skillsheet_payload(owner) -> dict:
     """職務経歴書画面向けのデータ。文章項目・プレビュー・警告を返す。"""
-    saved = {t.text_key: t for t in SkillsheetText.objects.all()}
+    saved = {t.text_key: t for t in SkillsheetText.objects.for_owner(owner)}
     texts = [
         {
             "key": key,
@@ -368,7 +380,7 @@ def _skillsheet_payload() -> dict:
         }
         for key, label in SKILLSHEET_TEXT_KEYS.items()
     ]
-    rendered = export.render_skillsheet(timezone.localdate())
+    rendered = export.render_skillsheet(owner, timezone.localdate())
     return {
         "texts": texts,
         "preview_html": rendered.html,
@@ -378,16 +390,16 @@ def _skillsheet_payload() -> dict:
 
 @api_view("GET")
 def api_skillsheet(request):
-    return _json(_skillsheet_payload())
+    return _json(_skillsheet_payload(request.user))
 
 
 @api_view("PUT")
 def api_skillsheet_text(request, text_key):
     data = _body(request)
     registry.save_skillsheet_text(
-        text_key, data.get("body"), data.get("expected_updated_at")
+        request.user, text_key, data.get("body"), data.get("expected_updated_at")
     )
-    return _json(_skillsheet_payload())
+    return _json(_skillsheet_payload(request.user))
 
 
 def _attachment(content, content_type: str, fallback: str, filename: str):
@@ -402,7 +414,7 @@ def _attachment(content, content_type: str, fallback: str, filename: str):
 @api_view("GET")
 def skillsheet_pdf(request):
     today = timezone.localdate()
-    rendered = export.render_skillsheet(today)
+    rendered = export.render_skillsheet(request.user, today)
     return _attachment(
         export.build_pdf(rendered.html),
         "application/pdf",
@@ -414,7 +426,7 @@ def skillsheet_pdf(request):
 @api_view("GET")
 def skillsheet_markdown(request):
     today = timezone.localdate()
-    rendered = export.render_skillsheet(today)
+    rendered = export.render_skillsheet(request.user, today)
     return _attachment(
         rendered.markdown,
         "text/markdown; charset=utf-8",

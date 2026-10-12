@@ -4,6 +4,7 @@ from django.apps import apps
 from django.test import TestCase
 
 from portfolio.models import Project, ProjectSkill, Skill
+from portfolio.tests.helpers import create_user
 
 migration = importlib.import_module(
     "portfolio.migrations.0007_move_aws_services_to_aws"
@@ -36,7 +37,10 @@ class MoveAwsServicesTests(TestCase):
             skill_id="rds-db", category="データベース", name="Amazon RDS", sort_order=10
         )
         project = Project.objects.create(
-            project_id="p1", name="案件", start_year_month="2024-01"
+            owner=create_user(),
+            project_id="p1",
+            name="案件",
+            start_year_month="2024-01",
         )
         ProjectSkill.objects.create(project=project, skill_id="rds-db", version="8.0")
         self._run()

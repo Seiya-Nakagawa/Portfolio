@@ -4,6 +4,7 @@ from django.apps import apps
 from django.test import TestCase
 
 from portfolio.models import Project, ProjectSkill, Skill
+from portfolio.tests.helpers import create_user
 
 migration = import_module("portfolio.migrations.0014_merge_ecs_fargate_skill")
 
@@ -19,8 +20,12 @@ class MergeEcsFargateMigrationTests(TestCase):
         Skill.objects.create(
             skill_id="ecs-fargate", category="AWS", name="ECS (Fargate)", sort_order=20
         )
-        only_fargate = Project.objects.create(name="A", start_year_month="2025-01")
-        both = Project.objects.create(name="B", start_year_month="2025-02")
+        only_fargate = Project.objects.create(
+            owner=create_user(), name="A", start_year_month="2025-01"
+        )
+        both = Project.objects.create(
+            owner=create_user(), name="B", start_year_month="2025-02"
+        )
         ProjectSkill.objects.create(
             project=only_fargate, skill_id="ecs-fargate", version="1"
         )
@@ -53,7 +58,9 @@ class MergeEcsFargateMigrationTests(TestCase):
         Skill.objects.create(
             skill_id="aws-fargate", category="AWS", name="Fargate", sort_order=20
         )
-        project = Project.objects.create(name="C", start_year_month="2025-03")
+        project = Project.objects.create(
+            owner=create_user(), name="C", start_year_month="2025-03"
+        )
         ProjectSkill.objects.create(project=project, skill_id="aws-fargate")
 
         migration.merge_ecs_fargate(apps, None)
