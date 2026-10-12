@@ -12,7 +12,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods
 
-from portfolio import export, registry, uploads
+from portfolio import export, registry, uploads, usage
 from portfolio.models import (
     PROJECT_PHASES,
     SKILLSHEET_TEXT_KEYS,
@@ -22,6 +22,7 @@ from portfolio.models import (
     SiteInfo,
     Skill,
     SkillsheetText,
+    UsageDaily,
     Work,
 )
 from portfolio.services import (
@@ -424,8 +425,10 @@ def _attachment(content, content_type: str, fallback: str, filename: str):
 def skillsheet_pdf(request):
     today = timezone.localdate()
     rendered = export.render_skillsheet(request.user, today)
+    pdf = export.build_pdf(rendered.html)
+    usage.increment(UsageDaily.METRIC_SKILLSHEET_PDF)
     return _attachment(
-        export.build_pdf(rendered.html),
+        pdf,
         "application/pdf",
         "skillsheet.pdf",
         f"職務経歴書_{today:%Y%m%d}.pdf",
@@ -436,6 +439,7 @@ def skillsheet_pdf(request):
 def skillsheet_markdown(request):
     today = timezone.localdate()
     rendered = export.render_skillsheet(request.user, today)
+    usage.increment(UsageDaily.METRIC_SKILLSHEET_MD)
     return _attachment(
         rendered.markdown,
         "text/markdown; charset=utf-8",
