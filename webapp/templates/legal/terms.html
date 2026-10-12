@@ -1,6 +1,9 @@
-{% extends "account/base.html" %}
-{% block title %}利用規約{% endblock %}
-{% block heading %}利用規約{% endblock %}
+{% extends "service/base.html" %}
+{% block title %}利用規約 | {% endblock %}
 {% block content %}
-<p>版: {{ version }}</p>
+<article class="legal">
+  <h1>利用規約</h1>
+  <p class="version">版: {{ version }}</p>
+  {% include body_template %}
+</article>
 {% endblock %}

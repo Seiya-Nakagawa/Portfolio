@@ -48,9 +48,23 @@ def reconsent(request):
 
 @require_GET
 def terms(request):
-    return render(request, "legal/terms.html", {"version": settings.TERMS_VERSION})
+    return render(
+        request,
+        "legal/terms.html",
+        {
+            "version": settings.TERMS_VERSION,
+            "body_template": f"legal/terms/{settings.TERMS_VERSION}.html",
+        },
+    )
 
 
 @require_GET
 def privacy(request):
-    return render(request, "legal/privacy.html", {"version": settings.PRIVACY_VERSION})
+    return render(
+        request,
+        "legal/privacy.html",
+        {
+            "version": settings.PRIVACY_VERSION,
+            "body_template": f"legal/privacy/{settings.PRIVACY_VERSION}.html",
+        },
+    )

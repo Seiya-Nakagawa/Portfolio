@@ -790,6 +790,16 @@ pre {
   font-size: 0.8125rem;
 }
 
+.guide h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.0625rem;
+}
+
+.guide ol {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
 /* ---- 狭い画面 ---- */
 @media (max-width: 63.9375rem) {
   .project-layout {
