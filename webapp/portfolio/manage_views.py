@@ -438,5 +438,5 @@ def skillsheet_markdown(request):
 @api_view("POST")
 def api_upload_image(request):
     """実績のサムネイル画像をアップロードする。保存先の相対パスを返す。"""
-    path = uploads.save_work_image(request.FILES.get("image"))
+    path = uploads.save_work_image(request.user, request.FILES.get("image"))
     return _json({"path": path})

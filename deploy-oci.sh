@@ -60,6 +60,8 @@ if [ -z "$POD_NAME" ]; then
 fi
 echo "Target Pod: $POD_NAME"
 remote_ssh "kubectl exec -n ${NAMESPACE} $POD_NAME -c web -- python manage.py migrate"
+# 従来の保存先の画像を、所有するユーザーの保存先へ移す（移動済みのファイルはスキップする）。
+remote_ssh "kubectl exec -n ${NAMESPACE} $POD_NAME -c web -- python manage.py migrate_media"
 # スキル項目マスタは、未登録の項目だけを追加する（登録済みの項目は変更しない）。
 remote_ssh "kubectl exec -n ${NAMESPACE} $POD_NAME -c web -- python manage.py import_skill_master"
 

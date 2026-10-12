@@ -1,3 +1,5 @@
+from django.conf import settings
+from django.http import HttpResponsePermanentRedirect
 from django.shortcuts import redirect
 from django.urls import resolve, reverse
 from django.urls.exceptions import Resolver404
@@ -36,3 +38,35 @@ class ReconsentMiddleware:
             return resolve(request.path_info).url_name in EXEMPT_URL_NAMES
         except Resolver404:
             return False
+
+
+class LegacyUrlRedirectMiddleware:
+    """旧 URL（技術ブログのホスト配下の `/portfolio`）へのリクエストを、サービスホストへ 301 で転送する。
+
+    管理画面（`/manage/` 以下）はサービスホストの同じ画面へ、それ以外（API を含む）は運営者の
+    公開ポートフォリオへ転送する。旧 URL のホストでは、リダイレクト以外を応答しない。
+    """
+
+    LEGACY_PREFIX = "/portfolio"
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if settings.LEGACY_HOSTS and request.get_host().split(":")[0] in (
+            settings.LEGACY_HOSTS
+        ):
+            return HttpResponsePermanentRedirect(self._target(request))
+        return self.get_response(request)
+
+    def _target(self, request) -> str:
+        base = f"https://{settings.SERVICE_HOST}"
+        path = request.path
+        # Ingress がプレフィックスを除去して転送する場合と、除去しない場合の双方に対応する。
+        if path == self.LEGACY_PREFIX or path.startswith(f"{self.LEGACY_PREFIX}/"):
+            path = path[len(self.LEGACY_PREFIX) :] or "/"
+        if path.startswith("/manage"):
+            query = request.META.get("QUERY_STRING")
+            return f"{base}{path}{'?' + query if query else ''}"
+        username = settings.LEGACY_REDIRECT_USERNAME
+        return f"{base}/u/{username}/" if username else f"{base}/"

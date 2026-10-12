@@ -9,6 +9,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
+from portfolio.media_paths import work_image_dir
 from portfolio.models import (
     PROJECT_PHASE_SEPARATOR,
     PROJECT_PHASES,
@@ -490,6 +491,14 @@ def _clean_tags(value) -> list[str]:
     return [t.strip() for t in value if t.strip()]
 
 
+def _check_thumbnail(owner, thumbnail: str) -> None:
+    """ユーザーごとの保存先の画像を指す場合は、自分の保存先のみ指定できる。"""
+    if thumbnail.startswith("users/") and not thumbnail.startswith(
+        f"{work_image_dir(owner.pk)}/"
+    ):
+        raise ValidationFailed(["サムネイル: 自分の画像のみ指定できます。"])
+
+
 def save_work(owner, payload: dict, work_id: int | None = None) -> Work:
     with transaction.atomic():
         if work_id is None:
@@ -504,6 +513,7 @@ def save_work(owner, payload: dict, work_id: int | None = None) -> Work:
             payload,
             ["title", "desc_ja", "desc_en", "thumbnail", "github_url", "live_url"],
         )
+        _check_thumbnail(owner, work.thumbnail)
         work.achieved_on = _year_month_to_date(payload, "achieved_on", "実績年月")
         work.tags = _clean_tags(payload.get("tags"))
         _save_model(work)
