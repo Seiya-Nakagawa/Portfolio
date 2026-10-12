@@ -10,6 +10,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
+from portfolio.media_files import delete_unreferenced_image
 from portfolio.media_paths import work_image_dir
 from portfolio.models import (
     PROJECT_PHASE_SEPARATOR,
@@ -62,6 +63,14 @@ class NotFound(Exception):
 
 class Forbidden(Exception):
     """権限のない操作。"""
+
+
+class TooManyRequests(Exception):
+    """流量制限を超えた呼び出し。超えた対象（`scope`）を保持する。"""
+
+    def __init__(self, message: str, scope: str):
+        super().__init__(message)
+        self.scope = scope
 
 
 def _validate_year_month(value: str, label: str, errors: list[str]) -> None:
@@ -580,6 +589,7 @@ def save_work(owner, payload: dict, work_id: int | None = None) -> Work:
                 work = Work.objects.for_owner(owner).select_for_update().get(pk=work_id)
             except Work.DoesNotExist:
                 raise NotFound("実績が見つかりません。") from None
+        previous_thumbnail = work.thumbnail
         _apply(
             work,
             payload,
@@ -589,14 +599,21 @@ def save_work(owner, payload: dict, work_id: int | None = None) -> Work:
         work.achieved_on = _year_month_to_date(payload, "achieved_on", "実績年月")
         work.tags = _clean_tags(payload.get("tags"))
         _save_model(work)
+    # 画像を差し替えた場合は、参照されなくなった画像を削除する。
+    if previous_thumbnail and previous_thumbnail != work.thumbnail:
+        delete_unreferenced_image(owner, previous_thumbnail)
     return work
 
 
 def delete_work(owner, work_id: int) -> None:
     with transaction.atomic():
-        deleted, _ = Work.objects.for_owner(owner).filter(pk=work_id).delete()
-        if not deleted:
+        work = Work.objects.for_owner(owner).filter(pk=work_id).first()
+        if work is None:
             raise NotFound("実績が見つかりません。")
+        thumbnail = work.thumbnail
+        work.delete()
+    if thumbnail:
+        delete_unreferenced_image(owner, thumbnail)
 
 
 SITE_INFO_TEXT_FIELDS = [

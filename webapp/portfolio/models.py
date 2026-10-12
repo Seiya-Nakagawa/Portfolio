@@ -436,3 +436,29 @@ class UsageDaily(models.Model):
 
     def __str__(self) -> str:
         return f"{self.usage_date} / {self.metric}"
+
+
+class RateLimitCounter(models.Model):
+    """流量制限の回数。複数のワーカーで共有するため実績 DB に保持する。
+
+    識別子（接続元の IP アドレス・ユーザーの id）はハッシュ化して保存し、生の値を残さない。
+    """
+
+    scope = models.CharField("対象", max_length=32)
+    identifier = models.CharField("識別子（ハッシュ）", max_length=64)
+    window_start = models.PositiveBigIntegerField("区間の開始（UNIX 秒）")
+    count = models.PositiveIntegerField("回数", default=0)
+
+    class Meta:
+        db_table = "rate_limit_counters"
+        verbose_name = "流量制限の回数"
+        verbose_name_plural = "流量制限の回数"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["scope", "identifier", "window_start"],
+                name="uniq_rate_limit_window",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.scope} / {self.window_start}"

@@ -1,9 +1,10 @@
 from django.conf import settings
-from django.http import HttpResponsePermanentRedirect
+from django.http import HttpResponse, HttpResponsePermanentRedirect
 from django.shortcuts import redirect
 from django.urls import resolve, reverse
 from django.urls.exceptions import Resolver404
 
+from portfolio import ratelimit
 from portfolio.accounts import has_agreed_to_current_terms
 
 # 再同意が済んでいなくても表示できる画面（URL 名）。
@@ -70,3 +71,41 @@ class LegacyUrlRedirectMiddleware:
             return f"{base}{path}{'?' + query if query else ''}"
         username = settings.LEGACY_REDIRECT_USERNAME
         return f"{base}/u/{username}/" if username else f"{base}/"
+
+
+# 接続元ごとに流量を制限する URL の接頭辞（対象 → 接頭辞）。
+IP_RATE_LIMITED_PREFIXES = (
+    ("public", ("/u/", "/media/")),
+    ("login", ("/login/", "/accounts/", "/admin/login/")),
+)
+
+
+def too_many_requests(scope: str) -> HttpResponse:
+    """流量制限を超えた呼び出しへの 429 応答。"""
+    response = HttpResponse(
+        "アクセスが集中しています。しばらく待ってから再度お試しください。",
+        status=429,
+        content_type="text/plain; charset=utf-8",
+    )
+    response["Retry-After"] = str(ratelimit.retry_after(scope))
+    return response
+
+
+class RateLimitMiddleware:
+    """公開ポートフォリオ・ログイン・サインアップの呼び出し回数を接続元ごとに制限する。"""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        scope = self._scope(request.path)
+        if scope and not ratelimit.hit(scope, ratelimit.client_ip(request)):
+            return too_many_requests(scope)
+        return self.get_response(request)
+
+    @staticmethod
+    def _scope(path: str) -> str | None:
+        for scope, prefixes in IP_RATE_LIMITED_PREFIXES:
+            if path.startswith(prefixes):
+                return scope
+        return None
