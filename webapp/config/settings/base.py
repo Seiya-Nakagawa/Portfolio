@@ -18,6 +18,11 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.google",
+    "allauth.socialaccount.providers.github",
     "portfolio",
 ]
 
@@ -31,12 +36,67 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
+    # 規約の版が改定された場合に、同意していないユーザーを再同意画面へ誘導する。
+    "portfolio.middleware.ReconsentMiddleware",
 ]
 
-# 本人のみがログインできる登録画面の認証。ユーザーは createsuperuser で作成する。
+# 認証は外部アカウント（Google・GitHub）のみとし、パスワードによるログインは提供しない。
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "manage"
 LOGOUT_REDIRECT_URL = "index"
+
+AUTHENTICATION_BACKENDS = [
+    "django.contrib.auth.backends.ModelBackend",
+    "allauth.account.auth_backends.AuthenticationBackend",
+]
+
+ACCOUNT_ADAPTER = "portfolio.accounts.AccountAdapter"
+ACCOUNT_LOGIN_METHODS = {"username"}
+# メールアドレスは外部アカウントから取得した値を表示するのみとし、入力は求めない（任意・変更不可）。
+ACCOUNT_SIGNUP_FIELDS = ["email", "username*"]
+# 検証済みでないメールアドレスは既存ユーザーと紐づけず、新規のサインアップとして扱うため重複を許す。
+ACCOUNT_UNIQUE_EMAIL = False
+ACCOUNT_EMAIL_VERIFICATION = "none"
+ACCOUNT_USERNAME_MIN_LENGTH = 3
+ACCOUNT_USERNAME_MAX_LENGTH = 30
+ACCOUNT_LOGOUT_ON_GET = False
+# 外部アカウントのみで認証する（ローカルのアカウント作成・パスワードは使わない）。
+SOCIALACCOUNT_ONLY = True
+
+SOCIALACCOUNT_ADAPTER = "portfolio.accounts.SocialAccountAdapter"
+SOCIALACCOUNT_FORMS = {"signup": "portfolio.accounts.SignupForm"}
+# サインアップ時は必ずユーザー名の入力と規約への同意を求める。
+SOCIALACCOUNT_AUTO_SIGNUP = False
+SOCIALACCOUNT_STORE_TOKENS = False
+# 取得する情報は外部アカウントの識別子・メールアドレス・表示名に限り、スコープも最小限にする。
+# OAuth クライアントの ID・シークレットは環境変数で受け取る（本番は OCI Vault から同期）。
+SOCIALACCOUNT_PROVIDERS = {
+    "google": {
+        "APPS": [
+            {
+                "client_id": env("GOOGLE_CLIENT_ID", default=""),
+                "secret": env("GOOGLE_CLIENT_SECRET", default=""),
+            }
+        ],
+        "SCOPE": ["profile", "email"],
+        "AUTH_PARAMS": {"access_type": "online"},
+    },
+    "github": {
+        "APPS": [
+            {
+                "client_id": env("GITHUB_CLIENT_ID", default=""),
+                "secret": env("GITHUB_CLIENT_SECRET", default=""),
+            }
+        ],
+        "SCOPE": ["user:email"],
+    },
+}
+
+# 現行の利用規約・プライバシーポリシーの版。改定したら更新する。
+# 同意した版が現行と異なるユーザーは、ログイン後に再同意が必要になる。
+TERMS_VERSION = "2026-10-13"
+PRIVACY_VERSION = "2026-10-13"
 
 ROOT_URLCONF = "config.urls"
 

@@ -1,0 +1,7 @@
+{% extends "account/base.html" %}
+{% block title %}利用停止のお知らせ{% endblock %}
+{% block content %}
+<p class="message error" role="alert">このアカウントは利用が停止されています。</p>
+<p>ご不明な点は、運営者までお問い合わせください。</p>
+<p><a href="{% url 'index' %}">トップへ戻る</a></p>
+{% endblock %}

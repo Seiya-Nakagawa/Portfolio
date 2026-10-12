@@ -76,15 +76,30 @@ uv run python manage.py import_skill_master
 ## 登録画面
 
 `/manage/` に、案件登録・会社・スキル項目管理・資格・実績・サイト情報・職務経歴書（プレビュー・PDF / Markdown ダウンロード・文章項目の編集）の画面を持つ
-1 ページのアプリを配置する。本人のログインが必須で、未ログインの API 呼び出しは 401 を返す。
+1 ページのアプリを配置する。ログインが必須で、未ログインの API 呼び出しは 401 を返す。
 入力値の検証はサーバー側（`portfolio/registry.py`）で行い、書き込みはトランザクション内で
 対象行をロックして排他制御する。
 
-ログインユーザーは初回のみ次のコマンドで作成する（パスワードはコマンドの対話入力で設定する）。
+## ログイン・サインアップ
 
-```bash
-uv run python manage.py createsuperuser
-```
+ログインは外部アカウント（Google・GitHub）のみで、パスワードによるログインは提供しない
+（認証ライブラリは django-allauth）。
+
+| パス | 内容 |
+| ---- | ---- |
+| `/login/` | ログイン画面（Google・GitHub のボタンのみ） |
+| `/accounts/{google,github}/login/` | 提供元の認可画面へ移動する（POST） |
+| `/accounts/{google,github}/login/callback/` | 提供元からの戻り先 |
+| `/accounts/signup/` | 初回の認可後に表示するサインアップ（ユーザー名の入力と規約への同意） |
+| `/accounts/reconsent/` | 規約の版が改定された場合の再同意 |
+| `/terms/`・`/privacy/` | 利用規約・プライバシーポリシー |
+| `/admin/login/` | 管理サイトのログイン。`/login/` へ転送する |
+
+- 取得する情報は外部アカウントの識別子・メールアドレス・表示名に限り、スコープも最小限（Google: `profile`・`email`、GitHub: `user:email`）にする
+- 提供元が検証済みとしているメールアドレスが既存ユーザーと一致する場合のみ、そのユーザーに紐づける。未検証の場合は新規のサインアップとして扱う
+- 利用停止中（`is_active` が偽）のユーザーは、認可が成功してもログインさせず、既存のセッションも無効になる
+- 現行の規約の版は設定 `TERMS_VERSION`・`PRIVACY_VERSION` で定義する。改定した場合、同意した版が異なるユーザーはログイン後の全画面で再同意画面へ誘導される
+- ユーザー名は半角英小文字で始まる、半角英小文字・数字・ハイフンの 3〜30 文字で、予約語は使えない（`portfolio/accounts.py`）
 
 ## 職務経歴書
 
@@ -127,6 +142,8 @@ uv run python manage.py import_skill_sheet /path/to/csv --owner {ユーザー名
 | `ALLOWED_HOSTS` | 許可ホスト（本番のみ、カンマ区切り） | |
 | `FORCE_SCRIPT_NAME` | URL プレフィックス（本番のみ） | 既定値 `/portfolio` |
 | `CSRF_TRUSTED_ORIGINS` | CSRF を許可するオリジン（本番のみ、カンマ区切り。例: `https://example.com`） | 既定値 空 |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google の OAuth クライアント | 本番は OCI Vault から同期 |
+| `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | GitHub の OAuth App | 本番は OCI Vault から同期 |
 
 本番の機密値は `k8s/vault-sync.yaml`（ExternalSecret）により OCI Vault から
 Kubernetes Secret（`portfolio-secrets`）へ同期し、環境変数として Pod に渡す。

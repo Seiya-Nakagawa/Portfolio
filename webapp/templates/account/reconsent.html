@@ -1,0 +1,26 @@
+{% extends "account/base.html" %}
+{% block title %}規約の改定{% endblock %}
+{% block heading %}規約の改定{% endblock %}
+{% block content %}
+<p>次の規約が改定されました。内容を確認し、同意してください。</p>
+<ul>
+  <li><a href="{% url 'terms' %}" target="_blank" rel="noopener">利用規約</a>（{{ terms_version }} 版）</li>
+  <li><a href="{% url 'privacy' %}" target="_blank" rel="noopener">プライバシーポリシー</a>（{{ privacy_version }} 版）</li>
+</ul>
+<form method="post">
+  {% csrf_token %}
+  <input type="hidden" name="next" value="{{ next }}" />
+  <label class="check">
+    <input type="checkbox" name="agree" required />
+    <span>改定後の利用規約とプライバシーポリシーに同意します</span>
+  </label>
+  {% for error in form.agree.errors %}
+  <p class="message error" role="alert">{{ error }}</p>
+  {% endfor %}
+  <button type="submit" class="primary">同意する</button>
+</form>
+<form method="post" action="{% url 'logout' %}">
+  {% csrf_token %}
+  <button type="submit">同意せずログアウト</button>
+</form>
+{% endblock %}
