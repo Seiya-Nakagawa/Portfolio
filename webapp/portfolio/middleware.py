@@ -4,7 +4,7 @@ from django.shortcuts import redirect
 from django.urls import resolve, reverse
 from django.urls.exceptions import Resolver404
 
-from portfolio import ratelimit
+from portfolio import health, ratelimit
 from portfolio.accounts import has_agreed_to_current_terms
 
 # 再同意が済んでいなくても表示できる画面（URL 名）。
@@ -73,6 +73,9 @@ class LegacyUrlRedirectMiddleware:
         return f"{base}/u/{username}/" if username else f"{base}/"
 
 
+# ヘルスチェックの URL。
+HEALTH_PATH = "/healthz"
+
 # 接続元ごとに流量を制限する URL の接頭辞（対象 → 接頭辞）。
 IP_RATE_LIMITED_PREFIXES = (
     ("public", ("/u/", "/media/")),
@@ -109,3 +112,19 @@ class RateLimitMiddleware:
             if path.startswith(prefixes):
                 return scope
         return None
+
+
+class ServerErrorCountMiddleware:
+    """サーバーエラー（5xx）の応答を数え、ヘルスチェックの判定に用いる。
+
+    ヘルスチェック自身の異常（503）は数えない。
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        if response.status_code >= 500 and request.path != HEALTH_PATH:
+            health.record_server_error()
+        return response

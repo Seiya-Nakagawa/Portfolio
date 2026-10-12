@@ -102,13 +102,15 @@ spec:
               port: 8000
             initialDelaySeconds: 15
             periodSeconds: 30
+          # gunicorn のワーカー 2 つ（WEB_CONCURRENCY）が、それぞれ PDF の生成（最大 512Mi 程度）を
+          # 行っても収まるよう上限を設ける。
           resources:
             requests:
-              cpu: 100m
-              memory: 128Mi
+              cpu: 200m
+              memory: 384Mi
             limits:
-              cpu: 500m
-              memory: 512Mi
+              cpu: "1"
+              memory: 1Gi
 ---
 apiVersion: v1
 kind: Service

@@ -13,6 +13,7 @@ from portfolio import auth_views as portfolio_auth_views
 # サービスホストのルート（/）で公開する。
 urlpatterns = [
     path("", views.index, name="index"),
+    path("healthz", views.healthz, name="healthz"),
     # ユーザー別の公開ポートフォリオと読み取り専用 API（認証不要。公開中のユーザーのみ）
     path("u/<str:username>/", views.portfolio, name="portfolio"),
     path("u/<str:username>/api/skills", views.api_skills, name="api-skills"),
