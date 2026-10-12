@@ -8,8 +8,7 @@
   データベースの日次バックアップ）。基盤自体の構築・運用は infra-oci リポジトリの責務であり、本リポジトリは
   その上で動作するポートフォリオアプリ（コンテナイメージ・アプリケーションコード）のみを管理する。
   公開ポートフォリオ（フロントエンド）のホスティングもこのポートフォリオアプリに含める
-- 本サービスは `technohonesty.com` のサブドメイン（以下、サービスホスト）のルート（`/`）で公開する。
-  <mark>サブドメイン名は未確定（[Issue #160](https://github.com/Seiya-Nakagawa/Portfolio/issues/160)）</mark>。
+- 本サービスは `skillsheet.technohonesty.com`（以下、サービスホスト）のルート（`/`）で公開する。
   サービスホストの DNS レコード・TLS 証明書・Ingress のルールは infra-oci リポジトリが管理する
   （[infra-oci Issue #151](https://github.com/Seiya-Nakagawa/infra-oci/issues/151)）
 - 旧 URL（`technohonesty.com/portfolio`）の Ingress のルールは、運営者の公開ポートフォリオへの
