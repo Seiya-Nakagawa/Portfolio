@@ -12,6 +12,7 @@ from django.urls import reverse
 
 from portfolio.management.commands.import_portfolio_data import SEED_DIR
 from portfolio.models import Certification, Project, ProjectSkill, Skill, Work
+from portfolio.tests.helpers import create_operator, create_user
 
 TODAY = date(2026, 9, 25)
 
@@ -27,13 +28,17 @@ def _create_skill(skill_id, category, name, sort_order):
 
 class SkillsApiTests(TestCase):
     def setUp(self):
+        self.operator = create_operator()
         # 表示順の検証のため、カテゴリ名の辞書順と sort_order の順が食い違うよう登録する。
         self.lang_java = _create_skill("java", "言語", "Java", 20)
         self.lang_py = _create_skill("python", "言語", "Python", 10)
         self.os_linux = _create_skill("linux", "OS", "Linux", 30)
         self.unused = _create_skill("cobol", "言語", "COBOL", 40)
         project = Project.objects.create(
-            name="案件A", start_year_month="2025-01", end_year_month="2025-12"
+            owner=self.operator,
+            name="案件A",
+            start_year_month="2025-01",
+            end_year_month="2025-12",
         )
         for skill in (self.lang_java, self.lang_py, self.os_linux):
             ProjectSkill.objects.create(project=project, skill=skill)
@@ -76,8 +81,13 @@ class SkillsApiTests(TestCase):
 
 class CertificationsApiTests(TestCase):
     def test_取得日の古い順でキーはname_date_org(self):
-        Certification.objects.create(name="A", acquired_on=date(2020, 9, 1), org="Y")
-        Certification.objects.create(name="B", acquired_on=date(2024, 7, 1), org="X")
+        operator = create_operator()
+        Certification.objects.create(
+            owner=operator, name="A", acquired_on=date(2020, 9, 1), org="Y"
+        )
+        Certification.objects.create(
+            owner=operator, name="B", acquired_on=date(2024, 7, 1), org="X"
+        )
         response = self.client.get(reverse("api-certifications"))
         self.assertEqual(
             response.json(),
@@ -90,8 +100,10 @@ class CertificationsApiTests(TestCase):
 
 class WorksApiTests(TestCase):
     def test_登録の新しい順で未設定の任意項目は省略する(self):
-        Work.objects.create(title="先", desc_ja="d1")
+        operator = create_operator()
+        Work.objects.create(owner=operator, title="先", desc_ja="d1")
         Work.objects.create(
+            owner=operator,
             title="後",
             desc_ja="d2",
             desc_en="e2",
@@ -148,16 +160,33 @@ class ImportPortfolioDataTests(TestCase):
 
     def test_投入し_再実行では二重登録しない(self):
         seed = self._seed_dir()
-        call_command("import_portfolio_data", seed_dir=seed, stdout=StringIO())
-        call_command("import_portfolio_data", seed_dir=seed, stdout=StringIO())
+        owner = create_user("importer")
+        for _ in range(2):
+            call_command(
+                "import_portfolio_data",
+                seed_dir=seed,
+                owner=owner.username,
+                stdout=StringIO(),
+            )
         self.assertEqual(Certification.objects.get().acquired_on, date(2024, 7, 1))
         self.assertEqual(Work.objects.get().tags, ["a"])
+        self.assertEqual(Work.objects.get().owner, owner)
 
     def test_同梱の投入元を読み込める(self):
-        call_command("import_portfolio_data", stdout=StringIO())
+        owner = create_user("importer")
+        call_command("import_portfolio_data", owner=owner.username, stdout=StringIO())
         self.assertGreater(Certification.objects.count(), 0)
         self.assertGreater(Work.objects.count(), 0)
 
     def test_投入元がなければエラー(self):
+        owner = create_user("importer")
         with self.assertRaises(CommandError):
-            call_command("import_portfolio_data", seed_dir=Path("/nonexistent"))
+            call_command(
+                "import_portfolio_data",
+                seed_dir=Path("/nonexistent"),
+                owner=owner.username,
+            )
+
+    def test_存在しないユーザーならエラー(self):
+        with self.assertRaises(CommandError):
+            call_command("import_portfolio_data", owner="nobody", stdout=StringIO())

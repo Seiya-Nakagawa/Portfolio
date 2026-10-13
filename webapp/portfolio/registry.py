@@ -12,7 +12,6 @@ from django.utils import timezone
 from portfolio.models import (
     PROJECT_PHASE_SEPARATOR,
     PROJECT_PHASES,
-    SITE_INFO_ID,
     SKILLSHEET_TEXT_KEYS,
     YEAR_MONTH_VALIDATOR,
     Certification,
@@ -66,7 +65,7 @@ def _validate_year_month(value: str, label: str, errors: list[str]) -> None:
         errors.append(f"{label}は YYYY-MM 形式で入力してください。")
 
 
-def _clean_project_payload(payload: dict) -> tuple[dict, list[dict]]:
+def _clean_project_payload(owner, payload: dict) -> tuple[dict, list[dict]]:
     errors: list[str] = []
 
     name = str(payload.get("name") or "").strip()
@@ -113,19 +112,25 @@ def _clean_project_payload(payload: dict) -> tuple[dict, list[dict]]:
             seen.add(skill_id)
             skills.append({"skill_id": skill_id, "version": version})
 
+    # 参照できるのは共通マスタと自分の独自スキル項目のみ。他のユーザーの項目は存在しないものとして扱う。
     existing = set(
-        Skill.objects.filter(skill_id__in=seen).values_list("skill_id", flat=True)
+        Skill.objects.visible_to(owner)
+        .filter(skill_id__in=seen)
+        .values_list("skill_id", flat=True)
     )
     for skill_id in sorted(seen - existing):
         errors.append(f"存在しないスキル項目です: {skill_id}")
 
     project_id = str(payload.get("project_id") or "")
     current_phases = (
-        Project.objects.filter(pk=project_id).values_list("phases", flat=True).first()
+        Project.objects.for_owner(owner)
+        .filter(pk=project_id)
+        .values_list("phases", flat=True)
+        .first()
         if project_id
         else None
     )
-    details = _clean_project_details(payload, errors, current_phases or "")
+    details = _clean_project_details(owner, payload, errors, current_phases or "")
 
     if errors:
         raise ValidationFailed(errors)
@@ -157,7 +162,7 @@ def _clean_phases(payload: dict, errors: list[str], current_phases: str) -> str:
 
 
 def _clean_project_details(
-    payload: dict, errors: list[str], current_phases: str
+    owner, payload: dict, errors: list[str], current_phases: str
 ) -> dict:
     """案件の詳細（会社・体制・案件概要・業務内容・担当工程・環境・言語）を検証する。"""
     details: dict = {}
@@ -183,22 +188,29 @@ def _clean_project_details(
         details["company_id"] = None
     elif isinstance(company_id, bool) or not str(company_id).isdigit():
         errors.append("会社の形式が不正です。")
-    elif not Company.objects.filter(pk=int(company_id)).exists():
+    elif not Company.objects.for_owner(owner).filter(pk=int(company_id)).exists():
         errors.append("存在しない会社です。")
     else:
         details["company_id"] = int(company_id)
     return details
 
 
-def save_project(payload: dict) -> Project:
-    """案件と使用スキルを保存する。既存の使用スキルは削除して置き換える。"""
-    fields, skills = _clean_project_payload(payload)
+def save_project(owner, payload: dict) -> Project:
+    """案件と使用スキルを保存する。既存の使用スキルは削除して置き換える。
+
+    所有者は常に `owner`（ログインしたユーザー）とし、リクエストの値は用いない。
+    """
+    fields, skills = _clean_project_payload(owner, payload)
     project_id = payload.get("project_id")
 
     with transaction.atomic():
         if project_id:
             try:
-                project = Project.objects.select_for_update().get(pk=project_id)
+                project = (
+                    Project.objects.for_owner(owner)
+                    .select_for_update()
+                    .get(pk=project_id)
+                )
             except Project.DoesNotExist:
                 raise NotFound("案件が見つかりません。") from None
             for key, value in fields.items():
@@ -206,7 +218,7 @@ def save_project(payload: dict) -> Project:
             project.save()
             ProjectSkill.objects.filter(project=project).delete()
         else:
-            project = Project.objects.create(**fields)
+            project = Project.objects.create(owner=owner, **fields)
 
         ProjectSkill.objects.bulk_create(
             ProjectSkill(
@@ -217,11 +229,13 @@ def save_project(payload: dict) -> Project:
     return project
 
 
-def delete_project(project_id: str) -> None:
+def delete_project(owner, project_id: str) -> None:
     """案件を削除する。紐づく使用スキルも同時に削除される。"""
     with transaction.atomic():
         try:
-            project = Project.objects.select_for_update().get(pk=project_id)
+            project = (
+                Project.objects.for_owner(owner).select_for_update().get(pk=project_id)
+            )
         except Project.DoesNotExist:
             raise NotFound("案件が見つかりません。") from None
         project.delete()
@@ -273,25 +287,25 @@ SKILL_SORT_ORDER_STEP = 10
 MAX_CATEGORY_NAME_LENGTH = 64
 
 
-def category_names() -> list[str]:
+def category_names(owner) -> list[str]:
     """種類の並び順を返す。種類マスタの順に、マスタ未登録の種類（スキル項目側のみ）を続ける。"""
     names = list(SkillCategory.objects.values_list("name", flat=True))
     known = set(names)
-    for skill in ordered_skills():
+    for skill in ordered_skills(owner):
         if skill.category not in known:
             known.add(skill.category)
             names.append(skill.category)
     return names
 
 
-def resequence_skills(category_order: list[str] | None = None) -> None:
+def resequence_skills(owner, category_order: list[str] | None = None) -> None:
     """種類マスタとスキル項目の表示順（sort_order）を、種類の並び順と種類内の昇順に従って採番し直す。
 
     種類間は category_order（未指定・未掲載の種類は現在の並び順）に従い、種類内は
     サブカテゴリ（未設定は末尾） ＞ 表示名の昇順とする。スキル項目を持たない種類も並び順に含める。
     """
-    skills = ordered_skills()
-    categories = category_names()
+    skills = ordered_skills(owner)
+    categories = category_names(owner)
     requested = [c for c in (category_order or []) if c in categories]
     order = requested + [c for c in categories if c not in requested]
     rank = {category: index for index, category in enumerate(order)}
@@ -315,8 +329,10 @@ def resequence_skills(category_order: list[str] | None = None) -> None:
         category.save()
 
 
-def _lock_skills() -> None:
-    list(Skill.objects.select_for_update().values_list("pk", flat=True))
+def _lock_skills(owner) -> None:
+    list(
+        Skill.objects.visible_to(owner).select_for_update().values_list("pk", flat=True)
+    )
     list(SkillCategory.objects.select_for_update().values_list("pk", flat=True))
 
 
@@ -333,49 +349,50 @@ def _clean_category_name(payload: dict) -> str:
     return name
 
 
-def add_skill_category(payload: dict) -> None:
+def add_skill_category(owner, payload: dict) -> None:
     """種類を末尾に追加する。"""
     name = _clean_category_name(payload)
     with transaction.atomic():
-        _lock_skills()
-        if name in category_names():
+        _lock_skills(owner)
+        if name in category_names(owner):
             raise ValidationFailed([f"種類は既に登録されています: {name}"])
-        resequence_skills()
+        resequence_skills(owner)
         SkillCategory.objects.create(
-            name=name, sort_order=(len(category_names()) + 1) * SKILL_SORT_ORDER_STEP
+            name=name,
+            sort_order=(len(category_names(owner)) + 1) * SKILL_SORT_ORDER_STEP,
         )
-        resequence_skills()
+        resequence_skills(owner)
 
 
-def rename_skill_category(current: str, payload: dict) -> None:
+def rename_skill_category(owner, current: str, payload: dict) -> None:
     """種類名を変更する。対応するスキル項目の種類も同時に更新する。"""
     name = _clean_category_name(payload)
     with transaction.atomic():
-        _lock_skills()
-        names = category_names()
+        _lock_skills(owner)
+        names = category_names(owner)
         if current not in names:
             raise NotFound("種類が見つかりません。")
         if name != current and name in names:
             raise ValidationFailed([f"種類は既に登録されています: {name}"])
-        resequence_skills()
+        resequence_skills(owner)
         SkillCategory.objects.filter(name=current).update(name=name)
-        Skill.objects.filter(category=current).update(category=name)
-        resequence_skills()
+        Skill.objects.visible_to(owner).filter(category=current).update(category=name)
+        resequence_skills(owner)
 
 
-def delete_skill_category(name: str) -> None:
+def delete_skill_category(owner, name: str) -> None:
     """スキル項目が属さない種類のみ削除できる。"""
     with transaction.atomic():
-        _lock_skills()
-        if name not in category_names():
+        _lock_skills(owner)
+        if name not in category_names(owner):
             raise NotFound("種類が見つかりません。")
-        if Skill.objects.filter(category=name).exists():
+        if Skill.objects.visible_to(owner).filter(category=name).exists():
             raise ValidationFailed(["スキル項目が属する種類は削除できません。"])
         SkillCategory.objects.filter(name=name).delete()
-        resequence_skills()
+        resequence_skills(owner)
 
 
-def reorder_skill_categories(payload: dict) -> None:
+def reorder_skill_categories(owner, payload: dict) -> None:
     """種類単位の並び順を保存する。"""
     categories = payload.get("categories")
     if not isinstance(categories, list) or not all(
@@ -383,21 +400,27 @@ def reorder_skill_categories(payload: dict) -> None:
     ):
         raise ValidationFailed(["種類の並び順の形式が不正です。"])
     with transaction.atomic():
-        _lock_skills()
-        resequence_skills(categories)
+        _lock_skills(owner)
+        resequence_skills(owner, categories)
 
 
-def save_skill(payload: dict, skill_id: str | None = None) -> Skill:
-    """スキル項目を追加（skill_id 未指定）または変更する。skill_id は変更できない。"""
+def save_skill(owner, payload: dict, skill_id: str | None = None) -> Skill:
+    """スキル項目を追加（skill_id 未指定）または変更する。skill_id は変更できない。
+
+    追加した項目は `owner` の独自スキル項目とする。共通マスタと独自スキル項目の編集権限の
+    分離は別 Issue（#170）で実装する。
+    """
     with transaction.atomic():
         if skill_id is None:
             new_id = str(payload.get("skill_id") or "").strip()
             if Skill.objects.filter(pk=new_id).exists():
                 raise ValidationFailed([f"skill_id は既に登録されています: {new_id}"])
-            skill = Skill(skill_id=new_id)
+            skill = Skill(skill_id=new_id, owner=owner)
         else:
             try:
-                skill = Skill.objects.select_for_update().get(pk=skill_id)
+                skill = (
+                    Skill.objects.visible_to(owner).select_for_update().get(pk=skill_id)
+                )
             except Skill.DoesNotExist:
                 raise NotFound("スキル項目が見つかりません。") from None
 
@@ -405,18 +428,18 @@ def save_skill(payload: dict, skill_id: str | None = None) -> Skill:
         _apply(skill, payload, ["category", "subcategory", "name"])
         # 新規、または種類が変わった項目は末尾に置き、採番し直しで種類内の並びへ収める。
         if skill_id is None or skill.category != previous_category:
-            last = Skill.objects.order_by("-sort_order").first()
+            last = Skill.objects.visible_to(owner).order_by("-sort_order").first()
             skill.sort_order = (last.sort_order if last else 0) + SKILL_SORT_ORDER_STEP
         _save_model(skill)
-        resequence_skills()
+        resequence_skills(owner)
     return Skill.objects.get(pk=skill.pk)
 
 
-def delete_skill(skill_id: str) -> None:
+def delete_skill(owner, skill_id: str) -> None:
     """マスタ項目ではなく、使用実績が紐づかないスキル項目のみ削除できる。"""
     with transaction.atomic():
         try:
-            skill = Skill.objects.select_for_update().get(pk=skill_id)
+            skill = Skill.objects.visible_to(owner).select_for_update().get(pk=skill_id)
         except Skill.DoesNotExist:
             raise NotFound("スキル項目が見つかりません。") from None
         if skill.is_master:
@@ -424,19 +447,21 @@ def delete_skill(skill_id: str) -> None:
         if skill.project_skills.exists():
             raise ValidationFailed(["使用実績が紐づくスキル項目は削除できません。"])
         skill.delete()
-        resequence_skills()
+        resequence_skills(owner)
 
 
 def save_certification(
-    payload: dict, certification_id: int | None = None
+    owner, payload: dict, certification_id: int | None = None
 ) -> Certification:
     with transaction.atomic():
         if certification_id is None:
-            certification = Certification()
+            certification = Certification(owner=owner)
         else:
             try:
-                certification = Certification.objects.select_for_update().get(
-                    pk=certification_id
+                certification = (
+                    Certification.objects.for_owner(owner)
+                    .select_for_update()
+                    .get(pk=certification_id)
                 )
             except Certification.DoesNotExist:
                 raise NotFound("資格が見つかりません。") from None
@@ -448,9 +473,11 @@ def save_certification(
     return certification
 
 
-def delete_certification(certification_id: int) -> None:
+def delete_certification(owner, certification_id: int) -> None:
     with transaction.atomic():
-        deleted, _ = Certification.objects.filter(pk=certification_id).delete()
+        deleted, _ = (
+            Certification.objects.for_owner(owner).filter(pk=certification_id).delete()
+        )
         if not deleted:
             raise NotFound("資格が見つかりません。")
 
@@ -463,13 +490,13 @@ def _clean_tags(value) -> list[str]:
     return [t.strip() for t in value if t.strip()]
 
 
-def save_work(payload: dict, work_id: int | None = None) -> Work:
+def save_work(owner, payload: dict, work_id: int | None = None) -> Work:
     with transaction.atomic():
         if work_id is None:
-            work = Work()
+            work = Work(owner=owner)
         else:
             try:
-                work = Work.objects.select_for_update().get(pk=work_id)
+                work = Work.objects.for_owner(owner).select_for_update().get(pk=work_id)
             except Work.DoesNotExist:
                 raise NotFound("実績が見つかりません。") from None
         _apply(
@@ -483,9 +510,9 @@ def save_work(payload: dict, work_id: int | None = None) -> Work:
     return work
 
 
-def delete_work(work_id: int) -> None:
+def delete_work(owner, work_id: int) -> None:
     with transaction.atomic():
-        deleted, _ = Work.objects.filter(pk=work_id).delete()
+        deleted, _ = Work.objects.for_owner(owner).filter(pk=work_id).delete()
         if not deleted:
             raise NotFound("実績が見つかりません。")
 
@@ -504,12 +531,12 @@ SITE_INFO_TEXT_FIELDS = [
 ]
 
 
-def save_site_info(payload: dict) -> SiteInfo:
-    """サイト情報（1 行のみ）を保存する。未登録の場合は作成する。"""
+def save_site_info(owner, payload: dict) -> SiteInfo:
+    """サイト情報（ユーザーごとに 1 行）を保存する。未登録の場合は作成する。"""
     with transaction.atomic():
-        info = SiteInfo.objects.select_for_update().filter(pk=SITE_INFO_ID).first()
+        info = SiteInfo.objects.for_owner(owner).select_for_update().first()
         if info is None:
-            info = SiteInfo(site_info_id=SITE_INFO_ID)
+            info = SiteInfo(owner=owner)
         for name in SITE_INFO_TEXT_FIELDS:
             setattr(info, name, str(payload.get(name) or "").strip())
         info.typing_titles = _clean_tags(payload.get("typing_titles"))
@@ -536,14 +563,18 @@ COMPANY_TEXT_FIELDS = [
 ]
 
 
-def save_company(payload: dict, company_id: int | None = None) -> Company:
+def save_company(owner, payload: dict, company_id: int | None = None) -> Company:
     """会社を追加（company_id 未指定）または変更する。"""
     with transaction.atomic():
         if company_id is None:
-            company = Company()
+            company = Company(owner=owner)
         else:
             try:
-                company = Company.objects.select_for_update().get(pk=company_id)
+                company = (
+                    Company.objects.for_owner(owner)
+                    .select_for_update()
+                    .get(pk=company_id)
+                )
             except Company.DoesNotExist:
                 raise NotFound("会社が見つかりません。") from None
         _apply(company, payload, COMPANY_TEXT_FIELDS)
@@ -568,11 +599,13 @@ def save_company(payload: dict, company_id: int | None = None) -> Company:
     return company
 
 
-def delete_company(company_id: int) -> None:
+def delete_company(owner, company_id: int) -> None:
     """所属する案件がない会社のみ削除できる。"""
     with transaction.atomic():
         try:
-            company = Company.objects.select_for_update().get(pk=company_id)
+            company = (
+                Company.objects.for_owner(owner).select_for_update().get(pk=company_id)
+            )
         except Company.DoesNotExist:
             raise NotFound("会社が見つかりません。") from None
         if company.projects.exists():
@@ -581,7 +614,7 @@ def delete_company(company_id: int) -> None:
 
 
 def save_skillsheet_text(
-    key: str, body: str, expected_updated_at: str | None
+    owner, key: str, body: str, expected_updated_at: str | None
 ) -> SkillsheetText:
     """職務経歴書の文章項目を保存する。
 
@@ -601,7 +634,12 @@ def save_skillsheet_text(
             )
 
     with transaction.atomic():
-        text = SkillsheetText.objects.select_for_update().filter(pk=key).first()
+        text = (
+            SkillsheetText.objects.for_owner(owner)
+            .select_for_update()
+            .filter(text_key=key)
+            .first()
+        )
         current = text.updated_at.isoformat() if text else None
         if (expected_updated_at or None) != current:
             raise ValidationFailed(
@@ -613,7 +651,7 @@ def save_skillsheet_text(
                 ]
             )
         if text is None:
-            text = SkillsheetText(text_key=key)
+            text = SkillsheetText(owner=owner, text_key=key)
         text.body = body
         text.updated_at = timezone.now()
         text.save()

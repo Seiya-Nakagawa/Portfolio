@@ -6,6 +6,7 @@
 import csv
 from pathlib import Path
 
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
@@ -42,13 +43,23 @@ class Command(BaseCommand):
     help = (
         "実績シートの CSV（skills.csv・projects.csv・project_skills.csv）を実績 DB へ移行する。"
         "スキル項目・案件・使用実績のいずれかに既存データがある場合は何も変更しない。"
+        "案件は --owner で指定したユーザーの所有とし、スキル項目は共通マスタにする。"
     )
 
     def add_arguments(self, parser):
         parser.add_argument("directory", type=Path, help="CSV を置いたディレクトリ")
+        parser.add_argument(
+            "--owner", required=True, help="案件を所有するユーザーのユーザー名"
+        )
 
     def handle(self, *args, **options):
         directory: Path = options["directory"]
+        try:
+            owner = get_user_model().objects.get(username=options["owner"])
+        except get_user_model().DoesNotExist:
+            raise CommandError(
+                f"ユーザーが見つかりません: {options['owner']}"
+            ) from None
         skill_rows = read_rows(
             directory / SKILLS_FILE,
             ["skill_id", "category", "name"],
@@ -87,6 +98,7 @@ class Command(BaseCommand):
                 name=row["name"],
                 start_year_month=row["start_year_month"],
                 end_year_month=row["end_year_month"],
+                owner=owner,
             )
             full_clean_or_raise(project, f"projects.csv project_id={row['project_id']}")
             projects.append(project)

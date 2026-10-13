@@ -92,9 +92,9 @@ def _format_period(start: str, end: str) -> str:
     return f"{to_label(start)}〜{to_label(end) if end else ONGOING_LABEL}"
 
 
-def build_skill_table(today: date) -> str:
+def build_skill_table(owner, today: date) -> str:
     """`■テクニカルスキル` の表。使用実績のあるスキル項目がなければ空文字列を返す。"""
-    rows = build_skill_rows(today)
+    rows = build_skill_rows(owner, today)
     if not rows:
         return ""
     lines = [
@@ -184,8 +184,10 @@ def _build_company(company: Company, projects: list[Project]) -> str:
     return "\n\n".join(blocks)
 
 
-def _build_certifications() -> str:
-    certifications = Certification.objects.order_by("acquired_on", "certification_id")
+def _build_certifications(owner) -> str:
+    certifications = Certification.objects.for_owner(owner).order_by(
+        "acquired_on", "certification_id"
+    )
     return "\n".join(
         f"- {c.name}（{format_year_month(c.acquired_on)}）" for c in certifications
     )
@@ -197,15 +199,17 @@ def _section(title: str, body: str) -> str | None:
     return f"## {title}\n\n{body}" if body else None
 
 
-def _load_texts() -> dict[str, str]:
-    return {t.text_key: t.body.strip() for t in SkillsheetText.objects.all()}
+def _load_texts(owner) -> dict[str, str]:
+    return {t.text_key: t.body.strip() for t in SkillsheetText.objects.for_owner(owner)}
 
 
-def build_markdown(today: date) -> tuple[str, SkillsheetWarnings]:
-    """実績 DB の内容から職務経歴書の Markdown と警告を組み立てる。"""
-    texts = _load_texts()
-    companies = list(Company.objects.all())
-    projects = list(Project.objects.order_by("-start_year_month", "name"))
+def build_markdown(owner, today: date) -> tuple[str, SkillsheetWarnings]:
+    """指定ユーザーの実績 DB の内容から職務経歴書の Markdown と警告を組み立てる。"""
+    texts = _load_texts(owner)
+    companies = list(Company.objects.for_owner(owner))
+    projects = list(
+        Project.objects.for_owner(owner).order_by("-start_year_month", "name")
+    )
 
     projects_by_company: dict[int, list[Project]] = {}
     unassigned: list[str] = []
@@ -242,9 +246,9 @@ def build_markdown(today: date) -> tuple[str, SkillsheetWarnings]:
             if company.kind == kind
         )
         sections.append(_section(heading, body))
-    sections.append(_section("■テクニカルスキル", build_skill_table(today)))
+    sections.append(_section("■テクニカルスキル", build_skill_table(owner, today)))
     sections.append(_section("■活かせる経験・得意分野", texts.get("strengths", "")))
-    sections.append(_section("■保有資格", _build_certifications()))
+    sections.append(_section("■保有資格", _build_certifications(owner)))
     sections.append(_section("■自己PR", texts.get("self_pr", "")))
     sections.append(END_MARK)
 
@@ -263,9 +267,9 @@ def to_html_document(merged_markdown: str) -> str:
     )
 
 
-def render_skillsheet(today: date) -> RenderedSkillsheet:
-    """実績 DB の内容から、Markdown・HTML・警告を返す。"""
-    merged, warnings = build_markdown(today)
+def render_skillsheet(owner, today: date) -> RenderedSkillsheet:
+    """指定ユーザーの実績 DB の内容から、Markdown・HTML・警告を返す。"""
+    merged, warnings = build_markdown(owner, today)
     return RenderedSkillsheet(
         markdown=merged, html=to_html_document(merged), warnings=warnings
     )

@@ -29,6 +29,19 @@ infra-oci 基盤の Kubernetes 上にコンテナとして配置し、実績 DB�
 
 テーブル定義は `portfolio/models.py`、スキーマ変更は `portfolio/migrations/` で管理する。
 
+共通マスタ（スキル項目の共通マスタ・種類マスタ）を除く全テーブルは、所有するユーザーを
+`owner_id`（`auth_user` の `id`）で参照する。所有者で絞り込んだ取得は、モデルの共通の取得口
+（`for_owner()`、スキル項目は共通マスタを含む `visible_to()`）を経由し、管理画面の API・
+集計・職務経歴書の生成は、ログインしたユーザーのデータのみを対象とする。
+ユーザーを削除すると、所有する行は連鎖して削除される。
+テナント分離は `portfolio/tests/test_tenant_isolation.py` で検証する（API を追加した際は同じテストに追加する）。
+設計は [基本設計書 4.13](../docs/02.design/DESIGN.md#413-テナント分離) を参照する。
+
+| テーブル | 役割 |
+| -------- | ---- |
+| `user_profiles` | ユーザーのプロフィール（公開設定・規約の同意状況） |
+| `usage_daily` | 利用状況の日次集計値（ユーザーを参照しない） |
+
 ## 公開ページ・読み取り専用 API
 
 認証不要で公開する（パスプレフィックス `/portfolio` は Ingress が除去して転送する）。
@@ -41,16 +54,19 @@ infra-oci 基盤の Kubernetes 上にコンテナとして配置し、実績 DB�
 | `/api/works` | 実績データ |
 | `/api/site` | サイト情報データ（Hero・About・Contact・フッター） |
 
-資格・実績・サイト情報の初期データは、マイグレーション適用後に次のコマンドで投入する
-（データがあるテーブルはスキップする）。
+公開ページ・API は、ユーザー別の公開ポートフォリオ（`/u/{ユーザー名}/`）を実装するまでの間、
+最初に登録された有効な運営者（`is_staff`）のデータを表示する。
+
+資格・実績・サイト情報の初期データは、マイグレーション適用後に次のコマンドで投入する。
+`--owner` に所有者とするユーザーのユーザー名を指定する（そのユーザーにデータがあるテーブルはスキップする）。
 
 ```bash
-uv run python manage.py import_portfolio_data
+uv run python manage.py import_portfolio_data --owner {ユーザー名}
 ```
 
 スキル項目マスタ（AWS・Azure・Google Cloud・OCI のサービスと、言語・DB などの汎用項目）は、
 次のコマンドで未登録の項目のみを追加する（登録済みの項目は変更しない。デプロイ時にも実行される）。
-追加した項目はマスタ項目となり、管理画面から削除できない。クラウドのサービス一覧は
+追加した項目は共通マスタ（所有者なし）のマスタ項目となり、管理画面から削除できない。クラウドのサービス一覧は
 `scripts/fetch_cloud_services.py` で各社の公式サイトから再取得して種データを更新する。
 
 ```bash
@@ -92,9 +108,10 @@ PDF は組み立てた Markdown を WeasyPrint で変換して生成する。実
 
 旧実績シートの CSV（`skills.csv`・`projects.csv`・`project_skills.csv`）を実績 DB へ移行する。
 実データは個人の職歴を含むためリポジトリには置かない。既存データがある場合は何も変更しない。
+案件は `--owner` で指定したユーザーの所有とし、スキル項目は共通マスタにする。
 
 ```bash
-uv run python manage.py import_skill_sheet /path/to/csv
+uv run python manage.py import_skill_sheet /path/to/csv --owner {ユーザー名}
 ```
 
 ## 環境変数
@@ -130,7 +147,7 @@ uv run python manage.py runserver
 ## デプロイ
 
 リポジトリルートの `deploy-oci.sh` が、イメージのビルド・転送、`k8s/` のマニフェスト適用、
-マイグレーション、初期データ投入を行う。本番デプロイは GitHub Actions（`.github/workflows/deploy.yml`）
+マイグレーションとスキル項目マスタの投入を行う。本番デプロイは GitHub Actions（`.github/workflows/deploy.yml`）
 が `main` マージを契機に、OCI Bastion 経由で自動実行する。作業端末からの直接実行は障害調査等の
 一時的な用途に限る。詳細は [基本設計書 7.1](../docs/02.design/DESIGN.md#71-cicd-パイプライン) を参照する。
 

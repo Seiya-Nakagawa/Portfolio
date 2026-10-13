@@ -4,6 +4,7 @@ from django.apps import apps
 from django.test import TestCase
 
 from portfolio.models import Project
+from portfolio.tests.helpers import create_user
 
 migration = import_module("portfolio.migrations.0017_environment_one_item_per_line")
 
@@ -11,9 +12,14 @@ migration = import_module("portfolio.migrations.0017_environment_one_item_per_li
 class EnvironmentLinesMigrationTests(TestCase):
     def test_読点区切りを1行1項目に変換する(self):
         Project.objects.create(
-            name="A", start_year_month="2025-01", environment="AWS、Python 3.14、"
+            owner=create_user(),
+            name="A",
+            start_year_month="2025-01",
+            environment="AWS、Python 3.14、",
         )
-        Project.objects.create(name="B", start_year_month="2025-02")
+        Project.objects.create(
+            owner=create_user(), name="B", start_year_month="2025-02"
+        )
 
         migration.split_environment(apps, None)
 
@@ -24,7 +30,10 @@ class EnvironmentLinesMigrationTests(TestCase):
 
     def test_元に戻すと読点区切りになる(self):
         Project.objects.create(
-            name="A", start_year_month="2025-01", environment="AWS\nPython 3.14"
+            owner=create_user(),
+            name="A",
+            start_year_month="2025-01",
+            environment="AWS\nPython 3.14",
         )
 
         migration.join_environment(apps, None)

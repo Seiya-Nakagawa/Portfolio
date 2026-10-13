@@ -7,6 +7,7 @@ from django.core.management.base import CommandError
 from django.test import TestCase
 
 from portfolio.models import Project, ProjectSkill, Skill
+from portfolio.tests.helpers import create_user
 
 SKILLS = "skill_id,category,name,sort_order\nec2,AWS,EC2,1\nlinux,OS,Linux,1\n"
 PROJECTS = (
@@ -18,6 +19,9 @@ USAGES = "project_id,skill_id,version\nproj-a,ec2,\nproj-a,linux,Ubuntu 26.04\np
 
 
 class ImportSkillSheetTests(TestCase):
+    def setUp(self):
+        self.owner = create_user("importer")
+
     def _dir(self, skills=SKILLS, projects=PROJECTS, usages=USAGES):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
@@ -29,7 +33,7 @@ class ImportSkillSheetTests(TestCase):
 
     def _run(self, path):
         out = StringIO()
-        call_command("import_skill_sheet", path, stdout=out)
+        call_command("import_skill_sheet", path, owner="importer", stdout=out)
         return out.getvalue()
 
     def test_移行できる(self):
@@ -37,6 +41,7 @@ class ImportSkillSheetTests(TestCase):
             "スキル項目 2 件、案件 2 件、使用実績 3 件", self._run(self._dir())
         )
         self.assertEqual(Project.objects.get(project_id="proj-b").end_year_month, "")
+        self.assertEqual(Project.objects.get(project_id="proj-b").owner, self.owner)
         self.assertEqual(
             ProjectSkill.objects.get(project_id="proj-a", skill_id="linux").version,
             "Ubuntu 26.04",
@@ -87,6 +92,12 @@ class ImportSkillSheetTests(TestCase):
     def test_必須列がなければエラー(self):
         with self.assertRaises(CommandError):
             self._run(self._dir(usages="project_id,skill_id\nproj-a,ec2\n"))
+
+    def test_存在しないユーザーならエラー(self):
+        with self.assertRaises(CommandError):
+            call_command(
+                "import_skill_sheet", self._dir(), owner="nobody", stdout=StringIO()
+            )
 
     def test_CSVがなければエラー(self):
         with self.assertRaises(CommandError):

@@ -1,14 +1,17 @@
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
-from django.db.models import ProtectedError
+from django.db.models import RestrictedError
 from django.test import TestCase
 
 from portfolio.models import Project, ProjectSkill, Skill
+from portfolio.tests.helpers import create_user
 
 
 class ProjectTests(TestCase):
     def test_案件IDは自動採番される(self):
-        project = Project.objects.create(name="案件A", start_year_month="2024-01")
+        project = Project.objects.create(
+            owner=create_user(), name="案件A", start_year_month="2024-01"
+        )
         self.assertRegex(project.project_id, r"^p-[0-9a-f]{12}$")
 
     def test_年月の形式を検証する(self):
@@ -17,13 +20,20 @@ class ProjectTests(TestCase):
             project.full_clean()
 
     def test_終了年月は空でもよい(self):
-        project = Project(name="案件A", start_year_month="2024-01", end_year_month="")
+        project = Project(
+            owner=create_user(),
+            name="案件A",
+            start_year_month="2024-01",
+            end_year_month="",
+        )
         project.full_clean()
 
 
 class ProjectSkillTests(TestCase):
     def setUp(self):
-        self.project = Project.objects.create(name="案件A", start_year_month="2024-01")
+        self.project = Project.objects.create(
+            owner=create_user(), name="案件A", start_year_month="2024-01"
+        )
         self.skill = Skill.objects.create(
             skill_id="python",
             category="言語",
@@ -38,7 +48,7 @@ class ProjectSkillTests(TestCase):
 
     def test_実績が紐づくスキルは削除できない(self):
         ProjectSkill.objects.create(project=self.project, skill=self.skill)
-        with self.assertRaises(ProtectedError):
+        with self.assertRaises(RestrictedError):
             self.skill.delete()
 
     def test_案件を削除すると使用実績も削除される(self):
@@ -76,5 +86,5 @@ class OrderedSkillsTests(TestCase):
                 name=skill_id,
                 sort_order=order,
             )
-        ids = [s.skill_id for s in ordered_skills()]
+        ids = [s.skill_id for s in ordered_skills(create_user())]
         self.assertEqual(ids, ["a2", "a4", "a3", "a1", "l1"])

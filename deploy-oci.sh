@@ -49,7 +49,7 @@ remote_ssh "kubectl rollout restart deployment/portfolio-web -n ${NAMESPACE} || 
 remote_ssh "kubectl rollout status deployment/portfolio-web -n ${NAMESPACE} --timeout=120s"
 
 echo "=================================================="
-echo "🔄 [5/5] Djangoマイグレーションと初期データ投入を実行しています..."
+echo "🔄 [5/5] Djangoマイグレーションとスキル項目マスタの投入を実行しています..."
 echo "=================================================="
 # ロールアウト直後は終了済みの古い Pod が残るため、Running の Pod に限定し、
 # 複数該当する場合は作成日時が最新の Pod を選ぶ
@@ -60,8 +60,6 @@ if [ -z "$POD_NAME" ]; then
 fi
 echo "Target Pod: $POD_NAME"
 remote_ssh "kubectl exec -n ${NAMESPACE} $POD_NAME -c web -- python manage.py migrate"
-# 資格・実績は、データが既にあるテーブルへは投入しない（再デプロイしても二重登録にならない）。
-remote_ssh "kubectl exec -n ${NAMESPACE} $POD_NAME -c web -- python manage.py import_portfolio_data"
 # スキル項目マスタは、未登録の項目だけを追加する（登録済みの項目は変更しない）。
 remote_ssh "kubectl exec -n ${NAMESPACE} $POD_NAME -c web -- python manage.py import_skill_master"
 

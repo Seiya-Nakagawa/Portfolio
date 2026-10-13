@@ -57,7 +57,7 @@ infra-oci 上の既存アプリ（kakeibo）と同じ様式（hostPath 経由の
 3. `k8s/` のマニフェストを OCI ホストへ送り、`kubectl apply` する
    （Namespace・Ingress・TLS 証明書は基盤側の管理のため適用しない）。
 4. Deployment を再起動し、ロールアウトの完了を待つ。
-5. Pod 内で `migrate` と `import_portfolio_data` を実行する。
+5. Pod 内で `migrate` と `import_skill_master` を実行する。
 
 ### 3.3. イメージのローカル検証
 

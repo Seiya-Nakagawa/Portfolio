@@ -25,7 +25,9 @@ def _skill(skill_id, category, name, sort_order):
 
 class LoggedInTestCase(TestCase):
     def setUp(self):
-        get_user_model().objects.create_user("owner", password="pw-for-test")
+        self.user = get_user_model().objects.create_user(
+            "owner", password="pw-for-test"
+        )
         self.client.login(username="owner", password="pw-for-test")
 
     def call(self, method, name, data=None, **kwargs):
@@ -182,10 +184,17 @@ class ProjectApiTests(LoggedInTestCase):
 
     def test_初期表示は開始年月が最新の継続中案件(self):
         Project.objects.create(
-            name="終了済み", start_year_month="2026-01", end_year_month="2026-02"
+            owner=self.user,
+            name="終了済み",
+            start_year_month="2026-01",
+            end_year_month="2026-02",
         )
-        Project.objects.create(name="継続中・古", start_year_month="2024-01")
-        Project.objects.create(name="継続中・新", start_year_month="2025-06")
+        Project.objects.create(
+            owner=self.user, name="継続中・古", start_year_month="2024-01"
+        )
+        Project.objects.create(
+            owner=self.user, name="継続中・新", start_year_month="2025-06"
+        )
         body = self.call("get", "manage-api-bootstrap").json()
         self.assertEqual(
             [p["name"] for p in body["ongoing_projects"]], ["継続中・新", "継続中・古"]
@@ -194,12 +203,20 @@ class ProjectApiTests(LoggedInTestCase):
 
     def test_終了済み案件は終了年月の降順で返す(self):
         Project.objects.create(
-            name="古", start_year_month="2023-01", end_year_month="2023-06"
+            owner=self.user,
+            name="古",
+            start_year_month="2023-01",
+            end_year_month="2023-06",
         )
         Project.objects.create(
-            name="新", start_year_month="2024-01", end_year_month="2024-06"
+            owner=self.user,
+            name="新",
+            start_year_month="2024-01",
+            end_year_month="2024-06",
         )
-        Project.objects.create(name="継続中", start_year_month="2025-01")
+        Project.objects.create(
+            owner=self.user, name="継続中", start_year_month="2025-01"
+        )
         body = self.call("get", "manage-api-bootstrap").json()
         self.assertEqual([p["name"] for p in body["finished_projects"]], ["新", "古"])
         self.assertEqual(body["finished_projects"][0]["end_year_month"], "2024-06")
@@ -214,7 +231,10 @@ class ProjectDetailApiTests(LoggedInTestCase):
     def setUp(self):
         super().setUp()
         self.company = Company.objects.create(
-            name="架空株式会社", kind="main", start_year_month="2020-04"
+            owner=self.user,
+            name="架空株式会社",
+            kind="main",
+            start_year_month="2020-04",
         )
 
     def _payload(self, **overrides):
@@ -275,7 +295,10 @@ class ProjectDetailApiTests(LoggedInTestCase):
 
     def test_選択肢導入前の担当工程は編集時に残せる(self):
         project = Project.objects.create(
-            name="旧", start_year_month="2025-01", phases="基本設計、製造"
+            owner=self.user,
+            name="旧",
+            start_year_month="2025-01",
+            phases="基本設計、製造",
         )
         payload = self._payload(
             project_id=project.project_id, phases=["基本設計", "製造", "実装"]
@@ -393,10 +416,13 @@ class CompanyApiTests(LoggedInTestCase):
 
     def test_所属する案件がある会社は削除できない(self):
         company = Company.objects.create(
-            name="架空株式会社", kind="main", start_year_month="2020-04"
+            owner=self.user,
+            name="架空株式会社",
+            kind="main",
+            start_year_month="2020-04",
         )
         Project.objects.create(
-            name="案件A", start_year_month="2025-04", company=company
+            owner=self.user, name="案件A", start_year_month="2025-04", company=company
         )
         response = self.call(
             "delete", "manage-api-company", company_id=company.company_id
@@ -580,7 +606,9 @@ class SkillApiTests(LoggedInTestCase):
 
     def test_使用実績のある項目は削除できない(self):
         skill = _skill("ec2", "AWS", "EC2", 10)
-        project = Project.objects.create(name="A", start_year_month="2025-01")
+        project = Project.objects.create(
+            owner=self.user, name="A", start_year_month="2025-01"
+        )
         ProjectSkill.objects.create(project=project, skill=skill)
         response = self.call("delete", "manage-api-skill", skill_id="ec2")
         self.assertEqual(response.status_code, 400)
@@ -590,7 +618,10 @@ class SkillApiTests(LoggedInTestCase):
         skill = _skill("ec2", "AWS", "EC2", 10)
         _skill("vpc", "AWS", "VPC", 20)
         project = Project.objects.create(
-            name="A", start_year_month="2025-01", end_year_month="2025-12"
+            owner=self.user,
+            name="A",
+            start_year_month="2025-01",
+            end_year_month="2025-12",
         )
         ProjectSkill.objects.create(project=project, skill=skill)
         with patch("portfolio.manage_views.timezone.localdate", return_value=TODAY):
