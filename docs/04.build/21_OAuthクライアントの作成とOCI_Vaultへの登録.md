@@ -81,15 +81,27 @@ OCI Vault のシークレット名と、アプリが受け取る環境変数の�
 
 ### 3.4. 本番の資格情報の OCI Vault への登録
 
-マージ（CD による `k8s/vault-sync.yaml` の適用）より前に実施する。シークレットが存在しない状態で適用すると、
-ExternalSecret の同期が失敗する。
+マージ（CD による `k8s/vault-sync.yaml` の適用）より前に実施する。値が登録されていない状態で適用すると、
+ログインできない。
+
+次の 4 つのシークレットは infra-oci の Terraform が作成する（作成時の値はプレースホルダー）。
+値は Terraform へ渡さず、OCI コンソールで新しいバージョンとして登録する
+（[infra-oci 構築手順書 08](https://github.com/Seiya-Nakagawa/infra-oci/blob/main/docs/04.build/08_OAuthクライアント資格情報のVaultシークレット追加.md)）。
+
+| シークレット名 | 登録する値（3.1・3.2 で控えた本番用） |
+| -------------- | ------------------------------------- |
+| `portfolio-google-client-id` | Google の本番用クライアントの ID |
+| `portfolio-google-client-secret` | Google の本番用クライアントのシークレット |
+| `portfolio-github-client-id` | GitHub の本番用 OAuth App の Client ID |
+| `portfolio-github-client-secret` | GitHub の本番用 OAuth App のシークレット |
 
 1. OCI コンソールで、`portfolio-secret-key` 等を登録している Vault を開く
-2. 次の 4 つのシークレットを作成する。値は 3.1・3.2 で控えた本番用の ID・シークレットとする
-   - `portfolio-google-client-id`
-   - `portfolio-google-client-secret`
-   - `portfolio-github-client-id`
-   - `portfolio-github-client-secret`
+2. 左メニューの「シークレット」から、上記のシークレットの名前をクリックする
+3. 左メニューの「バージョン」を開き、「新規バージョンの作成」を押す
+4. 「シークレット・タイプのテンプレート」で「プレーン・テキスト」を選び、「シークレットの内容」に値を貼る
+   - 値の前後に空白・改行を入れない
+5. 「新規バージョンの作成」を押し、最新のバージョンが「現行」になっていること
+6. 4 つのシークレットすべてについて、2〜5 を繰り返す
 
 ### 3.5. 同期の確認
 
