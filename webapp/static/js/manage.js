@@ -15,6 +15,8 @@ document.addEventListener('DOMContentLoaded', () => {
         skillsheet: document.body.dataset.apiSkillsheet,
         skillsheetPdf: document.body.dataset.skillsheetPdf,
         skillsheetMarkdown: document.body.dataset.skillsheetMarkdown,
+        account: document.body.dataset.apiAccount,
+        accountWithdraw: document.body.dataset.apiAccountWithdraw,
     };
     // --- 共通処理 ---
 
@@ -1233,6 +1235,165 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // --- アカウント ---
+
+    const accountRoot = document.getElementById('tab-account');
+    let accountCurrent = null; // サーバーに保存されている現在の内容
+
+    // 提供元の連携は、認証ライブラリの認可画面へ POST で移動する（ログイン中は追加連携になる）。
+    function connectProvider(provider) {
+        const form = document.createElement('form');
+        form.method = 'post';
+        form.action = provider.connect_url;
+        const fields = { csrfmiddlewaretoken: getCookie('csrftoken'), process: 'connect', next: window.location.pathname };
+        Object.entries(fields).forEach(([name, value]) => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = name;
+            input.value = value;
+            form.appendChild(input);
+        });
+        document.body.appendChild(form);
+        form.submit();
+    }
+
+    function publicUrl(account) {
+        return `${window.location.origin}${account.public_path}`;
+    }
+
+    function renderAccountView() {
+        const a = accountCurrent;
+        const providers = a.providers.map((p) => {
+            const action = p.connected
+                ? `<button type="button" data-disconnect="${esc(p.id)}"${a.can_disconnect ? '' : ' disabled title="連携が 1 つだけの場合は解除できません"'}>解除</button>`
+                : `<button type="button" class="primary" data-connect="${esc(p.id)}">連携する</button>`;
+            return `<tr><th scope="row">${esc(p.name)}</th><td>${p.connected ? '連携済み' : '未連携'}</td><td>${action}</td></tr>`;
+        }).join('');
+        accountRoot.innerHTML = `
+            ${pageHead('アカウント', { sub: 'ユーザー名・公開設定・外部アカウントの連携・退会を管理します。' })}
+            <div class="card">
+                <h3>ユーザー名</h3>
+                <table class="kv"><tr><th scope="row">ユーザー名</th><td>${esc(a.username)}</td></tr>
+                <tr><th scope="row">メールアドレス</th><td>${esc(a.email || '（未取得）')}</td></tr></table>
+                <div class="form-bar"><button type="button" data-username-edit>ユーザー名を変更</button></div>
+            </div>
+            <div class="card">
+                <h3>公開設定</h3>
+                <p>現在: <strong>${a.is_public ? '公開中' : '非公開'}</strong></p>
+                ${a.is_public ? `<p>公開 URL: <a href="${esc(a.public_path)}" target="_blank" rel="noopener">${esc(publicUrl(a))}</a></p>` : ''}
+                <div class="form-bar"><button type="button" class="primary" data-public-toggle>${a.is_public ? '非公開にする' : '公開する'}</button></div>
+            </div>
+            <div class="card">
+                <h3>外部アカウント</h3>
+                <div class="table-wrap"><table class="data-table">
+                    <thead><tr><th>提供元</th><th>状態</th><th></th></tr></thead>
+                    <tbody>${providers}</tbody>
+                </table></div>
+            </div>
+            <div class="card">
+                <h3>退会</h3>
+                <p>退会すると、案件・会社・スキル項目・資格・実績・サイト情報・職務経歴書の文章項目・アップロードした画像・外部アカウントの連携のすべてが削除されます。<strong>削除後は復元できません。</strong></p>
+                <div class="form-bar"><button type="button" class="danger" data-withdraw-start>退会する</button></div>
+            </div>`;
+        accountRoot.querySelector('[data-username-edit]').addEventListener('click', () => renderUsernameForm(a.username));
+        accountRoot.querySelector('[data-public-toggle]').addEventListener('click', togglePublic);
+        accountRoot.querySelectorAll('[data-connect]').forEach((b) => b.addEventListener('click', () => {
+            connectProvider(accountCurrent.providers.find((p) => p.id === b.dataset.connect));
+        }));
+        accountRoot.querySelectorAll('[data-disconnect]').forEach((b) => b.addEventListener('click', () => disconnectProvider(b.dataset.disconnect)));
+        accountRoot.querySelector('[data-withdraw-start]').addEventListener('click', () => renderWithdrawForm());
+    }
+
+    async function togglePublic() {
+        const next = !accountCurrent.is_public;
+        if (next && accountCurrent.site_name_missing) {
+            showMessage('公開する前に、「サイト情報」で氏名を入力してください。', 'warning');
+        }
+        const saved = await guarded(() => api('PUT', urls.account, { is_public: next }));
+        if (!saved) return;
+        accountCurrent = saved;
+        renderAccountView();
+        showMessage(next ? '公開しました。' : '非公開にしました。', next && saved.site_name_missing ? 'warning' : 'ok');
+    }
+
+    async function disconnectProvider(provider) {
+        const name = accountCurrent.providers.find((p) => p.id === provider).name;
+        if (!window.confirm(`${name} の連携を解除します。よろしいですか。`)) return;
+        const saved = await guarded(() => api('DELETE', `${urls.account}/providers/${provider}`));
+        if (!saved) return;
+        accountCurrent = saved;
+        renderAccountView();
+        showMessage('連携を解除しました。');
+    }
+
+    function renderUsernameForm(value) {
+        accountRoot.innerHTML = `
+            ${pageHead('ユーザー名を変更', { back: 'data-account-cancel' })}
+            <form class="card">
+                <label>ユーザー名<input type="text" name="username" value="${esc(value)}" minlength="3" maxlength="30" autocomplete="off" required /></label>
+                <p class="hint">半角英小文字で始め、半角英小文字・数字・ハイフンの 3〜30 文字で入力します。</p>
+                <div class="form-bar">
+                    <button type="submit" class="primary">確認へ</button>
+                    <button type="button" data-account-cancel>キャンセル</button>
+                </div>
+            </form>`;
+        accountRoot.querySelector('[data-account-cancel]').addEventListener('click', renderAccountView);
+        accountRoot.querySelector('form').addEventListener('submit', (event) => {
+            event.preventDefault();
+            const username = event.target.elements.username.value.trim().toLowerCase();
+            showMessage('');
+            renderUsernameConfirm(username);
+        });
+    }
+
+    function renderUsernameConfirm(username) {
+        const oldUrl = publicUrl(accountCurrent);
+        const newUrl = `${window.location.origin}${accountCurrent.public_path.replace(/\/u\/[^/]+\//, `/u/${encodeURIComponent(username)}/`)}`;
+        renderConfirmScreen(accountRoot, {
+            title: 'ユーザー名',
+            saveLabel: '変更',
+            rows: [['ユーザー名', username], ['公開ポートフォリオの URL', newUrl]],
+            before: [accountCurrent.username, oldUrl],
+            onBack: () => renderUsernameForm(username),
+            onSave: async () => {
+                const saved = await guarded(() => api('PUT', urls.account, { username }));
+                if (!saved) return;
+                accountCurrent = saved;
+                renderAccountView();
+                showMessage('ユーザー名を変更しました。旧 URL は無効になります。', 'warning');
+            },
+        });
+        accountRoot.querySelector('.card').insertAdjacentHTML('afterbegin', '<p class="message warning">ユーザー名を変更すると、公開ポートフォリオの URL が変わり、旧 URL は無効（404）になります。旧ユーザー名は他のユーザーが取得できるようになります。</p>');
+    }
+
+    function renderWithdrawForm() {
+        accountRoot.innerHTML = `
+            ${pageHead('退会', { back: 'data-account-cancel' })}
+            <form class="card">
+                <p>退会すると、すべてのデータと画像が削除され、<strong>復元できません</strong>。実行するには、ユーザー名「<strong>${esc(accountCurrent.username)}</strong>」を入力してください。</p>
+                <label>ユーザー名の確認<input type="text" name="username" autocomplete="off" required /></label>
+                <div class="form-bar">
+                    <button type="submit" class="danger">退会を実行する</button>
+                    <button type="button" data-account-cancel>キャンセル</button>
+                </div>
+            </form>`;
+        accountRoot.querySelector('[data-account-cancel]').addEventListener('click', renderAccountView);
+        accountRoot.querySelector('form').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const username = event.target.elements.username.value.trim();
+            const result = await guarded(() => api('POST', urls.accountWithdraw, { username }));
+            if (result) window.location.assign(result.redirect);
+        });
+    }
+
+    async function loadAccount() {
+        const data = await guarded(() => api('GET', urls.account));
+        if (data) {
+            accountCurrent = data;
+            renderAccountView();
+        }
+    }
+
     // --- 職務経歴書 ---
 
     // 行単位の差分（最長共通部分列）。修正前・修正後の各行に追加・削除の印を付けて返す。
@@ -1432,6 +1593,7 @@ document.addEventListener('DOMContentLoaded', () => {
         site: loadSiteInfo,
         skillsheet: loadSkillsheet,
         categories: loadCategories,
+        account: loadAccount,
     };
 
     // 狭い画面でのサイドバー開閉。画面を選択したら閉じる。
