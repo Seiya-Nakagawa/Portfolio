@@ -757,7 +757,7 @@ class ImageUploadTests(LoggedInTestCase):
         response = self._upload()
         self.assertEqual(response.status_code, 200)
         path = response.json()["path"]
-        self.assertRegex(path, r"^works/[0-9a-f]{32}\.png$")
+        self.assertRegex(path, rf"^users/{self.user.pk}/works/[0-9a-f]{{32}}\.png$")
         self.assertTrue((Path(self._media.name) / path).exists())
 
     def test_保存した画像を配信する(self):

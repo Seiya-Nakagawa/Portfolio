@@ -1,0 +1,12 @@
+{% extends "account/base.html" %}
+{% block title %}サービス紹介{% endblock %}
+{% block content %}
+<p>実績の登録から経験年数の自動算出、職務経歴書の PDF 出力までを行うサービスです。</p>
+<p>
+  {% if user.is_authenticated %}
+  <a href="{% url 'manage' %}">スキル実績管理へ</a>
+  {% else %}
+  <a href="{% url 'login' %}">ログイン・サインアップ</a>
+  {% endif %}
+</p>
+{% endblock %}

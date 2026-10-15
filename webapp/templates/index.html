@@ -27,10 +27,10 @@
   <body
     data-static-base="{% static '' %}"
     data-media-base="{{ MEDIA_URL }}"
-    data-api-skills="{% url 'api-skills' %}"
-    data-api-certifications="{% url 'api-certifications' %}"
-    data-api-works="{% url 'api-works' %}"
-    data-api-site="{% url 'api-site' %}"
+    data-api-skills="{% url 'api-skills' portfolio_username %}"
+    data-api-certifications="{% url 'api-certifications' portfolio_username %}"
+    data-api-works="{% url 'api-works' portfolio_username %}"
+    data-api-site="{% url 'api-site' portfolio_username %}"
   >
     <a class="skip-link" href="#main">本文へ移動</a>
     <header>

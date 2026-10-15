@@ -334,7 +334,7 @@ class UnauthenticatedAndPublicTests(TwoUsersTestCase):
             owner=operator, name="運営者の資格", acquired_on=date(2024, 1, 1), org="X"
         )
         self.client.logout()
-        body = self.client.get(reverse("api-certifications")).json()
+        body = self.client.get(reverse("api-certifications", args=["operator"])).json()
         self.assertEqual([c["name"] for c in body], ["運営者の資格"])
 
 

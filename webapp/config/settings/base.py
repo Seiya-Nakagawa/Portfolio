@@ -28,6 +28,8 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # 旧 URL のホストへのリクエストは、リダイレクト以外を応答しない。
+    "portfolio.middleware.LegacyUrlRedirectMiddleware",
     # 静的ファイルを gunicorn から直接配信する（本番）。
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -92,6 +94,12 @@ SOCIALACCOUNT_PROVIDERS = {
         "SCOPE": ["user:email"],
     },
 }
+
+# 旧 URL（technohonesty.com/portfolio）からのリダイレクト。LEGACY_HOSTS が空の場合は行わない。
+# 転送先は SERVICE_HOST の運営者の公開ポートフォリオ（LEGACY_REDIRECT_USERNAME。未設定ならトップ）。
+SERVICE_HOST = env("SERVICE_HOST", default="")
+LEGACY_HOSTS = env.list("LEGACY_HOSTS", default=[])
+LEGACY_REDIRECT_USERNAME = env("LEGACY_REDIRECT_USERNAME", default="")
 
 # 現行の利用規約・プライバシーポリシーの版。改定したら更新する。
 # 同意した版が現行と異なるユーザーは、ログイン後に再同意が必要になる。

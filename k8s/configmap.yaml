@@ -6,8 +6,10 @@ metadata:
   name: portfolio-config
   namespace: app-prod
 data:
-  ALLOWED_HOSTS: "technohonesty.com"
-  FORCE_SCRIPT_NAME: "/portfolio"
+  # サービスホストのルートで公開する。旧 URL のホストは、リダイレクトのみを応答するために許可する。
+  ALLOWED_HOSTS: "skillsheet.technohonesty.com,technohonesty.com"
+  SERVICE_HOST: "skillsheet.technohonesty.com"
+  LEGACY_HOSTS: "technohonesty.com"
   DB_SOCKET_PATH: "/var/run/mysqld/mysqld.sock"
   # 登録画面（ログイン・CSRF）が Ingress で終端された HTTPS のオリジンを許可するために必要。
-  CSRF_TRUSTED_ORIGINS: "https://technohonesty.com"
+  CSRF_TRUSTED_ORIGINS: "https://skillsheet.technohonesty.com"
