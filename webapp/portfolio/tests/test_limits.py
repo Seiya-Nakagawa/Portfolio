@@ -6,6 +6,7 @@ import time
 from io import StringIO
 from pathlib import Path
 
+from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.test import RequestFactory, TestCase, override_settings
@@ -148,6 +149,19 @@ class QuotaTests(MediaTestCase):
         other = create_user("hanako")
         self.client.force_login(other)
         self.assertEqual(self.upload("c.png", PNG + b"x" * 60).status_code, 200)
+
+    @override_settings(MAX_USER_IMAGE_BYTES=100)
+    def test_old_unsaved_images_are_reclaimed_when_over_quota(self):
+        path = self.upload("a.png", PNG + b"x" * 70).json()["path"]
+        file = Path(settings.MEDIA_ROOT) / path
+        # 直後の未保存の画像は残り、容量超過のまま。
+        self.assertEqual(self.upload("b.png", PNG + b"x" * 70).status_code, 400)
+        self.assertTrue(file.exists())
+        # 一定時間を過ぎた未保存の画像は整理され、アップロードできる。
+        old = time.time() - 2 * 60 * 60
+        os.utime(file, (old, old))
+        self.assertEqual(self.upload("b.png", PNG + b"x" * 70).status_code, 200)
+        self.assertFalse(file.exists())
 
     @override_settings(MAX_USER_IMAGE_BYTES=100)
     def test_deleting_work_frees_quota(self):
