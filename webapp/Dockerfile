@@ -55,4 +55,8 @@ USER appuser
 
 EXPOSE 8000
 
+# ワーカー数は環境変数 WEB_CONCURRENCY（gunicorn の既定の参照先）で変更できる。
+# PDF 生成が長引いても他のリクエストを待たせないよう、複数のワーカーで動かす。
+ENV WEB_CONCURRENCY=2
+
 CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--timeout", "120", "config.wsgi:application"]

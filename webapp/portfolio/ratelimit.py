@@ -35,30 +35,33 @@ def _hash(value: str) -> str:
     return hashlib.sha256(f"{settings.SECRET_KEY}:{value}".encode()).hexdigest()
 
 
-def hit(scope: str, identifier: str) -> bool:
-    """呼び出しを 1 回数え、上限以内であれば True を返す。上限を超えた場合は False を返す。"""
-    limit, window = settings.RATE_LIMITS[scope]
-    window_start = int(time.time()) // window * window
+def increment(scope: str, identifier: str, window_start: int) -> int:
+    """区間の回数を 1 加算し、加算後の回数を返す。当日の行がなければ作成する。"""
     queryset = RateLimitCounter.objects.filter(
         scope=scope, identifier=_hash(identifier), window_start=window_start
     )
     if queryset.update(count=F("count") + 1):
-        count = queryset.values_list("count", flat=True).get()
-    else:
-        try:
-            with transaction.atomic():
-                RateLimitCounter.objects.create(
-                    scope=scope,
-                    identifier=_hash(identifier),
-                    window_start=window_start,
-                    count=1,
-                )
-            count = 1
-        except IntegrityError:
-            # 同時に別のリクエストが行を作成した場合は、その行へ加算する。
-            queryset.update(count=F("count") + 1)
-            count = queryset.values_list("count", flat=True).get()
-    return count <= limit
+        return queryset.values_list("count", flat=True).get()
+    try:
+        with transaction.atomic():
+            RateLimitCounter.objects.create(
+                scope=scope,
+                identifier=_hash(identifier),
+                window_start=window_start,
+                count=1,
+            )
+        return 1
+    except IntegrityError:
+        # 同時に別のリクエストが行を作成した場合は、その行へ加算する。
+        queryset.update(count=F("count") + 1)
+        return queryset.values_list("count", flat=True).get()
+
+
+def hit(scope: str, identifier: str) -> bool:
+    """呼び出しを 1 回数え、上限以内であれば True を返す。上限を超えた場合は False を返す。"""
+    limit, window = settings.RATE_LIMITS[scope]
+    window_start = int(time.time()) // window * window
+    return increment(scope, identifier, window_start) <= limit
 
 
 def retry_after(scope: str) -> int:

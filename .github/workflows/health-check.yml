@@ -1,0 +1,38 @@
+name: Health Check
+
+# 死活監視。サービスのヘルスチェックを 15 分ごとに確認し、異常または応答がない場合は
+# ワークフローを失敗させる（失敗は GitHub の通知機能で運営者へメール通知される）。
+# 公開リポジトリで一定期間コミットがないと定期実行が自動で無効化されるため、
+# 無効化の通知を受けた場合は Actions の画面から再度有効にする。
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: health-check
+  cancel-in-progress: true
+
+env:
+  HEALTH_URL: https://skillsheet.technohonesty.com/healthz
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check health endpoint
+        run: |
+          # 一時的なネットワークの揺らぎで誤検知しないよう、間隔を空けて最大 3 回確認する。
+          for attempt in 1 2 3; do
+            status=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 30 "$HEALTH_URL" || true)
+            echo "attempt ${attempt}: HTTP ${status}"
+            if [ "$status" = "200" ]; then
+              exit 0
+            fi
+            sleep 20
+          done
+          echo "::error::ヘルスチェックが異常または応答がありません (HTTP ${status})"
+          exit 1

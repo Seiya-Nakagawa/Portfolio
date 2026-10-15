@@ -168,6 +168,19 @@ API は `/manage/api/account`（取得・変更）、`/manage/api/account/provid
 - 実績の削除・画像の差し替え時に、どの実績からも参照されなくなった画像を削除する
 - 日次の整理処理 `python manage.py daily_maintenance` が、期限切れの流量制限の回数と、アップロードから 24 時間を過ぎても実績に保存されていない画像を削除する。本番は `k8s/cronjob.yaml` の CronJob（毎日 03:00（日本時間））で実行する
 
+## 死活監視
+
+| 項目 | 内容 |
+| ---- | ---- |
+| `/healthz` | ヘルスチェック（認証不要）。実績 DB に接続でき、直近 10 分間のサーバーエラー（5xx）が 10 件以下なら 200（`ok`）、それ以外は 503（`ng`）を返す。件数・構成などの内部情報は返さない |
+| 5xx の計数 | `ServerErrorCountMiddleware` が 5xx の応答を 1 分ごとの区間に `rate_limit_counters` へ数える（ヘルスチェック自身の 503 は数えない）。しきい値は `HEALTH_MAX_SERVER_ERRORS`・`HEALTH_ERROR_WINDOW_MINUTES` |
+| 定期確認 | `.github/workflows/health-check.yml` が 15 分ごとに `/healthz` を確認し、異常または応答がない場合は失敗する（3 回まで再確認）。失敗は GitHub の通知で運営者へメール通知される。一定期間コミットがないと定期実行が無効化されるため、通知を受けたら Actions の画面から再度有効にする |
+| gunicorn | ワーカー数は環境変数 `WEB_CONCURRENCY`（Dockerfile の既定値は 2）で指定する |
+| Pod のリソース | `k8s/web.yaml` で requests を CPU 200m・メモリ 384Mi、limits を CPU 1・メモリ 1Gi とする |
+
+- アプリケーションのコードにはログ出力を追加していない。ログに出る内容は Django の既定（エラー時のリクエスト URL のパス等）と gunicorn（アクセスログは無効）に限り、
+  メールアドレス・接続元の IP アドレスは出力しない（`portfolio.tests.test_health` で確認）。ログを追加する場合も個人情報を含めない
+
 ## スキル項目（共通マスタと独自スキル項目）
 
 スキル項目は、全ユーザーで共有する共通マスタ（`owner_id` が空）と、ユーザーごとの独自スキル項目に分かれる。

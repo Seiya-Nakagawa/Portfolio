@@ -1,12 +1,12 @@
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.http import Http404, JsonResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
 from django.views.decorators.http import require_GET
 from django.views.static import serve
 
-from portfolio import services
+from portfolio import health, services
 from portfolio.media_paths import USER_IMAGE_PATH
 
 
@@ -91,3 +91,14 @@ def media(request, path):
     ):
         raise Http404("画像が見つかりません。")
     return serve(request, path, document_root=settings.MEDIA_ROOT)
+
+
+@require_GET
+def healthz(request):
+    """死活監視用のヘルスチェック（認証不要）。件数・構成などの内部情報は応答に含めない。"""
+    healthy = health.is_healthy()
+    return HttpResponse(
+        "ok" if healthy else "ng",
+        status=200 if healthy else 503,
+        content_type="text/plain; charset=utf-8",
+    )

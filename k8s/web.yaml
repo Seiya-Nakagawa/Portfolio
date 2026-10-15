@@ -91,24 +91,30 @@ spec:
                   import http.client
                   import sys
 
-                  conn = http.client.HTTPConnection("127.0.0.1", 8000, timeout=3)
+                  conn = http.client.HTTPConnection("127.0.0.1", 8000, timeout=8)
                   conn.request("GET", "/", headers={"Host": "skillsheet.technohonesty.com"})
                   status = conn.getresponse().status
                   sys.exit(0 if status < 400 else 1)
             initialDelaySeconds: 5
             periodSeconds: 10
+            # ワーカー 2 つが PDF の生成で埋まっている間は応答が遅れるため、
+            # 一時的な遅れだけで Service から外れないよう、待ち時間と失敗の許容回数を広げる。
+            timeoutSeconds: 10
+            failureThreshold: 6
           livenessProbe:
             tcpSocket:
               port: 8000
             initialDelaySeconds: 15
             periodSeconds: 30
+          # gunicorn のワーカー 2 つ（WEB_CONCURRENCY）が、それぞれ PDF の生成（最大 512Mi 程度）を
+          # 同時に行い、さらにワーカー自体の使用量（各 200Mi 程度）が加わっても収まるよう上限を設ける。
           resources:
             requests:
-              cpu: 100m
-              memory: 128Mi
+              cpu: 200m
+              memory: 384Mi
             limits:
-              cpu: 500m
-              memory: 512Mi
+              cpu: "1"
+              memory: 1536Mi
 ---
 apiVersion: v1
 kind: Service
