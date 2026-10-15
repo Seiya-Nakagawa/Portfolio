@@ -36,10 +36,10 @@ docker save portfolio:latest | gzip | remote_ssh "sudo nerdctl -n k8s.io load"
 echo "=================================================="
 echo "📄 [3/5] Kubernetesマニフェストを適用しています..."
 echo "=================================================="
-# configmap, vault-sync, web を適用する。Namespace・Ingress・TLS証明書は
+# configmap, vault-sync, web, cronjob を適用する。Namespace・Ingress・TLS証明書は
 # 全サービス共有のため基盤側（infra-oci）で管理しており、ここでは適用しない。
 remote_ssh "mkdir -p /tmp/portfolio-k8s"
-remote_scp k8s/configmap.yaml k8s/vault-sync.yaml k8s/web.yaml "${SSH_TARGET}:/tmp/portfolio-k8s/"
+remote_scp k8s/configmap.yaml k8s/vault-sync.yaml k8s/web.yaml k8s/cronjob.yaml "${SSH_TARGET}:/tmp/portfolio-k8s/"
 remote_ssh "kubectl apply -f /tmp/portfolio-k8s/"
 
 echo "=================================================="

@@ -12,7 +12,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods
 
-from portfolio import export, registry, uploads, usage
+from portfolio import export, ratelimit, registry, uploads, usage
 from portfolio.models import (
     PROJECT_PHASES,
     SKILLSHEET_TEXT_KEYS,
@@ -56,10 +56,22 @@ def api_view(*methods: str):
                 return _json({"errors": [str(error)]}, status=404)
             except registry.Forbidden as error:
                 return _json({"errors": [str(error)]}, status=403)
+            except registry.TooManyRequests as error:
+                response = _json({"errors": [str(error)]}, status=429)
+                response["Retry-After"] = str(ratelimit.retry_after(error.scope))
+                return response
 
         return wrapper
 
     return decorator
+
+
+def _limit_per_user(user, scope: str) -> None:
+    """ユーザーごとの流量制限を数え、上限を超えた場合は例外とする。"""
+    if not ratelimit.hit(scope, str(user.pk)):
+        raise registry.TooManyRequests(
+            "操作が集中しています。しばらく待ってから再度お試しください。", scope
+        )
 
 
 def _body(request) -> dict:
@@ -423,6 +435,7 @@ def _attachment(content, content_type: str, fallback: str, filename: str):
 
 @api_view("GET")
 def skillsheet_pdf(request):
+    _limit_per_user(request.user, "pdf")
     today = timezone.localdate()
     rendered = export.render_skillsheet(request.user, today)
     pdf = export.build_pdf(rendered.html)
@@ -451,5 +464,6 @@ def skillsheet_markdown(request):
 @api_view("POST")
 def api_upload_image(request):
     """実績のサムネイル画像をアップロードする。保存先の相対パスを返す。"""
+    _limit_per_user(request.user, "upload")
     path = uploads.save_work_image(request.user, request.FILES.get("image"))
     return _json({"path": path})

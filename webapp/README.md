@@ -151,6 +151,23 @@ API は `/manage/api/account`（取得・変更）、`/manage/api/account/provid
 - 職務経歴書の PDF・Markdown の生成回数は、ダウンロード時に `usage_daily` へ加算する
 - 未ログインの場合は `/login/` へ転送する。運営者の追加は、データベース上で `is_staff` を設定して行う
 
+## 流量制限・画像の容量上限
+
+呼び出し回数は実績 DB の `rate_limit_counters` で共有し、1 分間の固定区間ごとに数える。識別子はハッシュ化して保存する。
+上限を超えた呼び出しには 429（`Retry-After` 付き）を返す。上限値は `config/settings/base.py` の `RATE_LIMITS` で定義する。
+
+| 対象 | 単位 | 上限（1 分あたり） |
+| ---- | ---- | ---- |
+| 公開ポートフォリオのページ・API・画像（`/u/`・`/media/`） | 接続元 | 120 |
+| ログイン・サインアップ（`/login/`・`/accounts/`） | 接続元 | 20 |
+| 職務経歴書 PDF の生成 | ユーザー | 10 |
+| 画像のアップロード | ユーザー | 30 |
+
+- 接続元の IP は、`TRUSTED_PROXY_COUNT` が 1 以上の場合に `X-Forwarded-For` の末尾から数えた値（共有 Ingress が付与した値）を用い、それより前の値は信用しない
+- 画像は拡張子ではなくファイルの先頭のバイト列で形式（png・jpg・gif・webp）を判定し、判定した形式の拡張子で保存する。1 ファイル 5MB、1 ユーザー合計 50MB まで
+- 実績の削除・画像の差し替え時に、どの実績からも参照されなくなった画像を削除する
+- 日次の整理処理 `python manage.py daily_maintenance` が、期限切れの流量制限の回数と、アップロードから 24 時間を過ぎても実績に保存されていない画像を削除する。本番は `k8s/cronjob.yaml` の CronJob（毎日 03:00（日本時間））で実行する
+
 ## スキル項目（共通マスタと独自スキル項目）
 
 スキル項目は、全ユーザーで共有する共通マスタ（`owner_id` が空）と、ユーザーごとの独自スキル項目に分かれる。
@@ -208,6 +225,7 @@ uv run python manage.py import_skill_sheet /path/to/csv --owner {ユーザー名
 | `LEGACY_HOSTS` | 旧 URL のホスト名（本番のみ、カンマ区切り。空の場合は転送しない） | 既定値 空 |
 | `LEGACY_REDIRECT_USERNAME` | 旧 URL の転送先とする運営者のユーザー名（本番のみ） | 既定値 空 |
 | `CSRF_TRUSTED_ORIGINS` | CSRF を許可するオリジン（本番のみ、カンマ区切り。例: `https://example.com`） | 既定値 空 |
+| `TRUSTED_PROXY_COUNT` | 流量制限の接続元 IP に用いる `X-Forwarded-For` の末尾からの位置（共有 Ingress の段数） | 既定値 `0`（`REMOTE_ADDR` を用いる）。本番は `1` |
 | `CONTACT_FORM_URL` | 問い合わせ窓口（Google フォーム）の URL | 既定値 空（リンクを表示しない） |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google の OAuth クライアント | 本番は OCI Vault から同期 |
 | `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | GitHub の OAuth App | 本番は OCI Vault から同期 |
