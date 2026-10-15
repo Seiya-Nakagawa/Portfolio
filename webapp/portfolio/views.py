@@ -1,5 +1,3 @@
-import re
-
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.http import Http404, JsonResponse
@@ -9,9 +7,7 @@ from django.views.decorators.http import require_GET
 from django.views.static import serve
 
 from portfolio import services
-
-# ユーザーごとの画像の保存先（MEDIA_ROOT からの相対パス）。
-USER_MEDIA_PATH = re.compile(r"^users/(?P<user_id>\d+)/")
+from portfolio.media_paths import USER_IMAGE_PATH
 
 
 def _json_response(data) -> JsonResponse:
@@ -84,7 +80,7 @@ def media(request, path):
     ユーザーごとの保存先の画像のみを対象とし、所有するユーザーの公開ポートフォリオが
     公開中であるか、閲覧者が所有するユーザー本人である場合のみ返す。それ以外は 404 とする。
     """
-    matched = USER_MEDIA_PATH.match(path)
+    matched = USER_IMAGE_PATH.match(path)
     if matched is None:
         raise Http404("画像が見つかりません。")
     owner_id = int(matched.group("user_id"))
