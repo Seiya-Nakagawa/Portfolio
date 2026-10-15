@@ -9,7 +9,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
-from portfolio.media_paths import work_image_dir
+from portfolio.media_paths import USER_IMAGE_PATH, work_image_dir
 from portfolio.models import (
     PROJECT_PHASE_SEPARATOR,
     PROJECT_PHASES,
@@ -493,7 +493,10 @@ def _clean_tags(value) -> list[str]:
 
 def _check_thumbnail(owner, thumbnail: str) -> None:
     """ユーザーごとの保存先の画像を指す場合は、自分の保存先のみ指定できる。"""
-    if thumbnail.startswith("users/") and not thumbnail.startswith(
+    if not thumbnail.startswith("users/"):
+        return
+    # 「..」で別のユーザーの画像を指せないよう、許可する形式に完全一致するものだけを受け付ける。
+    if not USER_IMAGE_PATH.match(thumbnail) or not thumbnail.startswith(
         f"{work_image_dir(owner.pk)}/"
     ):
         raise ValidationFailed(["サムネイル: 自分の画像のみ指定できます。"])
