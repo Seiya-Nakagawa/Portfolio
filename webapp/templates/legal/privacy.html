@@ -1,6 +1,9 @@
-{% extends "account/base.html" %}
-{% block title %}プライバシーポリシー{% endblock %}
-{% block heading %}プライバシーポリシー{% endblock %}
+{% extends "service/base.html" %}
+{% block title %}プライバシーポリシー | {% endblock %}
 {% block content %}
-<p>版: {{ version }}</p>
+<article class="legal">
+  <h1>プライバシーポリシー</h1>
+  <p class="version">版: {{ version }}</p>
+  {% include body_template %}
+</article>
 {% endblock %}

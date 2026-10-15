@@ -1,0 +1,198 @@
+/* サービス紹介・規約ページ */
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --text: #1f2933;
+  --muted: #52606d;
+  --panel: #f4f6f8;
+  --accent: #2563eb;
+  --accent-text: #ffffff;
+  --border: #d5dbe1;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12161b;
+    --text: #e6ebf0;
+    --muted: #a3afbb;
+    --panel: #1b222a;
+    --accent: #6ea0ff;
+    --accent-text: #0b1220;
+    --border: #2f3a46;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Zen Kaku Gothic New", "Noto Sans JP", system-ui, sans-serif;
+  line-height: 1.8;
+}
+
+a {
+  color: var(--accent);
+}
+
+.service-header,
+.service-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem max(1rem, calc((100% - 60rem) / 2));
+}
+
+.service-header {
+  border-bottom: 1px solid var(--border);
+}
+
+.service-brand {
+  color: var(--text);
+  font-size: 1.25rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.service-main {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: 2rem 1rem 4rem;
+}
+
+.service-footer {
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.service-footer nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+}
+
+.service-footer p {
+  margin: 0;
+}
+
+.button {
+  display: inline-block;
+  padding: 0.5rem 1.25rem;
+  border: 1px solid var(--accent);
+  border-radius: 0.5rem;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.button.primary {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.hero {
+  padding: 2rem 0 3rem;
+}
+
+.hero h1 {
+  margin: 0 0 1rem;
+  font-size: clamp(1.5rem, 4.5vw, 2.25rem);
+  line-height: 1.4;
+}
+
+.hero .lead {
+  max-width: 40rem;
+  color: var(--muted);
+}
+
+h2 {
+  margin: 3rem 0 1rem;
+  font-size: 1.5rem;
+}
+
+.cards {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+}
+
+.cards article {
+  padding: 1.25rem;
+  background: var(--panel);
+  border-radius: 0.75rem;
+}
+
+.cards h3 {
+  margin: 0 0 0.5rem;
+}
+
+.cards p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.steps {
+  padding-left: 1.5rem;
+}
+
+.steps li {
+  margin-bottom: 0.75rem;
+}
+
+.steps strong {
+  display: block;
+}
+
+.sample {
+  display: block;
+  width: 100%;
+  max-width: 43rem;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: #fff;
+}
+
+.cta {
+  text-align: center;
+}
+
+.legal {
+  max-width: 46rem;
+}
+
+.legal h1 {
+  margin-bottom: 0.25rem;
+}
+
+.legal h2 {
+  font-size: 1.125rem;
+}
+
+.legal .version {
+  margin-top: 0;
+  color: var(--muted);
+}
+
+.legal table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+
+.legal th,
+.legal td {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.legal thead th {
+  background: var(--panel);
+}

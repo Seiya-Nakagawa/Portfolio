@@ -1,0 +1,8 @@
+<footer class="service-footer">
+  <nav aria-label="サービス情報">
+    <a href="{% url 'terms' %}">利用規約</a>
+    <a href="{% url 'privacy' %}">プライバシーポリシー</a>
+    {% if contact_form_url %}<a href="{{ contact_form_url }}" target="_blank" rel="noopener">お問い合わせ</a>{% endif %}
+  </nav>
+  <p>&copy; {{ service_name }}</p>
+</footer>

@@ -1,12 +1,56 @@
-{% extends "account/base.html" %}
-{% block title %}サービス紹介{% endblock %}
+{% extends "service/base.html" %}
+{% load static %}
+{% block title %}{% endblock %}
 {% block content %}
-<p>実績の登録から経験年数の自動算出、職務経歴書の PDF 出力までを行うサービスです。</p>
-<p>
-  {% if user.is_authenticated %}
-  <a href="{% url 'manage' %}">スキル実績管理へ</a>
-  {% else %}
-  <a href="{% url 'login' %}">ログイン・サインアップ</a>
-  {% endif %}
-</p>
+<section class="hero">
+  <h1>実績を登録するだけで、<br />職務経歴書とポートフォリオが完成する。</h1>
+  <p class="lead">案件ごとに使ったスキルを登録すると、経験年数を自動で算出し、職務経歴書の PDF と公開ポートフォリオを、いつでも最新の内容で出力できます。</p>
+  <p>
+    {% if user.is_authenticated %}
+    <a class="button primary" href="{% url 'manage' %}">スキル実績管理へ</a>
+    {% else %}
+    <a class="button primary" href="{% url 'login' %}">Google / GitHub で始める</a>
+    {% endif %}
+  </p>
+</section>
+
+<section aria-labelledby="features">
+  <h2 id="features">特長</h2>
+  <div class="cards">
+    <article>
+      <h3>経験年数の自動算出</h3>
+      <p>案件の期間と使用したスキルから、スキルごとの経験年数を自動で計算します。並行して進めた案件も重複せずに数えます。</p>
+    </article>
+    <article>
+      <h3>職務経歴書 PDF の自動生成</h3>
+      <p>会社・案件・資格・自己PR から A4 の職務経歴書を組み立てます。更新するたびに、最新の内容で PDF や Markdown を取得できます。</p>
+    </article>
+    <article>
+      <h3>公開ポートフォリオ</h3>
+      <p>スキル・資格・実績を 1 ページにまとめて、自分専用の URL で公開できます。公開するかどうかは、いつでも自分で切り替えられます。</p>
+    </article>
+  </div>
+</section>
+
+<section aria-labelledby="flow">
+  <h2 id="flow">利用の流れ</h2>
+  <ol class="steps">
+    <li><strong>ログイン</strong>Google または GitHub のアカウントでユーザー登録します。パスワードは不要です。</li>
+    <li><strong>実績を登録</strong>会社と案件を登録し、案件ごとに使ったスキルを選びます。</li>
+    <li><strong>職務経歴書を取得</strong>職務概要や自己PR を入力して、プレビューを確認し、PDF をダウンロードします。</li>
+    <li><strong>ポートフォリオを公開</strong>必要に応じて公開設定を有効にし、自分専用の URL を共有します。</li>
+  </ol>
+</section>
+
+<section aria-labelledby="sample">
+  <h2 id="sample">職務経歴書の出力例</h2>
+  <p>架空のデータで作成した出力例です。</p>
+  <img class="sample" src="{% static 'img/skillsheet-sample.png' %}" alt="職務経歴書の出力例。職務概要、開発経歴、テクニカルスキルなどの表が並ぶ。" width="860" height="1100" loading="lazy" />
+</section>
+
+<section class="cta" aria-labelledby="start">
+  <h2 id="start">はじめましょう</h2>
+  <p>無料でご利用いただけます。ご利用の前に<a href="{% url 'terms' %}">利用規約</a>と<a href="{% url 'privacy' %}">プライバシーポリシー</a>をご確認ください。</p>
+  {% if not user.is_authenticated %}<p><a class="button primary" href="{% url 'login' %}">ログイン・サインアップ</a></p>{% endif %}
+</section>
 {% endblock %}
