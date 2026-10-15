@@ -145,6 +145,13 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
         """ユーザーを作成し、プロフィール（同意した規約の版）と登録数の集計を記録する。"""
         with transaction.atomic():
             user = super().save_user(request, sociallogin, form)
+            # 提供元が検証済みとしていないメールアドレスは保存しない。
+            # 保存すると、後からそのアドレスを検証済みで持つ別の外部アカウントが、
+            # このユーザーに自動で紐づけられてしまう（アカウントの乗っ取り）。
+            verified = {e.lower() for e in _verified_emails(sociallogin)}
+            if user.email and user.email.lower() not in verified:
+                user.email = ""
+                user.save(update_fields=["email"])
             UserProfile.objects.create(
                 user=user,
                 is_public=False,
