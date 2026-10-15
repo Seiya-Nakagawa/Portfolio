@@ -4,12 +4,12 @@ from datetime import date
 from pathlib import Path
 from unittest.mock import patch
 
-from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from portfolio.models import Certification, Company, Project, ProjectSkill, Skill, Work
+from portfolio.tests.helpers import create_user
 
 TODAY = date(2026, 9, 25)
 
@@ -25,9 +25,7 @@ def _skill(skill_id, category, name, sort_order):
 
 class LoggedInTestCase(TestCase):
     def setUp(self):
-        self.user = get_user_model().objects.create_user(
-            "owner", password="pw-for-test"
-        )
+        self.user = create_user("owner", password="pw-for-test")
         self.client.login(username="owner", password="pw-for-test")
 
     def call(self, method, name, data=None, **kwargs):
@@ -67,7 +65,7 @@ class AuthenticationTests(TestCase):
         self.assertEqual(Project.objects.count(), 0)
 
     def test_ログインすると登録画面を表示できる(self):
-        get_user_model().objects.create_user("owner", password="pw-for-test")
+        create_user("owner", password="pw-for-test")
         self.assertTrue(self.client.login(username="owner", password="pw-for-test"))
         response = self.client.get(reverse("manage"))
         self.assertEqual(response.status_code, 200)
@@ -78,7 +76,7 @@ class AuthenticationTests(TestCase):
     def test_CSRFトークンなしの書き込みは拒否される(self):
         from django.test import Client
 
-        get_user_model().objects.create_user("owner", password="pw-for-test")
+        create_user("owner", password="pw-for-test")
         client = Client(enforce_csrf_checks=True)
         client.login(username="owner", password="pw-for-test")
         response = client.post(

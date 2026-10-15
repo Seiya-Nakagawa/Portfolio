@@ -1,0 +1,19 @@
+{% extends "account/base.html" %}
+{% block title %}ログイン{% endblock %}
+{% block content %}
+<p>Google または GitHub のアカウントでログインします。初めての場合は、続けてユーザー名の登録を行います。</p>
+<div class="provider-buttons">
+  <form method="post" action="{% url 'google_login' %}">
+    {% csrf_token %}
+    <input type="hidden" name="process" value="login" />
+    {% if next %}<input type="hidden" name="next" value="{{ next }}" />{% endif %}
+    <button type="submit" class="primary">Google でログイン</button>
+  </form>
+  <form method="post" action="{% url 'github_login' %}">
+    {% csrf_token %}
+    <input type="hidden" name="process" value="login" />
+    {% if next %}<input type="hidden" name="next" value="{{ next }}" />{% endif %}
+    <button type="submit" class="primary">GitHub でログイン</button>
+  </form>
+</div>
+{% endblock %}
