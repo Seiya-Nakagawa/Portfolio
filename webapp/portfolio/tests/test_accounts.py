@@ -236,6 +236,20 @@ class SignupTests(TestCase):
             UsageDaily.objects.get(metric=UsageDaily.METRIC_SIGNUP).count, 1
         )
 
+    def test_未検証のメールアドレスはユーザーに保存しない(self):
+        self._start(email="victim@example.com", verified=False)
+
+        self._post(username="attacker", agree="on")
+
+        user = get_user_model().objects.get()
+        self.assertEqual(user.email, "")
+        # 後から被害者が検証済みの同じアドレスでログインしても、紐づかない。
+        self.assertIsNone(
+            SocialAccountAdapter._find_user_by_verified_email(
+                make_sociallogin(email="victim@example.com", uid="uid-victim")
+            )
+        )
+
     def test_同意しなければ登録できない(self):
         self._start()
         response = self._post(username="taro")

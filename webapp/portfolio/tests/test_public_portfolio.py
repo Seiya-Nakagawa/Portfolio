@@ -162,6 +162,21 @@ class MediaAccessTests(TestCase):
         self.assertIn(response.status_code, (301, 400, 404))
 
 
+class MediaTraversalTests(MediaAccessTests):
+    def test_兄弟ユーザーの画像を遡って指す形式は配信しない(self):
+        self._set_public(self.owner, True)
+        other_url = self._put(self.other, "secret.png")
+        own = (
+            f"/media/users/{self.owner.pk}/works/../../{self.other.pk}/works/secret.png"
+        )
+        # 非公開のユーザーの画像は、公開中のユーザーのパスを経由しても返さない。
+        self.assertEqual(self.client.get(other_url).status_code, 404)
+        self.assertEqual(self.client.get(own).status_code, 404)
+        self.assertEqual(
+            self.client.get(own.replace("../", "%2e%2e/")).status_code, 404
+        )
+
+
 class ThumbnailOwnershipTests(TestCase):
     def setUp(self):
         self.user = create_user("owner", password="pw-for-test")
@@ -188,6 +203,16 @@ class ThumbnailOwnershipTests(TestCase):
     def test_他のユーザーの保存先の画像は指定できない(self):
         response = self._save(f"users/{self.other.pk}/works/a.png")
         self.assertEqual(response.status_code, 400)
+        self.assertEqual(Work.objects.count(), 0)
+
+    def test_遡るパスで他のユーザーの画像を指定できない(self):
+        for thumbnail in (
+            f"users/{self.user.pk}/works/../../{self.other.pk}/works/a.png",
+            f"users/{self.user.pk}/works//a.png",
+            f"users/{self.user.pk}/works/a.png/../../b.png",
+        ):
+            with self.subTest(thumbnail):
+                self.assertEqual(self._save(thumbnail).status_code, 400)
         self.assertEqual(Work.objects.count(), 0)
 
     def test_外部URLや従来の画像は指定できる(self):
