@@ -1,5 +1,6 @@
 """運営管理（管理サイト）のテスト。"""
 
+from django.contrib.admin.models import LogEntry
 from django.contrib.auth import get_user_model
 from django.db import connection
 from django.test import TestCase
@@ -128,6 +129,25 @@ class UserManagementTests(OperatorAdminTestCase):
         self.user.refresh_from_db()
         self.assertTrue(self.operator.is_active)
         self.assertFalse(self.user.is_active)
+
+    def test_cannot_suspend_other_operator(self):
+        other = create_operator("ops2")
+        self.act("suspend", [other, self.user])
+        other.refresh_from_db()
+        self.assertTrue(other.is_active)
+
+    def test_suspend_and_resume_are_recorded_in_history(self):
+        self.act("suspend", [self.user])
+        self.act("resume", [self.user])
+        entries = LogEntry.objects.filter(object_id=str(self.user.pk))
+        self.assertEqual(entries.count(), 2)
+        self.assertTrue(all(e.user_id == self.operator.pk for e in entries))
+
+    def test_individual_user_page_is_not_viewable(self):
+        response = self.client.get(
+            reverse("admin:auth_user_change", args=[self.user.pk])
+        )
+        self.assertEqual(response.status_code, 403)
 
     def test_suspended_user_cannot_log_in(self):
         self.act("suspend", [self.user])

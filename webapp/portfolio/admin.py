@@ -65,7 +65,8 @@ class OperatorOnlyAdmin(admin.ModelAdmin):
         return request.user.is_staff
 
     def has_view_permission(self, request, obj=None):
-        return request.user.is_staff
+        # 一覧のみを提供する。個別の変更画面は開かせない（パスワードのハッシュや権限を見せない）。
+        return request.user.is_staff and obj is None
 
     def has_add_permission(self, request):
         return False
@@ -112,17 +113,26 @@ class UserAdmin(OperatorOnlyAdmin):
 
     @admin.action(description="選択したユーザーの利用を停止する")
     def suspend(self, request, queryset):
-        # 自分自身を停止すると運営管理に入れなくなるため対象外とする。
-        targets = queryset.exclude(pk=request.user.pk)
+        # 自分自身と他の運営者は停止できない（運営管理に入れなくなる、運営者同士で締め出すのを防ぐ）。
+        targets = queryset.filter(is_staff=False).exclude(pk=request.user.pk)
         if targets.count() != queryset.count():
-            self.message_user(request, "自分自身は停止できません。", messages.WARNING)
-        updated = targets.update(is_active=False)
-        self.message_user(request, f"{updated} 件のユーザーの利用を停止しました。")
+            self.message_user(request, "運営者は停止できません。", messages.WARNING)
+        self._set_active(request, targets, False)
 
     @admin.action(description="選択したユーザーの利用を再開する")
     def resume(self, request, queryset):
-        updated = queryset.update(is_active=True)
-        self.message_user(request, f"{updated} 件のユーザーの利用を再開しました。")
+        self._set_active(request, queryset.filter(is_active=False), True)
+
+    def _set_active(self, request, targets, is_active: bool) -> None:
+        """利用の停止・再開を行い、誰がいつ操作したかを管理サイトの履歴に残す。"""
+        label = "再開" if is_active else "停止"
+        users = list(targets)
+        targets.update(is_active=is_active)
+        for user in users:
+            self.log_change(request, user, f"利用を{label}")
+        self.message_user(
+            request, f"{len(users)} 件のユーザーの利用を{label}しました。"
+        )
 
 
 # 新しい管理サイトには何も自動登録されないため、ユーザーのみを登録する。
