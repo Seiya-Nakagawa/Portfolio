@@ -1,0 +1,33 @@
+{% extends "admin/index.html" %}
+{% block content %}
+<section class="module" aria-labelledby="usage-users">
+  <h2 id="usage-users">ユーザー数</h2>
+  <table>
+    <tbody>
+      <tr><th scope="row">登録ユーザー数</th><td>{{ user_counts.total }}</td></tr>
+      <tr><th scope="row">公開中のユーザー数</th><td>{{ user_counts.public }}</td></tr>
+      <tr><th scope="row">利用停止中のユーザー数</th><td>{{ user_counts.suspended }}</td></tr>
+    </tbody>
+  </table>
+</section>
+<section class="module" aria-labelledby="usage-daily">
+  <h2 id="usage-daily">日次推移（直近 30 日）</h2>
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">日付</th>
+        {% for label in usage_metrics %}<th scope="col">{{ label }}</th>{% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in usage_rows %}
+      <tr>
+        <th scope="row">{{ row.date|date:"Y-m-d" }}</th>
+        {% for value in row.values %}<td>{{ value }}</td>{% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{{ block.super }}
+{% endblock %}

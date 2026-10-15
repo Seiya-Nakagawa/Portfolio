@@ -12,7 +12,8 @@ environ.Env.read_env(BASE_DIR / ".env")
 SECRET_KEY = env("SECRET_KEY")
 
 INSTALLED_APPS = [
-    "django.contrib.admin",
+    # 登録するテーブルを限定した運営管理の管理サイト（portfolio.admin）を用いる。
+    "portfolio.admin_apps.OperatorAdminConfig",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
