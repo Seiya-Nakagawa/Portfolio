@@ -4,6 +4,7 @@ import json
 import tempfile
 from datetime import date
 from pathlib import Path
+from unittest import mock
 
 from allauth.socialaccount.models import SocialAccount
 from django.contrib.auth import get_user_model
@@ -259,6 +260,21 @@ class WithdrawTests(AccountApiTestCase):
         self.assertTrue(other_image.exists())
         self.assertTrue(Project.objects.filter(owner=self.other).exists())
         self.assertTrue(Skill.objects.filter(skill_id=f"own-{self.other.pk}").exists())
+
+    def test_画像の削除に失敗しても退会でき警告を記録する(self):
+        def failing_rmtree(path, onexc):
+            onexc(None, str(path), PermissionError("denied"))
+
+        with (
+            mock.patch("portfolio.account_views.shutil.rmtree", failing_rmtree),
+            self.assertLogs("portfolio.account_views", "WARNING") as logs,
+        ):
+            response = self.call(
+                "post", "manage-api-account-withdraw", {"username": "taro"}
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(f"user_id={self.user.pk}", logs.output[0])
+        self.assertNotIn("taro", logs.output[0])
 
     def test_退会数のみが集計に加算される(self):
         self.call("post", "manage-api-account-withdraw", {"username": "taro"})
