@@ -5,10 +5,12 @@ from pathlib import Path
 
 from django.conf import settings
 
-from portfolio.media_files import user_image_bytes
+from portfolio.media_files import purge_unreferenced_images, user_image_bytes
 from portfolio.media_paths import work_image_dir
 from portfolio.registry import ValidationFailed
 
+# 容量の上限に達したときに整理する、未保存の画像の最短の経過時間（編集中の画像を消さないための猶予）。
+RECLAIM_GRACE_SECONDS = 60 * 60
 ALLOWED_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
 
 
@@ -46,6 +48,10 @@ def save_work_image(user, uploaded) -> str:
         raise ValidationFailed(
             [f"画像は {_megabytes(settings.MAX_IMAGE_BYTES)}MB 以下にしてください。"]
         )
+    if user_image_bytes(user.pk) + uploaded.size > settings.MAX_USER_IMAGE_BYTES:
+        # 画像の選び直しで残った未保存の画像が容量を埋めている場合があるため、
+        # 一定時間を過ぎた未保存の画像を整理してから、もう一度判定する。
+        purge_unreferenced_images(RECLAIM_GRACE_SECONDS, user_id=user.pk)
     if user_image_bytes(user.pk) + uploaded.size > settings.MAX_USER_IMAGE_BYTES:
         limit = _megabytes(settings.MAX_USER_IMAGE_BYTES)
         raise ValidationFailed(
