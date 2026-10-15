@@ -1,5 +1,6 @@
 """アカウント画面の JSON API。ユーザー名の変更・公開設定・外部アカウントの連携・退会。"""
 
+import logging
 import shutil
 from pathlib import Path
 
@@ -15,6 +16,8 @@ from portfolio.accounts import validate_username
 from portfolio.manage_views import _body, _json, api_view
 from portfolio.media_paths import USER_IMAGE_DIR
 from portfolio.models import SiteInfo, UsageDaily, UserProfile
+
+logger = logging.getLogger(__name__)
 
 # 連携できる提供元。表示順に並べる。
 PROVIDERS = [("google", "Google"), ("github", "GitHub")]
@@ -119,7 +122,11 @@ def api_account_withdraw(request):
     # トランザクションの確定後に、画像の保存先を削除する。
     shutil.rmtree(
         Path(settings.MEDIA_ROOT) / USER_IMAGE_DIR.format(user_id=user_id),
-        ignore_errors=True,
+        onexc=lambda _func, _path, exc: logger.warning(
+            "退会したユーザーの画像を削除できませんでした。user_id=%s error=%s",
+            user_id,
+            type(exc).__name__,
+        ),
     )
     logout(request)
     return _json({"ok": True, "redirect": reverse("index")})
