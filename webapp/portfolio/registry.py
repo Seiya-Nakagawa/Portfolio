@@ -3,6 +3,7 @@
 書き込みはトランザクション内で対象行をロックし、複数タブからの同時操作による不整合を防ぐ。
 """
 
+import secrets
 from datetime import date
 
 from django.core.exceptions import ValidationError
@@ -57,6 +58,10 @@ class ValidationFailed(Exception):
 
 class NotFound(Exception):
     """更新・削除の対象が存在しない。"""
+
+
+class Forbidden(Exception):
+    """権限のない操作。"""
 
 
 def _validate_year_month(value: str, label: str, errors: list[str]) -> None:
@@ -281,32 +286,42 @@ def _apply(instance, payload: dict, text_fields: list[str]) -> None:
         setattr(instance, name, str(payload.get(name) or "").strip())
 
 
-# 採番し直したスキル項目の表示順の間隔。
+# 採番し直した共通マスタの表示順の間隔。
 SKILL_SORT_ORDER_STEP = 10
-
+# 独自スキル項目の表示順は 0 とし、表示順は表示時に決める。
+CUSTOM_SKILL_SORT_ORDER = 0
+# 独自スキル項目の識別子は、接頭辞に推測されにくい文字列を続けて採番する。
+CUSTOM_SKILL_ID_PREFIX = "u-"
+CUSTOM_SKILL_ID_BYTES = 8
 
 MAX_CATEGORY_NAME_LENGTH = 64
 
 
-def category_names(owner) -> list[str]:
-    """種類の並び順を返す。種類マスタの順に、マスタ未登録の種類（スキル項目側のみ）を続ける。"""
+def _require_operator(user, action: str) -> None:
+    if not user.is_staff:
+        raise Forbidden(f"{action}は運営者のみ行えます。")
+
+
+def category_names() -> list[str]:
+    """種類の並び順を返す。種類マスタの順に、マスタ未登録の種類（共通マスタ側のみ）を続ける。"""
     names = list(SkillCategory.objects.values_list("name", flat=True))
     known = set(names)
-    for skill in ordered_skills(owner):
+    for skill in ordered_skills(None):
         if skill.category not in known:
             known.add(skill.category)
             names.append(skill.category)
     return names
 
 
-def resequence_skills(owner, category_order: list[str] | None = None) -> None:
-    """種類マスタとスキル項目の表示順（sort_order）を、種類の並び順と種類内の昇順に従って採番し直す。
+def resequence_skills(category_order: list[str] | None = None) -> None:
+    """種類マスタと共通マスタの表示順（sort_order）を、種類の並び順と種類内の昇順に従って採番し直す。
 
     種類間は category_order（未指定・未掲載の種類は現在の並び順）に従い、種類内は
     サブカテゴリ（未設定は末尾） ＞ 表示名の昇順とする。スキル項目を持たない種類も並び順に含める。
+    独自スキル項目は全ユーザーに共通する表示順を持たないため、対象にしない。
     """
-    skills = ordered_skills(owner)
-    categories = category_names(owner)
+    skills = ordered_skills(None)
+    categories = category_names()
     requested = [c for c in (category_order or []) if c in categories]
     order = requested + [c for c in categories if c not in requested]
     rank = {category: index for index, category in enumerate(order)}
@@ -330,9 +345,11 @@ def resequence_skills(owner, category_order: list[str] | None = None) -> None:
         category.save()
 
 
-def _lock_skills(owner) -> None:
+def _lock_skills() -> None:
     list(
-        Skill.objects.visible_to(owner).select_for_update().values_list("pk", flat=True)
+        Skill.objects.filter(owner__isnull=True)
+        .select_for_update()
+        .values_list("pk", flat=True)
     )
     list(SkillCategory.objects.select_for_update().values_list("pk", flat=True))
 
@@ -350,105 +367,160 @@ def _clean_category_name(payload: dict) -> str:
     return name
 
 
-def add_skill_category(owner, payload: dict) -> None:
-    """種類を末尾に追加する。"""
+def add_skill_category(user, payload: dict) -> None:
+    """種類を末尾に追加する（運営者のみ）。"""
+    _require_operator(user, "種類の追加")
     name = _clean_category_name(payload)
     with transaction.atomic():
-        _lock_skills(owner)
-        if name in category_names(owner):
+        _lock_skills()
+        if name in category_names():
             raise ValidationFailed([f"種類は既に登録されています: {name}"])
-        resequence_skills(owner)
+        resequence_skills()
         SkillCategory.objects.create(
             name=name,
-            sort_order=(len(category_names(owner)) + 1) * SKILL_SORT_ORDER_STEP,
+            sort_order=(len(category_names()) + 1) * SKILL_SORT_ORDER_STEP,
         )
-        resequence_skills(owner)
+        resequence_skills()
 
 
-def rename_skill_category(owner, current: str, payload: dict) -> None:
-    """種類名を変更する。対応するスキル項目の種類も同時に更新する。"""
+def rename_skill_category(user, current: str, payload: dict) -> None:
+    """種類名を変更する（運営者のみ）。全ユーザーの独自スキル項目を含め、対応する種類も同時に更新する。"""
+    _require_operator(user, "種類名の変更")
     name = _clean_category_name(payload)
     with transaction.atomic():
-        _lock_skills(owner)
-        names = category_names(owner)
+        _lock_skills()
+        names = category_names()
         if current not in names:
             raise NotFound("種類が見つかりません。")
         if name != current and name in names:
             raise ValidationFailed([f"種類は既に登録されています: {name}"])
-        resequence_skills(owner)
+        resequence_skills()
         SkillCategory.objects.filter(name=current).update(name=name)
-        Skill.objects.visible_to(owner).filter(category=current).update(category=name)
-        resequence_skills(owner)
+        Skill.objects.filter(category=current).update(category=name)
+        resequence_skills()
 
 
-def delete_skill_category(owner, name: str) -> None:
-    """スキル項目が属さない種類のみ削除できる。"""
+def delete_skill_category(user, name: str) -> None:
+    """スキル項目（全ユーザーの独自スキル項目を含む）が属さない種類のみ削除できる（運営者のみ）。"""
+    _require_operator(user, "種類の削除")
     with transaction.atomic():
-        _lock_skills(owner)
-        if name not in category_names(owner):
+        _lock_skills()
+        if name not in category_names():
             raise NotFound("種類が見つかりません。")
-        if Skill.objects.visible_to(owner).filter(category=name).exists():
+        if Skill.objects.filter(category=name).exists():
             raise ValidationFailed(["スキル項目が属する種類は削除できません。"])
         SkillCategory.objects.filter(name=name).delete()
-        resequence_skills(owner)
+        resequence_skills()
 
 
-def reorder_skill_categories(owner, payload: dict) -> None:
-    """種類単位の並び順を保存する。"""
+def reorder_skill_categories(user, payload: dict) -> None:
+    """種類単位の並び順を保存する（運営者のみ）。"""
+    _require_operator(user, "種類の並び替え")
     categories = payload.get("categories")
     if not isinstance(categories, list) or not all(
         isinstance(c, str) for c in categories
     ):
         raise ValidationFailed(["種類の並び順の形式が不正です。"])
     with transaction.atomic():
-        _lock_skills(owner)
-        resequence_skills(owner, categories)
+        _lock_skills()
+        resequence_skills(categories)
 
 
-def save_skill(owner, payload: dict, skill_id: str | None = None) -> Skill:
+def _generate_custom_skill_id() -> str:
+    while True:
+        skill_id = f"{CUSTOM_SKILL_ID_PREFIX}{secrets.token_hex(CUSTOM_SKILL_ID_BYTES)}"
+        if not Skill.objects.filter(pk=skill_id).exists():
+            return skill_id
+
+
+def _check_custom_skill_name(user, skill: Skill) -> None:
+    """独自スキル項目の名前が、共通マスタと自分の同じ種類の項目に重複しないことを確認する。"""
+    name = skill.name.casefold()
+    for other in Skill.objects.visible_to(user).filter(category=skill.category):
+        if other.pk == skill.pk or other.name.casefold() != name:
+            continue
+        if other.owner_id is None:
+            raise ValidationFailed(
+                [
+                    f"共通マスタに同じ項目があります。共通マスタの「{other.name}」を選んでください。"
+                ]
+            )
+        raise ValidationFailed(["同じ種類に同じ名前の項目が既に登録されています。"])
+
+
+def _new_skill(user, payload: dict) -> Skill:
+    """追加するスキル項目を用意する。運営者は共通マスタ、それ以外のユーザーは独自スキル項目になる。"""
+    if user.is_staff:
+        new_id = str(payload.get("skill_id") or "").strip()
+        if Skill.objects.filter(pk=new_id).exists():
+            raise ValidationFailed([f"skill_id は既に登録されています: {new_id}"])
+        return Skill(skill_id=new_id, is_master=True)
+    return Skill(
+        skill_id=_generate_custom_skill_id(),
+        owner=user,
+        is_master=False,
+        sort_order=CUSTOM_SKILL_SORT_ORDER,
+    )
+
+
+def save_skill(user, payload: dict, skill_id: str | None = None) -> Skill:
     """スキル項目を追加（skill_id 未指定）または変更する。skill_id は変更できない。
 
-    追加した項目は `owner` の独自スキル項目とする。共通マスタと独自スキル項目の編集権限の
-    分離は別 Issue（#170）で実装する。
+    運営者は共通マスタを、それ以外のユーザーは自分の独自スキル項目のみ追加・変更できる。
+    独自スキル項目の種類は既存の種類から選び、識別子は自動採番する。
     """
     with transaction.atomic():
         if skill_id is None:
-            new_id = str(payload.get("skill_id") or "").strip()
-            if Skill.objects.filter(pk=new_id).exists():
-                raise ValidationFailed([f"skill_id は既に登録されています: {new_id}"])
-            skill = Skill(skill_id=new_id, owner=owner)
+            skill = _new_skill(user, payload)
         else:
             try:
                 skill = (
-                    Skill.objects.visible_to(owner).select_for_update().get(pk=skill_id)
+                    Skill.objects.visible_to(user).select_for_update().get(pk=skill_id)
                 )
             except Skill.DoesNotExist:
                 raise NotFound("スキル項目が見つかりません。") from None
+            if skill.owner_id is None and not user.is_staff:
+                raise Forbidden("共通マスタは変更できません。")
 
         previous_category = skill.category
         _apply(skill, payload, ["category", "subcategory", "name"])
-        # 新規、または種類が変わった項目は末尾に置き、採番し直しで種類内の並びへ収める。
-        if skill_id is None or skill.category != previous_category:
-            last = Skill.objects.visible_to(owner).order_by("-sort_order").first()
-            skill.sort_order = (last.sort_order if last else 0) + SKILL_SORT_ORDER_STEP
-        _save_model(skill)
-        resequence_skills(owner)
+
+        if skill.owner_id is not None:
+            if (
+                skill_id is None or skill.category != previous_category
+            ) and skill.category not in category_names():
+                raise ValidationFailed(["種類は既存の種類から選択してください。"])
+            _check_custom_skill_name(user, skill)
+            _save_model(skill)
+        else:
+            _lock_skills()
+            # 新規、または種類が変わった項目は末尾に置き、採番し直しで種類内の並びへ収める。
+            if skill_id is None or skill.category != previous_category:
+                last = (
+                    Skill.objects.filter(owner__isnull=True)
+                    .order_by("-sort_order")
+                    .first()
+                )
+                skill.sort_order = (
+                    last.sort_order if last else 0
+                ) + SKILL_SORT_ORDER_STEP
+            _save_model(skill)
+            resequence_skills()
     return Skill.objects.get(pk=skill.pk)
 
 
-def delete_skill(owner, skill_id: str) -> None:
-    """マスタ項目ではなく、使用実績が紐づかないスキル項目のみ削除できる。"""
+def delete_skill(user, skill_id: str) -> None:
+    """自分の独自スキル項目のうち、使用実績が紐づかないものだけ削除できる。共通マスタは削除できない。"""
     with transaction.atomic():
         try:
-            skill = Skill.objects.visible_to(owner).select_for_update().get(pk=skill_id)
+            skill = Skill.objects.visible_to(user).select_for_update().get(pk=skill_id)
         except Skill.DoesNotExist:
             raise NotFound("スキル項目が見つかりません。") from None
-        if skill.is_master:
-            raise ValidationFailed(["マスタに登録されたスキル項目は削除できません。"])
+        if skill.owner_id is None:
+            raise Forbidden("共通マスタは削除できません。")
         if skill.project_skills.exists():
             raise ValidationFailed(["使用実績が紐づくスキル項目は削除できません。"])
         skill.delete()
-        resequence_skills(owner)
 
 
 def save_certification(

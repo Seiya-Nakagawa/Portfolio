@@ -53,6 +53,8 @@ def api_view(*methods: str):
                 return _json({"errors": error.errors}, status=400)
             except registry.NotFound as error:
                 return _json({"errors": [str(error)]}, status=404)
+            except registry.Forbidden as error:
+                return _json({"errors": [str(error)]}, status=403)
 
         return wrapper
 
@@ -69,13 +71,17 @@ def _body(request) -> dict:
     return body
 
 
-def _skill_dict(skill: Skill, years: str = "") -> dict:
+def _skill_dict(skill: Skill, years: str = "", user=None) -> dict:
+    """スキル項目の表示用データ。`editable` は、ログインしたユーザーが変更できるか。"""
+    is_custom = skill.owner_id is not None
     return {
         "skill_id": skill.skill_id,
         "category": skill.category,
         "subcategory": skill.subcategory,
         "name": skill.name,
         "is_master": skill.is_master,
+        "is_custom": is_custom,
+        "editable": is_custom or bool(user and user.is_staff),
         "years": years,
     }
 
@@ -181,7 +187,7 @@ def _skills_with_years(owner) -> list[dict]:
         for row in build_skill_rows(owner, timezone.localdate())
     }
     return [
-        _skill_dict(s, years_by_skill.get(s.skill_id, ""))
+        _skill_dict(s, years_by_skill.get(s.skill_id, ""), owner)
         for s in ordered_skills(owner)
     ]
 
@@ -201,7 +207,8 @@ def api_bootstrap(request):
     return _json(
         {
             "skills": _skills_with_years(owner),
-            "categories": registry.category_names(owner),
+            "categories": registry.category_names(),
+            "is_operator": owner.is_staff,
             "companies": _companies(owner),
             "phases": PROJECT_PHASES,
             "ongoing_projects": [
@@ -247,11 +254,13 @@ def api_skills(request):
     return _json(_skills_with_years(request.user))
 
 
-def _categories(owner) -> list[dict]:
-    counts = Counter(Skill.objects.visible_to(owner).values_list("category", flat=True))
+def _categories(user) -> list[dict]:
+    """種類の一覧。項目数は、運営者は全ユーザーの項目、それ以外は参照できる項目を数える。"""
+    skills = Skill.objects.all() if user.is_staff else Skill.objects.visible_to(user)
+    counts = Counter(skills.values_list("category", flat=True))
     return [
         {"name": name, "skill_count": counts.get(name, 0)}
-        for name in registry.category_names(owner)
+        for name in registry.category_names()
     ]
 
 
