@@ -3,6 +3,9 @@
 import os
 
 os.environ.setdefault("SECRET_KEY", "test-only")
+for name in ("GOOGLE", "GITHUB"):
+    os.environ.setdefault(f"{name}_CLIENT_ID", f"{name.lower()}-client-id")
+    os.environ.setdefault(f"{name}_CLIENT_SECRET", f"{name.lower()}-client-secret")
 
 from .base import *
 

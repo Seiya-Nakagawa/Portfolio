@@ -1,7 +1,13 @@
+from allauth.socialaccount import views as socialaccount_views
+from allauth.socialaccount.providers.github.provider import GitHubProvider
+from allauth.socialaccount.providers.google.provider import GoogleProvider
+from allauth.socialaccount.providers.oauth2.urls import default_urlpatterns
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
-from django.urls import path
+from django.urls import include, path
+from django.views.generic import RedirectView
 
+from portfolio import auth_views as portfolio_auth_views
 from portfolio import manage_views, views
 
 # 本番は Ingress がパスプレフィックス（/portfolio）を除去して転送するため、
@@ -12,13 +18,28 @@ urlpatterns = [
     path("api/certifications", views.api_certifications, name="api-certifications"),
     path("api/works", views.api_works, name="api-works"),
     path("api/site", views.api_site, name="api-site"),
-    # 登録画面（本人のログインが必要）
-    path(
-        "manage/login/",
-        auth_views.LoginView.as_view(template_name="manage/login.html"),
-        name="login",
-    ),
+    # ログイン・サインアップ（外部アカウントのみ。パスワードによるログインは提供しない）
+    path("login/", portfolio_auth_views.login_page, name="login"),
+    # 認証ライブラリが戻り先として逆引きする名前。同じログイン画面を指す。
+    path("login/", portfolio_auth_views.login_page, name="account_login"),
     path("manage/logout/", auth_views.LogoutView.as_view(), name="logout"),
+    path("accounts/", include(default_urlpatterns(GoogleProvider))),
+    path("accounts/", include(default_urlpatterns(GitHubProvider))),
+    path("accounts/signup/", socialaccount_views.signup, name="socialaccount_signup"),
+    path(
+        "accounts/login/cancelled/",
+        socialaccount_views.login_cancelled,
+        name="socialaccount_login_cancelled",
+    ),
+    path(
+        "accounts/login/error/",
+        socialaccount_views.login_error,
+        name="socialaccount_login_error",
+    ),
+    path("accounts/reconsent/", portfolio_auth_views.reconsent, name="reconsent"),
+    path("terms/", portfolio_auth_views.terms, name="terms"),
+    path("privacy/", portfolio_auth_views.privacy, name="privacy"),
+    # 登録画面（ログインが必要）
     path("manage/", manage_views.index, name="manage"),
     path(
         "manage/api/bootstrap", manage_views.api_bootstrap, name="manage-api-bootstrap"
@@ -102,6 +123,8 @@ urlpatterns = [
         manage_views.skillsheet_markdown,
         name="manage-skillsheet-markdown",
     ),
+    # 管理サイトの独自のログイン画面は用いず、本サービスのログイン画面へ誘導する。
+    path("admin/login/", RedirectView.as_view(pattern_name="login", query_string=True)),
     path("admin/", admin.site.urls),
 ]
 

@@ -1,0 +1,35 @@
+{% extends "account/base.html" %}
+{% block title %}サインアップ{% endblock %}
+{% block heading %}サインアップ{% endblock %}
+{% block content %}
+{% with login=form.sociallogin %}
+<dl class="account-summary">
+  <dt>表示名</dt>
+  <dd>{{ login.user.first_name }} {{ login.user.last_name }}</dd>
+  <dt>メールアドレス</dt>
+  <dd>{{ login.user.email|default:"（提供元から取得できませんでした）" }}</dd>
+</dl>
+{% endwith %}
+<form method="post" action="{% url 'socialaccount_signup' %}">
+  {% csrf_token %}
+  {% if form.non_field_errors %}
+  <p class="message error" role="alert">{{ form.non_field_errors|join:" " }}</p>
+  {% endif %}
+  <label>ユーザー名
+    <input type="text" name="username" value="{{ form.username.value|default:'' }}" autocomplete="username" minlength="3" maxlength="30" required autofocus />
+  </label>
+  <p class="hint">半角英小文字で始まる、半角英小文字・数字・ハイフンの 3〜30 文字。公開ポートフォリオの URL に使われます。</p>
+  {% for error in form.username.errors %}
+  <p class="message error" role="alert">{{ error }}</p>
+  {% endfor %}
+  <label class="check">
+    <input type="checkbox" name="agree" {% if form.agree.value %}checked{% endif %} required />
+    <span><a href="{% url 'terms' %}" target="_blank" rel="noopener">利用規約</a>と<a href="{% url 'privacy' %}" target="_blank" rel="noopener">プライバシーポリシー</a>に同意します</span>
+  </label>
+  {% for error in form.agree.errors %}
+  <p class="message error" role="alert">{{ error }}</p>
+  {% endfor %}
+  {% if redirect_field_value %}<input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}" />{% endif %}
+  <button type="submit" class="primary">同意して登録</button>
+</form>
+{% endblock %}

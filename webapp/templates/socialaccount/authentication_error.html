@@ -1,0 +1,6 @@
+{% extends "account/base.html" %}
+{% block title %}ログインに失敗しました{% endblock %}
+{% block content %}
+<p class="message error" role="alert">外部アカウントでの認証に失敗しました。時間をおいて、もう一度お試しください。</p>
+<p><a href="{% url 'login' %}">ログイン画面へ戻る</a></p>
+{% endblock %}

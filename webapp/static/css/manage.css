@@ -751,6 +751,45 @@ pre {
   color: var(--danger);
 }
 
+.login-box p {
+  margin-bottom: 1rem;
+}
+
+.login-box form + form {
+  margin-top: 0.75rem;
+}
+
+.login-box .hint {
+  font-size: 0.8125rem;
+  color: var(--muted, inherit);
+}
+
+.login-box .check {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.login-box .account-summary {
+  margin-bottom: 1rem;
+}
+
+.login-box .account-summary dt {
+  font-size: 0.8125rem;
+}
+
+.login-box .account-summary dd {
+  margin: 0 0 0.5rem;
+}
+
+.login-box .login-links {
+  display: flex;
+  gap: 1rem;
+  margin: 1.5rem 0 0;
+  font-size: 0.8125rem;
+}
+
 /* ---- 狭い画面 ---- */
 @media (max-width: 63.9375rem) {
   .project-layout {
