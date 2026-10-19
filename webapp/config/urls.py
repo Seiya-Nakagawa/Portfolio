@@ -10,14 +10,19 @@ from django.views.generic import RedirectView
 from portfolio import auth_views as portfolio_auth_views
 from portfolio import manage_views, views
 
-# 本番は Ingress がパスプレフィックス（/portfolio）を除去して転送するため、
-# ここではプレフィックスを含めずに定義する。
+# サービスホストのルート（/）で公開する。
 urlpatterns = [
     path("", views.index, name="index"),
-    path("api/skills", views.api_skills, name="api-skills"),
-    path("api/certifications", views.api_certifications, name="api-certifications"),
-    path("api/works", views.api_works, name="api-works"),
-    path("api/site", views.api_site, name="api-site"),
+    # ユーザー別の公開ポートフォリオと読み取り専用 API（認証不要。公開中のユーザーのみ）
+    path("u/<str:username>/", views.portfolio, name="portfolio"),
+    path("u/<str:username>/api/skills", views.api_skills, name="api-skills"),
+    path(
+        "u/<str:username>/api/certifications",
+        views.api_certifications,
+        name="api-certifications",
+    ),
+    path("u/<str:username>/api/works", views.api_works, name="api-works"),
+    path("u/<str:username>/api/site", views.api_site, name="api-site"),
     # ログイン・サインアップ（外部アカウントのみ。パスワードによるログインは提供しない）
     path("login/", portfolio_auth_views.login_page, name="login"),
     # 認証ライブラリが戻り先として逆引きする名前。同じログイン画面を指す。
@@ -128,8 +133,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
 ]
 
-# アップロードした画像を配信する。小規模な個人サイトのため、アプリケーションから直接配信する。
-# 本番は Ingress がプレフィックスを除去して転送するため、プレフィックスを含めずに定義する。
+# アップロードした画像を、公開設定と閲覧者を検証したうえでアプリケーションから配信する。
 urlpatterns += [
     path("media/<path:path>", views.media, name="media"),
 ]

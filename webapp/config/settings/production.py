@@ -9,13 +9,10 @@ ALLOWED_HOSTS = env.list("ALLOWED_HOSTS")
 # 明示しないと request.is_secure() が False になる。
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
-# /portfolio 配下で動作させるため、URL 逆引き・リダイレクト先にプレフィックスを付与する。
-# Ingress 側はプレフィックスを除去してバックエンドへ転送するため、Django 側は付与のみを担う。
-FORCE_SCRIPT_NAME = env("FORCE_SCRIPT_NAME", default="/portfolio")
-
-# 階層の深い URL でも静的ファイルを解決できるよう、プレフィックス起点の絶対パスにする。
-STATIC_URL = f"{FORCE_SCRIPT_NAME}/static/"
-MEDIA_URL = f"{FORCE_SCRIPT_NAME}/media/"
+# サービスホストのルート（/）で動作させる。階層の深い URL（/u/{ユーザー名}/ 等）でも
+# 静的ファイル・画像を解決できるよう、ルート起点の絶対パスにする。
+STATIC_URL = "/static/"
+MEDIA_URL = "/media/"
 
 DATABASES = {
     "default": {

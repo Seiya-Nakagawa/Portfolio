@@ -44,18 +44,32 @@ infra-oci 基盤の Kubernetes 上にコンテナとして配置し、実績 DB�
 
 ## 公開ページ・読み取り専用 API
 
-認証不要で公開する（パスプレフィックス `/portfolio` は Ingress が除去して転送する）。
+サービスホストのルートで、認証不要で公開する。対象は公開中（`user_profiles.is_public`）かつ有効なユーザーのみで、
+非公開・存在しない・利用停止中のユーザー名は、区別せず同一の 404 を返す。
 
 | パス | 内容 |
 | ---- | ---- |
-| `/` | ポートフォリオサイトのページ本体 |
-| `/api/skills` | スキルデータ（案件実績から集計した経験年数） |
-| `/api/certifications` | 資格データ |
-| `/api/works` | 実績データ |
-| `/api/site` | サイト情報データ（Hero・About・Contact・フッター） |
+| `/` | サービス紹介 |
+| `/u/{ユーザー名}/` | ユーザーのポートフォリオサイトのページ本体 |
+| `/u/{ユーザー名}/api/skills` | スキルデータ（案件実績から集計した経験年数） |
+| `/u/{ユーザー名}/api/certifications` | 資格データ |
+| `/u/{ユーザー名}/api/works` | 実績データ |
+| `/u/{ユーザー名}/api/site` | サイト情報データ（Hero・About・Contact・フッター） |
+| `/media/users/{ユーザーの id}/…` | アップロードした画像。所有するユーザーが公開中か、閲覧者が本人の場合のみ返す |
 
-公開ページ・API は、ユーザー別の公開ポートフォリオ（`/u/{ユーザー名}/`）を実装するまでの間、
-最初に登録された有効な運営者（`is_staff`）のデータを表示する。
+アップロードした画像は `MEDIA_ROOT` 配下のユーザーごとのディレクトリ（`users/{ユーザーの id}/works/`）に保存する。
+従来の保存先（`works/`）の画像は、次のコマンドで所有するユーザーの保存先へ移す（移動済みのファイルはスキップする。
+デプロイ時にも実行される）。
+
+```bash
+uv run python manage.py migrate_media
+```
+
+### 旧 URL からのリダイレクト
+
+旧 URL のホスト（`LEGACY_HOSTS`）へのリクエストは、リダイレクト（301）以外を応答しない。`/manage/` 以下は
+サービスホストの同じ画面へ、それ以外は運営者の公開ポートフォリオ（`/u/{LEGACY_REDIRECT_USERNAME}/`。
+未設定の場合はサービスホストのトップ）へ転送する。Ingress が `/portfolio` を除去して転送する場合も、除去しない場合も同じ結果になる。
 
 資格・実績・サイト情報の初期データは、マイグレーション適用後に次のコマンドで投入する。
 `--owner` に所有者とするユーザーのユーザー名を指定する（そのユーザーにデータがあるテーブルはスキップする）。
@@ -140,7 +154,9 @@ uv run python manage.py import_skill_sheet /path/to/csv --owner {ユーザー名
 | `DB_HOST` / `DB_PORT` | 接続先（開発のみ） | 既定値 `127.0.0.1` / `3306` |
 | `DB_SOCKET_PATH` | 接続先の UNIX ソケット（本番のみ） | 既定値 `/var/run/mysqld/mysqld.sock` |
 | `ALLOWED_HOSTS` | 許可ホスト（本番のみ、カンマ区切り） | |
-| `FORCE_SCRIPT_NAME` | URL プレフィックス（本番のみ） | 既定値 `/portfolio` |
+| `SERVICE_HOST` | サービスホスト名（旧 URL からの転送先。本番のみ） | 既定値 空 |
+| `LEGACY_HOSTS` | 旧 URL のホスト名（本番のみ、カンマ区切り。空の場合は転送しない） | 既定値 空 |
+| `LEGACY_REDIRECT_USERNAME` | 旧 URL の転送先とする運営者のユーザー名（本番のみ） | 既定値 空 |
 | `CSRF_TRUSTED_ORIGINS` | CSRF を許可するオリジン（本番のみ、カンマ区切り。例: `https://example.com`） | 既定値 空 |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google の OAuth クライアント | 本番は OCI Vault から同期 |
 | `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | GitHub の OAuth App | 本番は OCI Vault から同期 |

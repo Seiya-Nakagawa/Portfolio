@@ -45,7 +45,7 @@ class SkillsApiTests(TestCase):
 
     def _get(self):
         with patch("portfolio.views.timezone.localdate", return_value=TODAY):
-            return self.client.get(reverse("api-skills"))
+            return self.client.get(reverse("api-skills", args=["operator"]))
 
     def test_レスポンス形式(self):
         response = self._get()
@@ -76,7 +76,9 @@ class SkillsApiTests(TestCase):
 
     def test_認証不要でGETのみ許可する(self):
         self.assertEqual(self._get().status_code, 200)
-        self.assertEqual(self.client.post(reverse("api-skills")).status_code, 405)
+        self.assertEqual(
+            self.client.post(reverse("api-skills", args=["operator"])).status_code, 405
+        )
 
 
 class CertificationsApiTests(TestCase):
@@ -88,7 +90,7 @@ class CertificationsApiTests(TestCase):
         Certification.objects.create(
             owner=operator, name="B", acquired_on=date(2024, 7, 1), org="X"
         )
-        response = self.client.get(reverse("api-certifications"))
+        response = self.client.get(reverse("api-certifications", args=["operator"]))
         self.assertEqual(
             response.json(),
             [
@@ -111,7 +113,7 @@ class WorksApiTests(TestCase):
             thumbnail="img/a.png",
             github_url="https://github.com/x/y",
         )
-        body = self.client.get(reverse("api-works")).json()
+        body = self.client.get(reverse("api-works", args=["operator"])).json()
         self.assertEqual([w["title"] for w in body], ["後", "先"])
         self.assertEqual(
             body[0],
@@ -130,11 +132,12 @@ class WorksApiTests(TestCase):
 
 class IndexPageTests(TestCase):
     def test_ページ本体が認証なしで表示され_API_URLを渡す(self):
-        response = self.client.get(reverse("index"))
+        create_operator()
+        response = self.client.get(reverse("portfolio", args=["operator"]))
         self.assertEqual(response.status_code, 200)
         html = response.content.decode()
-        self.assertIn('data-api-skills="/api/skills"', html)
-        self.assertIn('data-api-works="/api/works"', html)
+        self.assertIn('data-api-skills="/u/operator/api/skills"', html)
+        self.assertIn('data-api-works="/u/operator/api/works"', html)
         self.assertIn("/static/js/main.js", html)
 
 

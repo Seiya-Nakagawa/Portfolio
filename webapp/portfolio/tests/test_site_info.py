@@ -46,12 +46,14 @@ class FormatCopyrightTests(SimpleTestCase):
 class PublicSiteApiTests(TestCase):
     def test_未登録なら404(self):
         create_operator()
-        self.assertEqual(self.client.get(reverse("api-site")).status_code, 404)
+        self.assertEqual(
+            self.client.get(reverse("api-site", args=["operator"])).status_code, 404
+        )
 
     def test_年齢を返し生年月日を含まない(self):
         payload = dict(VALID_PAYLOAD, birth_date=date(1990, 5, 10))
         SiteInfo.objects.create(owner=create_operator(), **payload)
-        response = self.client.get(reverse("api-site"))
+        response = self.client.get(reverse("api-site", args=["operator"]))
         self.assertEqual(response.status_code, 200)
         body = response.json()
         self.assertIn("age", body)

@@ -79,7 +79,7 @@ spec:
             runAsNonRoot: true
             runAsUser: 1000
           readinessProbe:
-            # ALLOWED_HOSTS が technohonesty.com のみのため、Host ヘッダーが必要。
+            # ALLOWED_HOSTS を限定しているため、Host ヘッダーが必要。
             # httpGet + httpHeaders での Host 上書きは kubelet との組み合わせで 404 になる
             # 事象が kakeibo で確認されているため、コンテナ内から自分自身へ HTTP
             # リクエストを送る exec プローブとする。
@@ -92,7 +92,7 @@ spec:
                   import sys
 
                   conn = http.client.HTTPConnection("127.0.0.1", 8000, timeout=3)
-                  conn.request("GET", "/", headers={"Host": "technohonesty.com"})
+                  conn.request("GET", "/", headers={"Host": "skillsheet.technohonesty.com"})
                   status = conn.getresponse().status
                   sys.exit(0 if status < 400 else 1)
             initialDelaySeconds: 5
