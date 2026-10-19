@@ -29,3 +29,16 @@ spec:
     - secretKey: DB_PASSWORD
       remoteRef:
         key: portfolio-db-password
+    # 外部アカウント認証（Google・GitHub）の OAuth クライアント。
+    - secretKey: GOOGLE_CLIENT_ID
+      remoteRef:
+        key: portfolio-google-client-id
+    - secretKey: GOOGLE_CLIENT_SECRET
+      remoteRef:
+        key: portfolio-google-client-secret
+    - secretKey: GITHUB_CLIENT_ID
+      remoteRef:
+        key: portfolio-github-client-id
+    - secretKey: GITHUB_CLIENT_SECRET
+      remoteRef:
+        key: portfolio-github-client-secret
