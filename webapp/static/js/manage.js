@@ -17,6 +17,8 @@ document.addEventListener('DOMContentLoaded', () => {
         skillsheetMarkdown: document.body.dataset.skillsheetMarkdown,
         account: document.body.dataset.apiAccount,
         accountWithdraw: document.body.dataset.apiAccountWithdraw,
+        // 共通マスタ・種類マスタを編集できる運営者か。
+        isOperator: document.body.dataset.isOperator === 'true',
     };
     // --- 共通処理 ---
 
@@ -696,6 +698,11 @@ document.addEventListener('DOMContentLoaded', () => {
             return draft || editing;
         }
 
+        // 利用者の権限などに応じて、表示する入力項目を絞る。
+        function activeFields() {
+            return config.fields.filter((f) => !f.show || f.show());
+        }
+
         function renderField(field, row) {
             const value = esc(fieldValue(row, field));
             const readonly = editing && field.readonlyOnEdit ? ' disabled' : '';
@@ -735,7 +742,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 ${pageHead(heading, { back: 'data-cancel' })}
                 <form class="card">
                     <div class="form-grid">
-                        ${config.fields.map((f) => renderField(f, formSource())).join('')}
+                        ${activeFields().map((f) => renderField(f, formSource())).join('')}
                     </div>
                     <div class="form-bar">
                         <button type="submit" class="primary">確認へ</button>
@@ -766,7 +773,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return `<tr><td colspan="${config.columns.length + 1}" class="empty">該当するデータがありません。${hint}</td></tr>`;
             }
             return visible.map((row) => `<tr>${config.columns.map((c) => `<td${c.numeric ? ' class="num"' : ''}>${esc(c.value(row))}</td>`).join('')}
-                <td class="row-actions"><button type="button" class="sm" data-edit="${rows.indexOf(row)}">編集</button>${config.canDelete && !config.canDelete(row) ? '' : `<button type="button" class="sm danger" data-delete="${rows.indexOf(row)}">削除</button>`}</td></tr>`).join('');
+                <td class="row-actions">${config.canEdit && !config.canEdit(row) ? '' : `<button type="button" class="sm" data-edit="${rows.indexOf(row)}">編集</button>`}${config.canDelete && !config.canDelete(row) ? '' : `<button type="button" class="sm danger" data-delete="${rows.indexOf(row)}">削除</button>`}</td></tr>`).join('');
         }
 
         function countText(visible) {
@@ -798,8 +805,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderConfirmScreen(root, {
                     title: config.title,
                     saveLabel: editing ? '更新' : '追加',
-                    rows: config.fields.map((f) => [confirmLabel(f.label), formatField(f, draft)]),
-                    before: editing ? config.fields.map((f) => formatField(f, editing)) : undefined,
+                    rows: activeFields().map((f) => [confirmLabel(f.label), formatField(f, draft)]),
+                    before: editing ? activeFields().map((f) => formatField(f, editing)) : undefined,
                     onBack: () => { confirming = false; render(); },
                     onSave: save,
                 });
@@ -869,7 +876,7 @@ document.addEventListener('DOMContentLoaded', () => {
         function submit(event) {
             event.preventDefault();
             const payload = {};
-            config.fields.forEach((f) => {
+            activeFields().forEach((f) => {
                 const value = event.target.elements[f.name].value;
                 payload[f.name] = f.type === 'tags' ? value.split(',').map((t) => t.trim()).filter(Boolean) : value;
             });
@@ -975,17 +982,22 @@ document.addEventListener('DOMContentLoaded', () => {
         url: urls.skills,
         idKey: 'skill_id',
         label: (row) => row.name,
-        // マスタに登録された項目は削除できない（利用者が追加した項目のみ削除できる）。
-        canDelete: (row) => !row.is_master,
+        // 共通マスタは運営者のみ編集でき、削除はできない。独自スキル項目は本人のみ編集・削除できる。
+        canEdit: (row) => row.editable,
+        canDelete: (row) => row.is_custom,
         columns: [
+            { label: '区分', value: (r) => (r.is_custom ? '独自' : '共通') },
             { label: '種類', value: (r) => r.category },
             { label: 'サブカテゴリ', value: (r) => r.subcategory },
             { label: '項目', value: (r) => r.name },
             { label: '経験年数', value: (r) => r.years, numeric: true },
         ],
         fields: [
-            { name: 'skill_id', label: 'skill_id（半角英小文字・数字・ハイフン。登録後は変更不可）', readonlyOnEdit: true },
-            { name: 'category', label: '種類', datalist: () => masterCategories() },
+            // 独自スキル項目の識別子は自動採番するため、入力は運営者（共通マスタ）のみ。
+            { name: 'skill_id', label: 'skill_id（半角英小文字・数字・ハイフン。登録後は変更不可）', readonlyOnEdit: true, show: () => urls.isOperator },
+            // 種類の追加は運営者のみ。それ以外のユーザーは既存の種類から選ぶ。
+            { name: 'category', label: '種類', datalist: () => masterCategories(), show: () => urls.isOperator },
+            { name: 'category', label: '種類', type: 'select', options: () => masterCategories().map((v) => ({ value: v, label: v })), show: () => !urls.isOperator },
             { name: 'subcategory', label: 'サブカテゴリ（任意。案件登録でサブタブに分ける）', datalist: () => subcategories() },
             { name: 'name', label: '表示名' },
         ],

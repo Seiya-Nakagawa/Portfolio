@@ -20,6 +20,7 @@
     data-media-base="{{ MEDIA_URL }}"
     data-api-site="{% url 'manage-api-site' %}"
     data-api-account="{% url 'manage-api-account' %}"
+    data-is-operator="{{ user.is_staff|yesno:'true,false' }}"
     data-api-account-withdraw="{% url 'manage-api-account-withdraw' %}"
     data-api-skillsheet="{% url 'manage-api-skillsheet' %}"
     data-skillsheet-pdf="{% url 'manage-skillsheet-pdf' %}"
@@ -49,7 +50,9 @@
           <button type="button" role="tab" data-tab="site">サイト情報</button>
           <p class="nav-group" role="presentation">出力・設定</p>
           <button type="button" role="tab" data-tab="skillsheet">職務経歴書</button>
+          {% if user.is_staff %}
           <button type="button" role="tab" data-tab="categories">種類管理</button>
+          {% endif %}
           <button type="button" role="tab" data-tab="account">アカウント</button>
         </nav>
       </aside>

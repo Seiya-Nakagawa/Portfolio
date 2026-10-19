@@ -18,6 +18,7 @@ from portfolio.models import (
     ProjectSkill,
     SiteInfo,
     Skill,
+    SkillCategory,
     Work,
 )
 
@@ -35,29 +36,47 @@ class SkillRow:
 def ordered_skills(owner) -> list[Skill]:
     """共通マスタと指定ユーザーの独自スキル項目を、種類 → サブカテゴリ → 表示順の順で返す。
 
-    種類間は各種類の sort_order 最小値の昇順、種類内のサブカテゴリ間は各サブカテゴリの
-    sort_order 最小値の昇順とし、サブカテゴリ未設定の項目は種類内の末尾に置く。
+    種類間は各種類の共通マスタの sort_order 最小値の昇順（共通マスタのない種類は種類マスタの
+    順）、種類内のサブカテゴリ間は各サブカテゴリの sort_order 最小値の昇順とし、
+    サブカテゴリ未設定の項目は種類内の末尾に置く。独自スキル項目は、同じ種類の共通マスタの後ろに
+    サブカテゴリ ＞ 名前の昇順で並べる。
     """
     skills = list(Skill.objects.visible_to(owner).order_by("sort_order"))
+    masters = [s for s in skills if s.owner_id is None]
     category_order: dict[str, int] = {}
     subcategory_order: dict[tuple[str, str], int] = {}
-    for skill in skills:
+    for skill in masters:
         category_order.setdefault(skill.category, skill.sort_order)
         subcategory_order.setdefault(
             (skill.category, skill.subcategory), skill.sort_order
         )
-    return sorted(
-        skills,
-        key=lambda s: (
-            category_order[s.category],
-            s.category,
-            s.subcategory == "",
-            subcategory_order[(s.category, s.subcategory)],
-            s.subcategory,
-            s.sort_order,
-            s.skill_id,
-        ),
-    )
+    master_less = {s.category for s in skills} - category_order.keys()
+    master_less_order = {
+        name: sort_order
+        for name, sort_order in SkillCategory.objects.filter(
+            name__in=master_less
+        ).values_list("name", "sort_order")
+    }
+
+    def category_key(skill: Skill) -> tuple:
+        if skill.category in category_order:
+            return (0, category_order[skill.category], skill.category)
+        return (1, master_less_order.get(skill.category, 0), skill.category)
+
+    def key(skill: Skill) -> tuple:
+        custom = skill.owner_id is not None
+        return (
+            category_key(skill),
+            custom,
+            skill.subcategory == "",
+            0 if custom else subcategory_order[(skill.category, skill.subcategory)],
+            skill.subcategory,
+            skill.name.casefold() if custom else "",
+            0 if custom else skill.sort_order,
+            skill.skill_id,
+        )
+
+    return sorted(skills, key=key)
 
 
 def format_year_month(value: date) -> str:

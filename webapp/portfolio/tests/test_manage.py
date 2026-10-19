@@ -14,12 +14,15 @@ from portfolio.tests.helpers import create_user
 TODAY = date(2026, 9, 25)
 
 
-def _skill(skill_id, category, name, sort_order):
+def _skill(skill_id, category, name, sort_order, owner=None):
+    """スキル項目を作成する。所有者を省略すると共通マスタになる。"""
     return Skill.objects.create(
         skill_id=skill_id,
         category=category,
         name=name,
         sort_order=sort_order,
+        owner=owner,
+        is_master=owner is None,
     )
 
 
@@ -34,6 +37,15 @@ class LoggedInTestCase(TestCase):
         return getattr(self.client, method)(
             url, data=body, content_type="application/json"
         )
+
+
+class OperatorTestCase(LoggedInTestCase):
+    """運営者（共通マスタ・種類マスタを編集できるユーザー）としてログインした状態。"""
+
+    def setUp(self):
+        super().setUp()
+        self.user.is_staff = True
+        self.user.save()
 
 
 class AuthenticationTests(TestCase):
@@ -429,7 +441,7 @@ class CompanyApiTests(LoggedInTestCase):
         self.assertTrue(Company.objects.filter(pk=company.pk).exists())
 
 
-class CategoryApiTests(LoggedInTestCase):
+class CategoryApiTests(OperatorTestCase):
     def test_一覧は種類マスタの順に項目数を含む(self):
         _skill("ec2", "AWS", "EC2", 10)
         _skill("py", "言語", "Python", 20)
@@ -516,7 +528,7 @@ class CategoryApiTests(LoggedInTestCase):
         self.assertEqual(rows, [{"name": "AWS", "skill_count": 1}])
 
 
-class SkillApiTests(LoggedInTestCase):
+class SkillApiTests(OperatorTestCase):
     def _payload(self, **overrides):
         payload = {
             "skill_id": "ec2",
@@ -580,35 +592,35 @@ class SkillApiTests(LoggedInTestCase):
             [r["skill_id"] for r in rows], ["ec2", "lambda", "s3", "other"]
         )
 
-    def test_使用実績のない項目は削除できる(self):
-        _skill("ec2", "AWS", "EC2", 10)
+    def test_使用実績のない独自スキル項目は削除できる(self):
+        _skill("u-mine", "AWS", "EC2", 0, owner=self.user)
         self.assertEqual(
-            self.call("delete", "manage-api-skill", skill_id="ec2").status_code, 200
+            self.call("delete", "manage-api-skill", skill_id="u-mine").status_code, 200
         )
         self.assertEqual(Skill.objects.count(), 0)
 
-    def test_マスタ項目は削除できない(self):
-        skill = _skill("ec2", "AWS", "EC2", 10)
-        skill.is_master = True
-        skill.save()
+    def test_共通マスタは運営者でも削除できない(self):
+        _skill("ec2", "AWS", "EC2", 10)
         response = self.call("delete", "manage-api-skill", skill_id="ec2")
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 403)
         self.assertEqual(Skill.objects.count(), 1)
         rows = self.call("get", "manage-api-skills").json()
         self.assertTrue(rows[0]["is_master"])
 
-    def test_画面から追加した項目はマスタ項目にならない(self):
+    def test_運営者が追加した項目は共通マスタになる(self):
         payload = {"skill_id": "mine", "category": "AWS", "name": "Mine"}
         self.call("post", "manage-api-skills", payload)
-        self.assertFalse(Skill.objects.get(skill_id="mine").is_master)
+        skill = Skill.objects.get(skill_id="mine")
+        self.assertTrue(skill.is_master)
+        self.assertIsNone(skill.owner_id)
 
     def test_使用実績のある項目は削除できない(self):
-        skill = _skill("ec2", "AWS", "EC2", 10)
+        skill = _skill("u-mine", "AWS", "EC2", 0, owner=self.user)
         project = Project.objects.create(
             owner=self.user, name="A", start_year_month="2025-01"
         )
         ProjectSkill.objects.create(project=project, skill=skill)
-        response = self.call("delete", "manage-api-skill", skill_id="ec2")
+        response = self.call("delete", "manage-api-skill", skill_id="u-mine")
         self.assertEqual(response.status_code, 400)
         self.assertEqual(Skill.objects.count(), 1)
 
