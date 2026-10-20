@@ -95,6 +95,10 @@ SOCIALACCOUNT_PROVIDERS = {
     },
 }
 
+# サービス名と、運営者への問い合わせ窓口（Google フォーム）の URL。
+SERVICE_NAME = "SkillSheet"
+CONTACT_FORM_URL = env("CONTACT_FORM_URL", default="")
+
 # 旧 URL（technohonesty.com/portfolio）からのリダイレクト。LEGACY_HOSTS が空の場合は行わない。
 # 転送先は SERVICE_HOST の運営者の公開ポートフォリオ（LEGACY_REDIRECT_USERNAME。未設定ならトップ）。
 SERVICE_HOST = env("SERVICE_HOST", default="")
@@ -119,6 +123,7 @@ TEMPLATES = [
                 "django.template.context_processors.media",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "portfolio.context_processors.service",
             ],
         },
     },

@@ -238,6 +238,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (reloadInitial) {
             project.state = fromServer(data.initial_project);
         }
+        // 案件が 1 件もない初回の利用時は、手順の案内を表示する。
+        project.isFirstUse = data.ongoing_projects.length === 0 && data.finished_projects.length === 0;
         renderProject();
     }
 
@@ -1629,7 +1631,9 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById(`tab-${key}`).hidden = key !== name;
         });
         showMessage('');
+        document.getElementById('first-use-guide').hidden = true;
         await tabLoaders[name]();
+        document.getElementById('first-use-guide').hidden = !(name === 'project' && project.isFirstUse);
     }
 
     document.querySelectorAll('#main-tabs button').forEach((button) => {

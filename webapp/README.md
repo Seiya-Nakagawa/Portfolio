@@ -94,6 +94,21 @@ uv run python manage.py import_skill_master
 入力値の検証はサーバー側（`portfolio/registry.py`）で行い、書き込みはトランザクション内で
 対象行をロックして排他制御する。
 
+## サービス紹介・利用規約・プライバシーポリシー
+
+| パス | 内容 |
+| ---- | ---- |
+| `/` | サービス紹介（特長・利用の流れ・職務経歴書の出力例・ログイン導線） |
+| `/terms/`・`/privacy/` | 現行の版の利用規約・プライバシーポリシー |
+
+- 規約の本文は版ごとのテンプレート（`templates/legal/terms/{版}.html`・`templates/legal/privacy/{版}.html`）で管理し、
+  現行の版は設定 `TERMS_VERSION`・`PRIVACY_VERSION` で指定する。改定する場合は、新しい版のテンプレートを追加し、
+  設定の版を更新する（過去の版のテンプレートは残す）。ユーザーは次回ログイン時に再同意を求められる
+- 本文には運営者の氏名・連絡先等の個人情報を記載しない。問い合わせは Google フォームで受け付け、URL は環境変数 `CONTACT_FORM_URL` で設定する
+  （未設定の場合はリンクを表示しない）。リンクはサービス紹介・規約・ログイン・公開ポートフォリオのフッターに置く
+- 出力例の画像（`static/img/skillsheet-sample.png`）は、架空のデータで生成した職務経歴書を撮影したもので、実データを含まない
+- 登録画面は、案件が 1 件もない初回の利用時に、案件の登録から職務経歴書の取得までの手順を案内する
+
 ## ログイン・サインアップ
 
 ログインは外部アカウント（Google・GitHub）のみで、パスワードによるログインは提供しない
@@ -182,6 +197,7 @@ uv run python manage.py import_skill_sheet /path/to/csv --owner {ユーザー名
 | `LEGACY_HOSTS` | 旧 URL のホスト名（本番のみ、カンマ区切り。空の場合は転送しない） | 既定値 空 |
 | `LEGACY_REDIRECT_USERNAME` | 旧 URL の転送先とする運営者のユーザー名（本番のみ） | 既定値 空 |
 | `CSRF_TRUSTED_ORIGINS` | CSRF を許可するオリジン（本番のみ、カンマ区切り。例: `https://example.com`） | 既定値 空 |
+| `CONTACT_FORM_URL` | 問い合わせ窓口（Google フォーム）の URL | 既定値 空（リンクを表示しない） |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google の OAuth クライアント | 本番は OCI Vault から同期 |
 | `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | GitHub の OAuth App | 本番は OCI Vault から同期 |
 
