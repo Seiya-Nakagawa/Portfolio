@@ -759,7 +759,7 @@ class ImageUploadTests(LoggedInTestCase):
         override.enable()
         self.addCleanup(override.disable)
 
-    def _upload(self, name="a.png", content=b"\x89PNG-data"):
+    def _upload(self, name="a.png", content=b"\x89PNG\r\n\x1a\n-data"):
         return self.client.post(
             reverse("manage-api-upload-image"),
             {"image": SimpleUploadedFile(name, content)},
@@ -786,7 +786,7 @@ class ImageUploadTests(LoggedInTestCase):
         self.assertEqual(response.status_code, 400)
 
     def test_サイズ超過は拒否する(self):
-        response = self._upload(content=b"0" * (5 * 1024 * 1024 + 1))
+        response = self._upload(content=b"\x89PNG\r\n\x1a\n" + b"0" * (5 * 1024 * 1024))
         self.assertEqual(response.status_code, 400)
 
     def test_未ログインでは401を返す(self):

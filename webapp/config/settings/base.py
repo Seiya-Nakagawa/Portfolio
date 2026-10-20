@@ -40,6 +40,8 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware",
+    # 公開ページ・ログイン・サインアップの呼び出し回数を接続元ごとに制限する。
+    "portfolio.middleware.RateLimitMiddleware",
     # 規約の版が改定された場合に、同意していないユーザーを再同意画面へ誘導する。
     "portfolio.middleware.ReconsentMiddleware",
 ]
@@ -167,3 +169,20 @@ STORAGES = {
 }
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# 流量制限（対象: (区間あたりの上限回数, 区間の秒数)）。上限を超えた呼び出しには 429 を返す。
+RATE_LIMITS = {
+    "public": (120, 60),  # 公開ポートフォリオのページ・API・画像（接続元ごと）
+    "login": (20, 60),  # ログイン・サインアップ（接続元ごと）
+    "pdf": (10, 60),  # 職務経歴書 PDF の生成（ユーザーごと）
+    "upload": (30, 60),  # 画像のアップロード（ユーザーごと）
+}
+# 接続元の IP アドレスは、X-Forwarded-For の末尾から数えてこの番目（共有 Ingress が付与した値）を用いる。
+# それより前の値は接続元が任意に付与できるため信用しない。プロキシを経由しない場合は 0。
+TRUSTED_PROXY_COUNT = env.int("TRUSTED_PROXY_COUNT", default=0)
+
+# 1 ユーザーあたりの保存済み画像の合計の上限と、1 ファイルの上限（バイト）。
+MAX_USER_IMAGE_BYTES = 50 * 1024 * 1024
+MAX_IMAGE_BYTES = 5 * 1024 * 1024
+# アップロード後に実績へ保存されなかった画像を、日次の整理で削除するまでの猶予（秒）。
+UNREFERENCED_IMAGE_GRACE_SECONDS = 24 * 60 * 60

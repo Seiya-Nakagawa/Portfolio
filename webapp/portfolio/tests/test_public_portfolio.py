@@ -373,7 +373,7 @@ class UploadStoresUnderUserDirectoryTests(TestCase):
             self.client.force_login(user)
             response = self.client.post(
                 reverse("manage-api-upload-image"),
-                {"image": SimpleUploadedFile("a.png", b"\x89PNG-data")},
+                {"image": SimpleUploadedFile("a.png", b"\x89PNG\r\n\x1a\n-data")},
             )
             path = response.json()["path"]
             self.assertTrue(path.startswith(f"users/{user.pk}/works/"))

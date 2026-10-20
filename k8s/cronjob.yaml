@@ -1,0 +1,53 @@
+# 日次の整理処理。期限切れの流量制限の回数と、実績に保存されないまま残った画像を削除する。
+# Web Pod と同じイメージ・設定・保存領域を用いる。
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: portfolio-daily-maintenance
+  namespace: app-prod
+spec:
+  # UTC の 18:00（日本時間の 03:00）
+  schedule: "0 18 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        spec:
+          restartPolicy: Never
+          volumes:
+            - name: mysqld-socket-dir
+              hostPath:
+                path: /var/run/mysqld
+                type: Directory
+            - name: media
+              hostPath:
+                path: /var/lib/portfolio/media
+                type: DirectoryOrCreate
+          containers:
+            - name: maintenance
+              image: portfolio:latest
+              imagePullPolicy: IfNotPresent
+              command: ["python", "manage.py", "daily_maintenance"]
+              envFrom:
+                - configMapRef:
+                    name: portfolio-config
+                - secretRef:
+                    name: portfolio-secrets
+              volumeMounts:
+                - name: mysqld-socket-dir
+                  mountPath: /var/run/mysqld
+                - name: media
+                  mountPath: /app/media
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 1000
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 128Mi
+                limits:
+                  cpu: 200m
+                  memory: 256Mi

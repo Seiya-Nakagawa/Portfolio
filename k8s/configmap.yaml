@@ -13,3 +13,5 @@ data:
   DB_SOCKET_PATH: "/var/run/mysqld/mysqld.sock"
   # 登録画面（ログイン・CSRF）が Ingress で終端された HTTPS のオリジンを許可するために必要。
   CSRF_TRUSTED_ORIGINS: "https://skillsheet.technohonesty.com"
+  # 流量制限の接続元 IP は、共有 Ingress が X-Forwarded-For の末尾に付与した値を用いる。
+  TRUSTED_PROXY_COUNT: "1"
