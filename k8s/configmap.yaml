@@ -10,6 +10,8 @@ data:
   ALLOWED_HOSTS: "skillsheet.technohonesty.com,technohonesty.com"
   SERVICE_HOST: "skillsheet.technohonesty.com"
   LEGACY_HOSTS: "technohonesty.com"
+  # 旧 URL の転送先となる、運営者の公開ポートフォリオのユーザー名。
+  LEGACY_REDIRECT_USERNAME: "aibdlnew1"
   DB_SOCKET_PATH: "/var/run/mysqld/mysqld.sock"
   # 登録画面（ログイン・CSRF）が Ingress で終端された HTTPS のオリジンを許可するために必要。
   CSRF_TRUSTED_ORIGINS: "https://skillsheet.technohonesty.com"
