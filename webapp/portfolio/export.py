@@ -5,6 +5,7 @@ from datetime import date
 
 import markdown
 
+from portfolio.experience import expand_months, format_experience
 from portfolio.models import (
     PROJECT_PHASE_SEPARATOR,
     SKILLSHEET_TEXT_KEYS,
@@ -32,6 +33,9 @@ COMPANY_SECTIONS = [
     (Company.KIND_MAIN, "■開発経歴"),
     (Company.KIND_SIDE, "■副業"),
 ]
+
+# `■職務経歴 概略` で副業の会社名に付ける表記。
+SIDE_JOB_SUFFIX = "（副業）"
 
 END_MARK = "以上"
 
@@ -92,6 +96,12 @@ def _format_period(start: str, end: str) -> str:
     return f"{to_label(start)}〜{to_label(end) if end else ONGOING_LABEL}"
 
 
+def _format_duration(start: str, end: str, today: date) -> str:
+    """開始年月から終了年月（継続中は基準日の年月）までの両端を含む期間の長さ。"""
+    duration = format_experience(len(expand_months(start, end, today)))
+    return f"（{duration}）" if duration else ""
+
+
 def build_skill_table(owner, today: date) -> str:
     """`■テクニカルスキル` の表。使用実績のあるスキル項目がなければ空文字列を返す。"""
     rows = build_skill_rows(owner, today)
@@ -114,13 +124,16 @@ def _company_label(company: Company) -> str:
 
 
 def _build_company_summary(companies: list[Company]) -> str:
-    """`■職務経歴 概略` の表。"""
+    """`■職務経歴 概略` の表。本業・副業の会社を在籍開始年月の降順に並べる。"""
     lines = ["| 期間 | 会社名 |", "| --- | --- |"]
-    for company in companies:
+    ordered = sorted(companies, key=lambda c: c.company_id)
+    ordered.sort(key=lambda c: c.start_year_month, reverse=True)
+    for company in ordered:
         period = _format_period(company.start_year_month, company.end_year_month)
-        lines.append(
-            f"| {_escape_cell(period)} | {_escape_cell(_company_label(company))} |"
-        )
+        label = _company_label(company)
+        if company.kind == Company.KIND_SIDE:
+            label += SIDE_JOB_SUFFIX
+        lines.append(f"| {_escape_cell(period)} | {_escape_cell(label)} |")
     return "\n".join(lines)
 
 
@@ -129,12 +142,13 @@ def _cell(lines: list[str]) -> str:
     return "<br>".join(_escape_cell(line) for line in lines)
 
 
-def _build_project_row(project: Project) -> str:
+def _build_project_row(project: Project, today: date) -> str:
     """案件 1 件分の表の行。"""
     first, last = _format_period(
         project.start_year_month, project.end_year_month
     ).split("〜")
-    period = _cell([first, "〜", last])
+    duration = _format_duration(project.start_year_month, project.end_year_month, today)
+    period = _cell([first, "〜", last, *([duration] if duration else [])])
 
     content = [f"**{_escape_cell(project.name)}**"]
     if project.overview:
@@ -155,17 +169,17 @@ def _build_project_row(project: Project) -> str:
     return "| " + " | ".join(cells) + " |"
 
 
-def _build_project_table(projects: list[Project]) -> str:
+def _build_project_table(projects: list[Project], today: date) -> str:
     """会社に所属する案件の表。案件 1 件を 1 行とする。"""
     lines = [
         "| 開発期間 | プロジェクト名・内容 | 担当工程 | 環境・言語 | 役割・規模 |",
         "| --- | --- | --- | --- | --- |",
     ]
-    lines += [_build_project_row(project) for project in projects]
+    lines += [_build_project_row(project, today) for project in projects]
     return "\n".join(lines)
 
 
-def _build_company(company: Company, projects: list[Project]) -> str:
+def _build_company(company: Company, projects: list[Project], today: date) -> str:
     heading = f"### {_company_label(company)}"
     if company.employment_type:
         heading += f"（{company.employment_type}）"
@@ -180,7 +194,7 @@ def _build_company(company: Company, projects: list[Project]) -> str:
     if profile:
         blocks.append("\u3000".join(profile))
     if projects:
-        blocks.append(_build_project_table(projects))
+        blocks.append(_build_project_table(projects, today))
     return "\n\n".join(blocks)
 
 
@@ -234,14 +248,13 @@ def build_markdown(owner, today: date) -> tuple[str, SkillsheetWarnings]:
     sections: list[str | None] = ["\n".join(title)]
 
     sections.append(_section("■職務概要", texts.get("summary", "")))
-    main_companies = [c for c in companies if c.kind == Company.KIND_MAIN]
-    if main_companies:
-        sections.append(
-            _section("■職務経歴 概略", _build_company_summary(main_companies))
-        )
+    if companies:
+        sections.append(_section("■職務経歴 概略", _build_company_summary(companies)))
     for kind, heading in COMPANY_SECTIONS:
         body = "\n\n".join(
-            _build_company(company, projects_by_company.get(company.company_id, []))
+            _build_company(
+                company, projects_by_company.get(company.company_id, []), today
+            )
             for company in companies
             if company.kind == kind
         )

@@ -130,12 +130,15 @@ class RenderTests(SkillsheetTestCase):
         )
         self.assertTrue(markdown.endswith("\n\n以上\n"))
 
-    def test_概略は本業の会社のみ(self):
+    def test_概略は副業を含め在籍開始年月の降順に並べる(self):
         self._save_texts()
         markdown = self._render().markdown
-        self.assertIn("| 2023年07月〜現在 | 架空株式会社 開発部 |", markdown)
-        summary = markdown.split("## ■開発経歴")[0]
-        self.assertNotIn("副業先", summary)
+        summary = markdown.split("## ■職務経歴 概略")[1].split("## ■開発経歴")[0]
+        self.assertIn(
+            "| 2025年01月〜2025年06月 | 副業先（副業） |\n"
+            "| 2023年07月〜現在 | 架空株式会社 開発部 |",
+            summary,
+        )
 
     def test_会社見出しと会社概要(self):
         self._save_texts()
@@ -153,11 +156,11 @@ class RenderTests(SkillsheetTestCase):
         self.assertEqual(markdown.count(header), 2)
         self.assertLess(markdown.index("**新案件**"), markdown.index("**旧案件**"))
         self.assertIn(
-            "| 2025年04月<br>〜<br>現在 | **新案件**<br><br>【業務内容】<br>単一の業務 |  |  |  |",
+            "| 2025年04月<br>〜<br>現在<br>（1年6ヶ月） | **新案件**<br><br>【業務内容】<br>単一の業務 |  |  |  |",
             markdown,
         )
         self.assertIn(
-            "| 2023年07月<br>〜<br>2025年03月 | **旧案件**<br><br>【案件概要】<br>ダミーの概要"
+            "| 2023年07月<br>〜<br>2025年03月<br>（1年9ヶ月） | **旧案件**<br><br>【案件概要】<br>ダミーの概要"
             "<br><br>【業務内容】<br>設計<br>実装 | 基本設計 | Java 21<br>AWS | 3名体制 |",
             markdown,
         )
