@@ -722,6 +722,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <input type="hidden" name="${field.name}" value="${value}" />
                     <img class="image-preview" alt="サムネイルのプレビュー" src="${current ? esc(imageUrl(current)) : ''}"${current ? '' : ' hidden'} />
                     <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" data-image-input />
+                    <p class="hint">対応形式: png・jpg・gif・webp ／ 1 ファイル 5MB 以下 ／ 推奨比率: 16:9（横長）</p>
                 </div>`;
             }
             if (field.ongoingLabel) {
