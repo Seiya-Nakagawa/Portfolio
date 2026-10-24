@@ -2,7 +2,8 @@
 
 import json
 import tempfile
-from datetime import date
+import time
+from datetime import date, timedelta
 from pathlib import Path
 from unittest import mock
 
@@ -10,12 +11,14 @@ from allauth.socialaccount.models import SocialAccount
 from django.contrib.auth import get_user_model
 from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 
 from portfolio.accounts import SocialAccountAdapter
 from portfolio.models import (
     Certification,
     Company,
     Project,
+    ReleasedUsername,
     SiteInfo,
     Skill,
     UsageDaily,
@@ -74,12 +77,27 @@ class UsernameChangeTests(AccountApiTestCase):
         self.assertEqual(self.client.get("/u/taro/").status_code, 404)
         self.assertEqual(self.client.get("/u/taro-new/").status_code, 200)
 
-    def test_旧ユーザー名は他のユーザーが取得できる(self):
+    def test_旧ユーザー名は予約期間中は他のユーザーが取得できない(self):
         self.call("put", "manage-api-account", {"username": "taro-new"})
         other = create_user("jiro", password="pw-for-test")
         self.client.force_login(other)
         response = self.call("put", "manage-api-account", {"username": "taro"})
+        self.assertEqual(response.status_code, 400)
+
+    def test_旧ユーザー名は予約期間を過ぎると他のユーザーが取得できる(self):
+        self.call("put", "manage-api-account", {"username": "taro-new"})
+        ReleasedUsername.objects.update(released_at=timezone.now() - timedelta(days=91))
+        other = create_user("jiro", password="pw-for-test")
+        self.client.force_login(other)
+        response = self.call("put", "manage-api-account", {"username": "taro"})
         self.assertEqual(response.status_code, 200)
+
+    def test_旧ユーザー名は予約期間中でも本人は取り直せる(self):
+        self.call("put", "manage-api-account", {"username": "taro-new"})
+        response = self.call("put", "manage-api-account", {"username": "taro"})
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(ReleasedUsername.objects.filter(username="taro").exists())
+        self.assertTrue(ReleasedUsername.objects.filter(username="taro-new").exists())
 
     def test_規則に反するユーザー名は変更できない(self):
         create_user("taken")
@@ -291,6 +309,36 @@ class WithdrawTests(AccountApiTestCase):
                 self.assertEqual(response.status_code, 400)
         self.assertTrue(get_user_model().objects.filter(username="taro").exists())
         self.assertTrue(Project.objects.filter(owner=self.user).exists())
+
+    def test_退会したユーザー名は予約され_誰も取得できない(self):
+        self.call("post", "manage-api-account-withdraw", {"username": "taro"})
+        reservation = ReleasedUsername.objects.get(username="taro")
+        self.assertIsNone(reservation.released_by)
+        other = create_user("hanako", password="pw-for-test")
+        self.client.force_login(other)
+        response = self.call("put", "manage-api-account", {"username": "taro"})
+        self.assertEqual(response.status_code, 400)
+
+    def test_直近のログインがなければ退会できず再ログインを案内する(self):
+        session = self.client.session
+        session["authenticated_at"] = int(time.time()) - 11 * 60
+        session.save()
+        response = self.call(
+            "post", "manage-api-account-withdraw", {"username": "taro"}
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(response.json()["reauth_required"])
+        self.assertTrue(get_user_model().objects.filter(username="taro").exists())
+
+    def test_認証時刻のないセッションでは退会できない(self):
+        session = self.client.session
+        del session["authenticated_at"]
+        session.save()
+        response = self.call(
+            "post", "manage-api-account-withdraw", {"username": "taro"}
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(get_user_model().objects.filter(username="taro").exists())
 
     def test_退会後は同じユーザー名のURLが404になる(self):
         self.user.profile.is_public = True

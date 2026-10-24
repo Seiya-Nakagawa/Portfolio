@@ -363,6 +363,48 @@ def _lock_skills() -> None:
     list(SkillCategory.objects.select_for_update().values_list("pk", flat=True))
 
 
+def _lock_categories() -> None:
+    """種類の行を排他ロックする。種類の名称変更・削除と、独自スキル項目の保存を直列化する。
+
+    ロックの順序は `_lock_skills`（共通マスタ → 種類）と合わせ、独自スキル項目の行をロックする前に取る。
+    """
+    list(SkillCategory.objects.select_for_update().values_list("pk", flat=True))
+
+
+def _category_exists_locked(name: str) -> bool:
+    """種類が存在するかを、最新の内容（ロック読み取り）で確認する。"""
+    if SkillCategory.objects.select_for_update().filter(name=name).exists():
+        return True
+    # 種類マスタの行を持たない種類（共通マスタ側のみに存在するもの）。
+    return (
+        Skill.objects.select_for_update()
+        .filter(owner__isnull=True, category=name)
+        .exists()
+    )
+
+
+def merge_custom_skills_into_master(master: Skill) -> int:
+    """共通マスタの項目と同じ種類・名前の独自スキル項目を、共通マスタの項目へ統合し、統合した件数を返す。
+
+    独自スキル項目の使用実績は共通マスタの項目へ付け替える。同じ案件にすでに共通マスタの項目の
+    使用実績がある場合は、独自スキル項目の使用実績を削除する。呼び出し元のトランザクション内で行う。
+    """
+    name = master.name.casefold()
+    duplicates = [
+        skill
+        for skill in Skill.objects.filter(
+            owner__isnull=False, category=master.category
+        ).select_for_update()
+        if skill.name.casefold() == name
+    ]
+    for duplicate in duplicates:
+        already = ProjectSkill.objects.filter(skill=master).values("project_id")
+        ProjectSkill.objects.filter(skill=duplicate, project_id__in=already).delete()
+        ProjectSkill.objects.filter(skill=duplicate).update(skill=master)
+        duplicate.delete()
+    return len(duplicates)
+
+
 def _clean_category_name(payload: dict) -> str:
     name = str(payload.get("name") or "").strip()
     if not name:
@@ -479,6 +521,9 @@ def save_skill(user, payload: dict, skill_id: str | None = None) -> Skill:
     独自スキル項目の種類は既存の種類から選び、識別子は自動採番する。
     """
     with transaction.atomic():
+        if not user.is_staff:
+            # 種類の名称変更・削除と直列化する（独自スキル項目の行をロックする前に取る）。
+            _lock_categories()
         if skill_id is None:
             skill = _new_skill(user, payload)
         else:
@@ -497,7 +542,7 @@ def save_skill(user, payload: dict, skill_id: str | None = None) -> Skill:
         if skill.owner_id is not None:
             if (
                 skill_id is None or skill.category != previous_category
-            ) and skill.category not in category_names():
+            ) and not _category_exists_locked(skill.category):
                 raise ValidationFailed(["種類は既存の種類から選択してください。"])
             _check_custom_skill_name(user, skill)
             _save_model(skill)
@@ -514,6 +559,8 @@ def save_skill(user, payload: dict, skill_id: str | None = None) -> Skill:
                     last.sort_order if last else 0
                 ) + SKILL_SORT_ORDER_STEP
             _save_model(skill)
+            # 同じ種類・名前の独自スキル項目が二重に表示されないよう、共通マスタへ統合する。
+            merge_custom_skills_into_master(skill)
             resequence_skills()
     return Skill.objects.get(pk=skill.pk)
 

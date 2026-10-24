@@ -462,3 +462,42 @@ class RateLimitCounter(models.Model):
 
     def __str__(self) -> str:
         return f"{self.scope} / {self.window_start}"
+
+
+class ReleasedUsername(models.Model):
+    """変更・退会で解放したユーザー名の予約。
+
+    解放から一定期間は他のユーザーが取得できないようにする。旧 URL を別のユーザーが取得して
+    成りすますのを防ぐため。ユーザーを参照しない（退会後も予約を残すため）。
+    """
+
+    username = models.CharField("ユーザー名", max_length=150, primary_key=True)
+    released_at = models.DateTimeField("解放日時")
+    # 変更で解放した場合の元のユーザーの id（本人は期間内でも取り直せる）。退会の場合は空とする。
+    # 外部キーにはせず、退会によるユーザーの削除と連動させない。
+    released_by = models.PositiveIntegerField("解放したユーザーの id", null=True)
+
+    class Meta:
+        db_table = "released_usernames"
+        verbose_name = "解放したユーザー名"
+        verbose_name_plural = "解放したユーザー名"
+
+    def __str__(self) -> str:
+        return self.username
+
+
+class JobRun(models.Model):
+    """定期ジョブの最終成功時刻。死活監視で、ジョブの失敗・欠落を検知するために用いる。"""
+
+    JOB_DAILY_MAINTENANCE = "daily_maintenance"
+
+    job_name = models.CharField("ジョブ名", max_length=64, primary_key=True)
+    succeeded_at = models.DateTimeField("最終成功日時")
+
+    class Meta:
+        db_table = "job_runs"
+        verbose_name = "定期ジョブの実行"
+        verbose_name_plural = "定期ジョブの実行"
+
+    def __str__(self) -> str:
+        return self.job_name
