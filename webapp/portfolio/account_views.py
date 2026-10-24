@@ -12,7 +12,12 @@ from django.db import transaction
 from django.urls import reverse
 
 from portfolio import registry, usage
-from portfolio.accounts import validate_username
+from portfolio.accounts import (
+    forget_reservation,
+    has_recent_login,
+    release_username,
+    validate_username,
+)
 from portfolio.manage_views import _body, _json, api_view
 from portfolio.media_paths import USER_IMAGE_DIR
 from portfolio.models import SiteInfo, UsageDaily, UserProfile
@@ -79,6 +84,9 @@ def _update_account(user, body: dict) -> None:
 
     with transaction.atomic():
         if new_username is not None and new_username != user.username:
+            # 旧ユーザー名は一定期間予約し、他のユーザーが取得できないようにする。
+            release_username(user.username, user.pk)
+            forget_reservation(new_username)
             user.username = new_username
             user.save(update_fields=["username"])
         if "is_public" in body:
@@ -106,8 +114,18 @@ def api_account_provider(request, provider):
 
 @api_view("POST")
 def api_account_withdraw(request):
-    """退会する。ユーザー名の再入力が一致した場合のみ、全データと画像を削除する。"""
+    """退会する。直近のログインとユーザー名の再入力が一致した場合のみ、全データと画像を削除する。"""
     user = request.user
+    if not has_recent_login(request):
+        return _json(
+            {
+                "errors": [
+                    "退会には直近のログインが必要です。再ログインしてください。"
+                ],
+                "reauth_required": True,
+            },
+            status=403,
+        )
     confirmation = str(_body(request).get("username") or "").strip()
     if confirmation != user.username:
         raise registry.ValidationFailed(["確認用のユーザー名が一致しません。"])
@@ -115,7 +133,10 @@ def api_account_withdraw(request):
     user_id = user.pk
     # データベースの削除は 1 トランザクションで行う。所有する行は連鎖して削除される。
     with transaction.atomic():
+        username = user.username
         user.delete()
+        # 解放したユーザー名は一定期間予約する（退会したユーザーを特定する情報は残さない）。
+        release_username(username, None)
         # 退会したユーザーを特定できる情報は残さず、退会数のみを加算する。
         usage.increment(UsageDaily.METRIC_WITHDRAWAL)
 

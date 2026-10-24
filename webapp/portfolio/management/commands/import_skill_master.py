@@ -131,6 +131,10 @@ class Command(BaseCommand):
             for skill in new_skills:
                 skill.full_clean(validate_unique=False)
             Skill.objects.bulk_create(new_skills)
+            # 同じ種類・名前の独自スキル項目が二重に表示されないよう、共通マスタへ統合する。
+            merged = sum(
+                registry.merge_custom_skills_into_master(skill) for skill in new_skills
+            )
             # 種データと一致した既存の項目も、マスタ項目にする（名称などは変更しない）。
             promoted = [
                 skill.skill_id
@@ -143,5 +147,6 @@ class Command(BaseCommand):
 
         self.stdout.write(
             f"スキル項目を {len(new_skills)} 件追加し、"
-            f"既存の {len(promoted)} 件をマスタ項目にしました。"
+            f"既存の {len(promoted)} 件をマスタ項目にし、"
+            f"同名の独自スキル項目 {merged} 件を統合しました。"
         )

@@ -31,8 +31,6 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     # 旧 URL のホストへのリクエストは、リダイレクト以外を応答しない。
     "portfolio.middleware.LegacyUrlRedirectMiddleware",
-    # サーバーエラー（5xx）の件数を数え、ヘルスチェックの判定に用いる。
-    "portfolio.middleware.ServerErrorCountMiddleware",
     # 静的ファイルを gunicorn から直接配信する（本番）。
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -189,7 +187,11 @@ MAX_IMAGE_BYTES = 5 * 1024 * 1024
 # アップロード後に実績へ保存されなかった画像を、日次の整理で削除するまでの猶予（秒）。
 UNREFERENCED_IMAGE_GRACE_SECONDS = 24 * 60 * 60
 
-# 死活監視。直近の `HEALTH_ERROR_WINDOW_MINUTES` 分のサーバーエラー（5xx）が
-# `HEALTH_MAX_SERVER_ERRORS` 件を超えた場合、ヘルスチェックは異常（503）を返す。
-HEALTH_ERROR_WINDOW_MINUTES = 10
-HEALTH_MAX_SERVER_ERRORS = 10
+# 死活監視。日次の整理処理の最終成功から `HEALTH_MAINTENANCE_MAX_AGE_HOURS` 時間を超えた場合、
+# ヘルスチェックは異常（503）を返す。
+HEALTH_MAINTENANCE_MAX_AGE_HOURS = 26
+
+# 変更・退会で解放したユーザー名を、他のユーザーが取得できないようにする日数。
+USERNAME_RESERVATION_DAYS = 90
+# 退会など取り消せない操作に求める、直近のログインからの許容時間（分）。
+RECENT_LOGIN_MINUTES = 10

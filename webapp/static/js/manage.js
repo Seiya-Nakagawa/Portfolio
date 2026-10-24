@@ -17,6 +17,9 @@ document.addEventListener('DOMContentLoaded', () => {
         skillsheetMarkdown: document.body.dataset.skillsheetMarkdown,
         account: document.body.dataset.apiAccount,
         accountWithdraw: document.body.dataset.apiAccountWithdraw,
+        logout: document.body.dataset.logout,
+        login: document.body.dataset.login,
+        manage: document.body.dataset.manage,
         // 共通マスタ・種類マスタを編集できる運営者か。
         isOperator: document.body.dataset.isOperator === 'true',
     };
@@ -62,7 +65,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
-            throw new Error((data.errors || ['エラーが発生しました。']).join('\n'));
+            const error = new Error((data.errors || ['エラーが発生しました。']).join('\n'));
+            error.reauthRequired = data.reauth_required === true;
+            throw error;
         }
         return data;
     }
@@ -1378,7 +1383,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 showMessage('ユーザー名を変更しました。旧 URL は無効になります。', 'warning');
             },
         });
-        accountRoot.querySelector('.card').insertAdjacentHTML('afterbegin', '<p class="message warning">ユーザー名を変更すると、公開ポートフォリオの URL が変わり、旧 URL は無効（404）になります。旧ユーザー名は他のユーザーが取得できるようになります。</p>');
+        accountRoot.querySelector('.card').insertAdjacentHTML('afterbegin', '<p class="message warning">ユーザー名を変更すると、公開ポートフォリオの URL が変わり、旧 URL は無効（404）になります。旧ユーザー名は 90 日間は他のユーザーが取得できません（ご自身は取り直せます）。</p>');
     }
 
     function renderWithdrawForm() {
@@ -1396,9 +1401,31 @@ document.addEventListener('DOMContentLoaded', () => {
         accountRoot.querySelector('form').addEventListener('submit', async (event) => {
             event.preventDefault();
             const username = event.target.elements.username.value.trim();
-            const result = await guarded(() => api('POST', urls.accountWithdraw, { username }));
-            if (result) window.location.assign(result.redirect);
+            try {
+                showMessage('');
+                const result = await api('POST', urls.accountWithdraw, { username });
+                window.location.assign(result.redirect);
+            } catch (error) {
+                if (error.reauthRequired) renderReauthNotice();
+                else showMessage(error.message, 'error');
+            }
         });
+    }
+
+    // 退会には直近のログインが必要なため、いったんログアウトして外部アカウントで再ログインしてもらう。
+    function renderReauthNotice() {
+        accountRoot.innerHTML = `
+            ${pageHead('退会', { back: 'data-account-cancel' })}
+            <form class="card" method="post" action="${esc(urls.logout)}">
+                <p>退会には、直近のログインが必要です。いったんログアウトし、Google または GitHub で再ログインしてから、もう一度退会の操作を行ってください。</p>
+                <input type="hidden" name="csrfmiddlewaretoken" value="${esc(getCookie('csrftoken'))}" />
+                <input type="hidden" name="next" value="${esc(urls.login)}?next=${encodeURIComponent(urls.manage)}" />
+                <div class="form-bar">
+                    <button type="submit" class="danger">ログアウトして再ログインする</button>
+                    <button type="button" data-account-cancel>キャンセル</button>
+                </div>
+            </form>`;
+        accountRoot.querySelector('[data-account-cancel]').addEventListener('click', renderAccountView);
     }
 
     async function loadAccount() {

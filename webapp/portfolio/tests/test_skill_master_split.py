@@ -353,7 +353,7 @@ class SeedImportDoesNotTouchCustomSkillsTests(SplitTestCase):
             skill_id="u-aaaa",
             category="AWS",
             subcategory="独自サブ",
-            name="EC2",
+            name="自作ツール",
             sort_order=0,
             owner=self.user_a,
         )

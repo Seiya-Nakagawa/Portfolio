@@ -1,3 +1,5 @@
+import re
+
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.http import Http404, HttpResponse, JsonResponse
@@ -8,6 +10,7 @@ from django.views.static import serve
 
 from portfolio import health, services
 from portfolio.media_paths import USER_IMAGE_PATH
+from portfolio.models import Work
 
 
 def _json_response(data) -> JsonResponse:
@@ -73,24 +76,45 @@ def api_site(request, username):
     return _json_response(payload)
 
 
+# 従来の保存先（`works/`）の画像のパス。`migrate_media` が移し終えるまでの間のみ配信する。
+LEGACY_IMAGE_PATH = re.compile(r"^works/[A-Za-z0-9_-]+\.[A-Za-z0-9]+$")
+
+
+def _image_owner_id(path: str) -> int | None:
+    """配信する画像の所有者の id を返す。配信の対象外のパスは None を返す。"""
+    matched = USER_IMAGE_PATH.match(path)
+    if matched is not None:
+        return int(matched.group("user_id"))
+    if LEGACY_IMAGE_PATH.match(path):
+        # 移行前の旧パスは、実績の画像の参照から所有者を特定する。
+        return (
+            Work.objects.filter(thumbnail=path)
+            .values_list("owner_id", flat=True)
+            .first()
+        )
+    return None
+
+
 @require_GET
 def media(request, path):
     """アップロードした画像を配信する。
 
-    ユーザーごとの保存先の画像のみを対象とし、所有するユーザーの公開ポートフォリオが
-    公開中であるか、閲覧者が所有するユーザー本人である場合のみ返す。それ以外は 404 とする。
+    ユーザーごとの保存先の画像（と、移行前の旧パスの画像）のみを対象とし、所有するユーザーの
+    公開ポートフォリオが公開中であるか、閲覧者が所有するユーザー本人である場合のみ返す。
+    それ以外は 404 とする。非公開化後に画像がキャッシュに残らないよう、毎回サーバーで確認させる。
     """
-    matched = USER_IMAGE_PATH.match(path)
-    if matched is None:
+    owner_id = _image_owner_id(path)
+    if owner_id is None:
         raise Http404("画像が見つかりません。")
-    owner_id = int(matched.group("user_id"))
     is_owner = request.user.is_authenticated and request.user.pk == owner_id
     if (
         not is_owner
         and not _is_published(get_user_model().objects.filter(pk=owner_id)).exists()
     ):
         raise Http404("画像が見つかりません。")
-    return serve(request, path, document_root=settings.MEDIA_ROOT)
+    response = serve(request, path, document_root=settings.MEDIA_ROOT)
+    response["Cache-Control"] = "private, no-cache"
+    return response
 
 
 @require_GET

@@ -55,7 +55,7 @@ infra-oci 基盤の Kubernetes 上にコンテナとして配置し、実績 DB�
 | `/u/{ユーザー名}/api/certifications` | 資格データ |
 | `/u/{ユーザー名}/api/works` | 実績データ |
 | `/u/{ユーザー名}/api/site` | サイト情報データ（Hero・About・Contact・フッター） |
-| `/media/users/{ユーザーの id}/…` | アップロードした画像。所有するユーザーが公開中か、閲覧者が本人の場合のみ返す |
+| `/media/users/{ユーザーの id}/…` | アップロードした画像。所有するユーザーが公開中か、閲覧者が本人の場合のみ返す。`Cache-Control: private, no-cache` を付ける（移行前の旧パス `/media/works/…` も、`migrate_media` が完了するまで同じ条件で返す） |
 
 アップロードした画像は `MEDIA_ROOT` 配下のユーザーごとのディレクトリ（`users/{ユーザーの id}/works/`）に保存する。
 従来の保存先（`works/`）の画像は、次のコマンドで所有するユーザーの保存先へ移す（移動済みのファイルはスキップする。
@@ -128,7 +128,7 @@ uv run python manage.py import_skill_master
 - 提供元が検証済みとしているメールアドレスが既存ユーザーと一致する場合のみ、そのユーザーに紐づける。未検証の場合は新規のサインアップとして扱う
 - 利用停止中（`is_active` が偽）のユーザーは、認可が成功してもログインさせず、既存のセッションも無効になる
 - 現行の規約の版は設定 `TERMS_VERSION`・`PRIVACY_VERSION` で定義する。改定した場合、同意した版が異なるユーザーはログイン後の全画面で再同意画面へ誘導される
-- ユーザー名は半角英小文字で始まる、半角英小文字・数字・ハイフンの 3〜30 文字で、予約語は使えない（`portfolio/accounts.py`）
+- ユーザー名は半角英小文字で始まる、半角英小文字・数字・ハイフンの 3〜30 文字で、予約語は使えない（`portfolio/accounts.py`）。変更・退会で解放したユーザー名は 90 日間（`USERNAME_RESERVATION_DAYS`）予約され、解放した本人以外は取得できない。退会は直近 10 分（`RECENT_LOGIN_MINUTES`）以内のログインが必要
 
 ## アカウント画面
 
@@ -172,8 +172,8 @@ API は `/manage/api/account`（取得・変更）、`/manage/api/account/provid
 
 | 項目 | 内容 |
 | ---- | ---- |
-| `/healthz` | ヘルスチェック（認証不要）。実績 DB に接続でき、直近 10 分間のサーバーエラー（5xx）が 10 件以下なら 200（`ok`）、それ以外は 503（`ng`）を返す。件数・構成などの内部情報は返さない |
-| 5xx の計数 | `ServerErrorCountMiddleware` が 5xx の応答を 1 分ごとの区間に `rate_limit_counters` へ数える（ヘルスチェック自身の 503 は数えない）。しきい値は `HEALTH_MAX_SERVER_ERRORS`・`HEALTH_ERROR_WINDOW_MINUTES` |
+| `/healthz` | ヘルスチェック（認証不要）。実績 DB を読み取れ、日次の整理処理が 26 時間以内に成功していれば 200（`ok`）、それ以外は 503（`ng`）を返す。件数・構成などの内部情報は返さない |
+| 日次の整理処理の最終成功時刻 | `daily_maintenance` が成功した時刻を `job_runs` に記録し、`HEALTH_MAINTENANCE_MAX_AGE_HOURS`（26 時間）を超えると `/healthz` が異常になる。5xx の件数は判定に用いない |
 | 定期確認 | `.github/workflows/health-check.yml` が 15 分ごとに `/healthz` を確認し、異常または応答がない場合は失敗する（3 回まで再確認）。失敗は GitHub の通知で運営者へメール通知される。一定期間コミットがないと定期実行が無効化されるため、通知を受けたら Actions の画面から再度有効にする |
 | gunicorn | ワーカー数は環境変数 `WEB_CONCURRENCY`（Dockerfile の既定値は 2）で指定する |
 | Pod のリソース | `k8s/web.yaml` で requests を CPU 200m・メモリ 384Mi、limits を CPU 1・メモリ 1Gi とする |

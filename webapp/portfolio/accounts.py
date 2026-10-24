@@ -1,6 +1,8 @@
 """外部アカウント（Google・GitHub）によるサインアップ・ログインの処理。"""
 
 import re
+import time
+from datetime import timedelta
 
 from allauth.account.adapter import DefaultAccountAdapter
 from allauth.core.exceptions import ImmediateHttpResponse
@@ -9,14 +11,16 @@ from allauth.socialaccount.forms import SignupForm as BaseSocialSignupForm
 from django import forms
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.signals import user_logged_in
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.dispatch import receiver
 from django.shortcuts import render
 from django.urls import reverse
 from django.utils import timezone
 
 from portfolio import usage
-from portfolio.models import UsageDaily, UserProfile
+from portfolio.models import ReleasedUsername, UsageDaily, UserProfile
 
 USERNAME_MIN_LENGTH = 3
 USERNAME_MAX_LENGTH = 30
@@ -93,7 +97,46 @@ def validate_username(value: str, exclude_user=None) -> str:
         taken = taken.exclude(pk=exclude_user.pk)
     if taken.exists():
         raise ValidationError("このユーザー名は既に使われています。")
+    if is_reserved(username, exclude_user):
+        raise ValidationError(
+            "このユーザー名は、最近解放されたため一定期間は使用できません。"
+        )
     return username
+
+
+def _reservation_threshold():
+    return timezone.now() - timedelta(days=settings.USERNAME_RESERVATION_DAYS)
+
+
+def is_reserved(username: str, user=None) -> bool:
+    """解放から予約の期間内のユーザー名か。解放した本人（`user`）は取得できる。"""
+    reservations = ReleasedUsername.objects.filter(
+        username=username, released_at__gte=_reservation_threshold()
+    )
+    if user is not None:
+        reservations = reservations.exclude(released_by=user.pk)
+    return reservations.exists()
+
+
+def release_username(username: str, user_id: int | None) -> None:
+    """解放したユーザー名を予約する。退会の場合は `user_id` を空にする。"""
+    ReleasedUsername.objects.update_or_create(
+        username=username,
+        defaults={"released_at": timezone.now(), "released_by": user_id},
+    )
+
+
+def forget_reservation(username: str) -> None:
+    """取り直したユーザー名の予約を削除する。"""
+    ReleasedUsername.objects.filter(username=username).delete()
+
+
+def purge_expired_reservations() -> int:
+    """予約の期間を過ぎた行を削除し、削除した件数を返す。"""
+    deleted, _ = ReleasedUsername.objects.filter(
+        released_at__lt=_reservation_threshold()
+    ).delete()
+    return deleted
 
 
 class AccountAdapter(DefaultAccountAdapter):
@@ -216,3 +259,22 @@ def record_agreement(user) -> None:
             "agreed_at": timezone.now(),
         },
     )
+
+
+# 外部アカウントで認証した時刻（UNIX 秒）を記録するセッションのキー。
+AUTHENTICATED_AT_SESSION_KEY = "authenticated_at"
+
+
+@receiver(user_logged_in)
+def record_authenticated_at(sender, request, user, **kwargs):
+    """ログインのたびに、認証した時刻をセッションへ記録する（直近のログインの判定に用いる）。"""
+    if request is not None:
+        request.session[AUTHENTICATED_AT_SESSION_KEY] = int(time.time())
+
+
+def has_recent_login(request) -> bool:
+    """直近のログイン（`RECENT_LOGIN_MINUTES` 分以内）か。時刻が記録されていないセッションは偽とする。"""
+    authenticated_at = request.session.get(AUTHENTICATED_AT_SESSION_KEY)
+    if not isinstance(authenticated_at, int):
+        return False
+    return time.time() - authenticated_at <= settings.RECENT_LOGIN_MINUTES * 60
