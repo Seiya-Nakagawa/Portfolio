@@ -19,12 +19,13 @@ class ServiceIndexTests(TestCase):
         for text in (
             "経験年数の自動算出",
             "職務経歴書 PDF の自動生成",
-            "公開ポートフォリオ",
+            "案件・スキル・資格の一元管理",
             "利用の流れ",
             "職務経歴書の出力例",
             "架空のデータ",
         ):
             self.assertIn(text, html)
+        self.assertNotIn("ポートフォリオ", html)
         self.assertIn("/static/img/skillsheet-sample.png", html)
         self.assertIn(reverse("login"), html)
 
