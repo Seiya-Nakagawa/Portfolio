@@ -103,7 +103,7 @@ SERVICE_NAME = "SkillSheet"
 CONTACT_FORM_URL = env("CONTACT_FORM_URL", default="")
 
 # サービス紹介・SNS 共有時に表示するサービスの説明。
-SERVICE_DESCRIPTION = "実績を登録するだけで、経験年数の自動算出と職務経歴書の PDF 出力、公開ポートフォリオまで。"
+SERVICE_DESCRIPTION = "案件を登録するだけで、経験年数の自動算出と職務経歴書の PDF 出力ができます。"
 
 # Cloudflare Web Analytics の計測用トークン（ページに埋め込まれる公開値）。空の場合は計測しない。
 CLOUDFLARE_ANALYTICS_TOKEN = env("CLOUDFLARE_ANALYTICS_TOKEN", default="")
