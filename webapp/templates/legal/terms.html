@@ -1,5 +1,6 @@
 {% extends "service/base.html" %}
 {% block title %}利用規約 | {% endblock %}
+{% block share_meta %}{% with og_title="利用規約 | "|add:service_name %}{% include "partials/share_meta.html" with og_description=service_description %}{% endwith %}{% endblock %}
 {% block content %}
 <article class="legal">
   <h1>利用規約</h1>
