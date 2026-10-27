@@ -49,6 +49,8 @@ class AccountInfoTests(AccountApiTestCase):
         self.assertEqual(self.call("get", "manage-api-account").status_code, 401)
 
     def test_現在の状態を返す(self):
+        self.user.is_staff = True
+        self.user.save()
         SocialAccount.objects.create(user=self.user, provider="google", uid="g-1")
         body = self.call("get", "manage-api-account").json()
         self.assertEqual(body["username"], "taro")
@@ -62,9 +64,16 @@ class AccountInfoTests(AccountApiTestCase):
         self.assertEqual(providers["github"]["connect_url"], reverse("github_login"))
         self.assertFalse(body["can_disconnect"])
 
+    def test_一般ユーザーには公開設定を返さない(self):
+        body = self.call("get", "manage-api-account").json()
+        self.assertNotIn("is_public", body)
+        self.assertNotIn("public_path", body)
+
 
 class UsernameChangeTests(AccountApiTestCase):
     def test_ユーザー名を変更でき_旧URLは404になる(self):
+        self.user.is_staff = True
+        self.user.save()
         self.user.profile.is_public = True
         self.user.profile.save()
         self.assertEqual(self.client.get("/u/taro/").status_code, 200)
@@ -123,6 +132,19 @@ class UsernameChangeTests(AccountApiTestCase):
 
 
 class PublishSettingTests(AccountApiTestCase):
+    def setUp(self):
+        super().setUp()
+        self.user.is_staff = True
+        self.user.save()
+
+    def test_一般ユーザーは公開設定を変更できない(self):
+        self.user.is_staff = False
+        self.user.save()
+        response = self.call("put", "manage-api-account", {"is_public": True})
+        self.assertEqual(response.status_code, 400)
+        self.user.profile.refresh_from_db()
+        self.assertFalse(self.user.profile.is_public)
+
     def test_公開と非公開を切り替えられる(self):
         body = self.call("put", "manage-api-account", {"is_public": True}).json()
         self.assertTrue(body["is_public"])

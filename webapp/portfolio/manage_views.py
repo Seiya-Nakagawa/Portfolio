@@ -66,6 +66,12 @@ def api_view(*methods: str):
     return decorator
 
 
+def _require_operator(user) -> None:
+    """運営者のみが使える API（実績・サイト情報）で、一般ユーザーを拒否する。"""
+    if not user.is_staff:
+        raise registry.Forbidden("この機能は運営者のみ利用できます。")
+
+
 def _limit_per_user(user, scope: str) -> None:
     """ユーザーごとの流量制限を数え、上限を超えた場合は例外とする。"""
     if not ratelimit.hit(scope, str(user.pk)):
@@ -335,6 +341,7 @@ def _works(owner) -> list[dict]:
 
 @api_view("GET", "POST")
 def api_works(request):
+    _require_operator(request.user)
     if request.method == "POST":
         registry.save_work(request.user, _body(request))
     return _json(_works(request.user))
@@ -342,6 +349,7 @@ def api_works(request):
 
 @api_view("PUT", "DELETE")
 def api_work(request, work_id):
+    _require_operator(request.user)
     if request.method == "DELETE":
         registry.delete_work(request.user, work_id)
     else:
@@ -369,6 +377,7 @@ def _site_info(owner) -> dict:
 
 @api_view("GET", "PUT")
 def api_site(request):
+    _require_operator(request.user)
     if request.method == "PUT":
         registry.save_site_info(request.user, _body(request))
     return _json(_site_info(request.user))
@@ -464,6 +473,7 @@ def skillsheet_markdown(request):
 @api_view("POST")
 def api_upload_image(request):
     """実績のサムネイル画像をアップロードする。保存先の相対パスを返す。"""
+    _require_operator(request.user)
     _limit_per_user(request.user, "upload")
     path = uploads.save_work_image(request.user, request.FILES.get("image"))
     return _json({"path": path})

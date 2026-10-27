@@ -70,8 +70,8 @@ class RateLimitTests(TestCase):
         self.assertNotIn("192.0.2.1", RateLimitCounter.objects.get().identifier)
 
     def test_pdf_is_limited_per_user(self):
-        user = create_user("taro")
-        other = create_user("hanako")
+        user = create_user("taro", is_staff=True)
+        other = create_user("hanako", is_staff=True)
         self.assertTrue(ratelimit.hit("pdf", str(user.pk)))
         self.client.force_login(user)
         response = self.client.get(reverse("manage-skillsheet-pdf"))
@@ -80,7 +80,7 @@ class RateLimitTests(TestCase):
         self.assertTrue(ratelimit.hit("pdf", str(other.pk)))
 
     def test_upload_is_limited_per_user(self):
-        user = create_user("taro")
+        user = create_user("taro", is_staff=True)
         self.client.force_login(user)
         with (
             tempfile.TemporaryDirectory() as media,
@@ -113,7 +113,7 @@ class MediaTestCase(TestCase):
         override = override_settings(MEDIA_ROOT=self._media.name)
         override.enable()
         self.addCleanup(override.disable)
-        self.user = create_user("taro")
+        self.user = create_user("taro", is_staff=True)
         self.client.force_login(self.user)
         self.root = Path(self._media.name)
 
@@ -146,7 +146,7 @@ class QuotaTests(MediaTestCase):
     def test_total_size_is_limited_per_user(self):
         self.assertEqual(self.upload("a.png", PNG + b"x" * 60).status_code, 200)
         self.assertEqual(self.upload("b.png", PNG + b"x" * 60).status_code, 400)
-        other = create_user("hanako")
+        other = create_user("hanako", is_staff=True)
         self.client.force_login(other)
         self.assertEqual(self.upload("c.png", PNG + b"x" * 60).status_code, 200)
 

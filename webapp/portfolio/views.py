@@ -20,14 +20,14 @@ def _json_response(data) -> JsonResponse:
 
 
 def _is_published(user_queryset):
-    """公開中かつ有効なユーザーに絞り込む。"""
-    return user_queryset.filter(is_active=True, profile__is_public=True)
+    """公開中かつ有効な運営者（`is_staff`）に絞り込む。一般ユーザーは公開しない。"""
+    return user_queryset.filter(is_active=True, is_staff=True, profile__is_public=True)
 
 
 def get_published_user(username: str):
     """公開ポートフォリオの表示対象のユーザーを返す。
 
-    非公開・存在しない・利用停止中は区別せず、同じ 404 とする。
+    一般ユーザー・非公開・存在しない・利用停止中は区別せず、同じ 404 とする。
     """
     user = _is_published(
         get_user_model().objects.filter(username__iexact=username)

@@ -32,8 +32,8 @@ class TwoUsersTestCase(TestCase):
     """ユーザー A（ログイン中）とユーザー B のそれぞれがデータを持つ状態を用意する。"""
 
     def setUp(self):
-        self.user_a = create_user("user-a", password=PASSWORD)
-        self.user_b = create_user("user-b", password=PASSWORD)
+        self.user_a = create_user("user-a", password=PASSWORD, is_staff=True)
+        self.user_b = create_user("user-b", password=PASSWORD, is_staff=True)
         self.client.login(username="user-a", password=PASSWORD)
 
         self.company_a = Company.objects.create(

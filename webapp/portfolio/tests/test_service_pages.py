@@ -6,7 +6,7 @@ from django.template.loader import get_template
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from portfolio.tests.helpers import create_user
+from portfolio.tests.helpers import create_operator, create_user
 
 FORM_URL = "https://forms.example.com/contact"
 
@@ -83,7 +83,7 @@ class LegalPagesTests(TestCase):
 
 class FooterLinksTests(TestCase):
     def _pages(self):
-        owner = create_user("taro", public=True)
+        owner = create_operator("taro")
         return {
             "service": self.client.get(reverse("index")),
             "terms": self.client.get(reverse("terms")),

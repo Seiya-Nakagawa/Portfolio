@@ -8,7 +8,7 @@ from django.urls import reverse
 from portfolio.models import SiteInfo
 from portfolio.services import calculate_age, format_copyright
 from portfolio.tests.helpers import create_operator, create_user
-from portfolio.tests.test_manage import LoggedInTestCase
+from portfolio.tests.test_manage import OperatorTestCase
 
 VALID_PAYLOAD = {
     "name": "山田 太郎",
@@ -62,7 +62,7 @@ class PublicSiteApiTests(TestCase):
         self.assertEqual(body["typing_titles"], ["肩書きA", "肩書きB"])
 
 
-class ManageSiteApiTests(LoggedInTestCase):
+class ManageSiteApiTests(OperatorTestCase):
     def test_未ログインでは401(self):
         self.client.logout()
         self.assertEqual(self.call("get", "manage-api-site").status_code, 401)

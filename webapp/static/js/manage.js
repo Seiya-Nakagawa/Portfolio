@@ -1290,19 +1290,19 @@ document.addEventListener('DOMContentLoaded', () => {
             return `<tr><th scope="row">${esc(p.name)}</th><td>${p.connected ? '連携済み' : '未連携'}</td><td>${action}</td></tr>`;
         }).join('');
         accountRoot.innerHTML = `
-            ${pageHead('アカウント', { sub: 'ユーザー名・公開設定・外部アカウントの連携・退会を管理します。' })}
+            ${pageHead('アカウント', { sub: urls.isOperator ? 'ユーザー名・公開設定・外部アカウントの連携・退会を管理します。' : 'ユーザー名・外部アカウントの連携・退会を管理します。' })}
             <div class="card">
                 <h3>ユーザー名</h3>
                 <table class="kv"><tr><th scope="row">ユーザー名</th><td>${esc(a.username)}</td></tr>
                 <tr><th scope="row">メールアドレス</th><td>${esc(a.email || '（未取得）')}</td></tr></table>
                 <div class="form-bar"><button type="button" data-username-edit>ユーザー名を変更</button></div>
             </div>
-            <div class="card">
+            ${urls.isOperator ? `<div class="card">
                 <h3>公開設定</h3>
                 <p>現在: <strong>${a.is_public ? '公開中' : '非公開'}</strong></p>
                 ${a.is_public ? `<p>公開 URL: <a href="${esc(a.public_path)}" target="_blank" rel="noopener">${esc(publicUrl(a))}</a></p>` : ''}
                 <div class="form-bar"><button type="button" class="primary" data-public-toggle>${a.is_public ? '非公開にする' : '公開する'}</button></div>
-            </div>
+            </div>` : ''}
             <div class="card">
                 <h3>外部アカウント</h3>
                 <div class="table-wrap"><table class="data-table">
@@ -1316,7 +1316,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="form-bar"><button type="button" class="danger" data-withdraw-start>退会する</button></div>
             </div>`;
         accountRoot.querySelector('[data-username-edit]').addEventListener('click', () => renderUsernameForm(a.username));
-        accountRoot.querySelector('[data-public-toggle]').addEventListener('click', togglePublic);
+        const publicToggle = accountRoot.querySelector('[data-public-toggle]');
+        if (publicToggle) publicToggle.addEventListener('click', togglePublic);
         accountRoot.querySelectorAll('[data-connect]').forEach((b) => b.addEventListener('click', () => {
             connectProvider(accountCurrent.providers.find((p) => p.id === b.dataset.connect));
         }));
@@ -1367,23 +1368,30 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderUsernameConfirm(username) {
-        const oldUrl = publicUrl(accountCurrent);
-        const newUrl = `${window.location.origin}${accountCurrent.public_path.replace(/\/u\/[^/]+\//, `/u/${encodeURIComponent(username)}/`)}`;
+        // 公開ポートフォリオの URL は運営者のみが持つ。
+        const rows = [['ユーザー名', username]];
+        const before = [accountCurrent.username];
+        if (urls.isOperator) {
+            rows.push(['公開ポートフォリオの URL', `${window.location.origin}${accountCurrent.public_path.replace(/\/u\/[^/]+\//, `/u/${encodeURIComponent(username)}/`)}`]);
+            before.push(publicUrl(accountCurrent));
+        }
         renderConfirmScreen(accountRoot, {
             title: 'ユーザー名',
             saveLabel: '変更',
-            rows: [['ユーザー名', username], ['公開ポートフォリオの URL', newUrl]],
-            before: [accountCurrent.username, oldUrl],
+            rows,
+            before,
             onBack: () => renderUsernameForm(username),
             onSave: async () => {
                 const saved = await guarded(() => api('PUT', urls.account, { username }));
                 if (!saved) return;
                 accountCurrent = saved;
                 renderAccountView();
-                showMessage('ユーザー名を変更しました。旧 URL は無効になります。', 'warning');
+                showMessage(urls.isOperator ? 'ユーザー名を変更しました。旧 URL は無効になります。' : 'ユーザー名を変更しました。', urls.isOperator ? 'warning' : 'ok');
             },
         });
-        accountRoot.querySelector('.card').insertAdjacentHTML('afterbegin', '<p class="message warning">ユーザー名を変更すると、公開ポートフォリオの URL が変わり、旧 URL は無効（404）になります。旧ユーザー名は 90 日間は他のユーザーが取得できません（ご自身は取り直せます）。</p>');
+        if (urls.isOperator) {
+            accountRoot.querySelector('.card').insertAdjacentHTML('afterbegin', '<p class="message warning">ユーザー名を変更すると、公開ポートフォリオの URL が変わり、旧 URL は無効（404）になります。旧ユーザー名は 90 日間は他のユーザーが取得できません（ご自身は取り直せます）。</p>');
+        }
     }
 
     function renderWithdrawForm() {

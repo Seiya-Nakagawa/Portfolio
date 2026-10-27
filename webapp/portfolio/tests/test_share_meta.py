@@ -7,7 +7,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from portfolio.models import SiteInfo
-from portfolio.tests.helpers import create_user
+from portfolio.tests.helpers import create_operator, create_user
 
 TOKEN = "0123456789abcdef"
 BEACON = "static.cloudflareinsights.com/beacon.min.js"
@@ -56,7 +56,7 @@ class ServicePageShareMetaTests(TestCase):
 
 class PortfolioShareMetaTests(TestCase):
     def test_タイトルとロゴにユーザーの氏名を用いる(self):
-        user = create_user("taro", public=True)
+        user = create_operator("taro")
         _site_info(user)
         html = self.client.get(reverse("portfolio", args=["taro"])).content.decode()
         self.assertIn("<title>山田 太郎 | Portfolio</title>", html)
@@ -66,33 +66,33 @@ class PortfolioShareMetaTests(TestCase):
         self.assertNotIn("Seiya Nakagawa", html)
 
     def test_サイト情報が未登録ならユーザー名とサービスの説明を用いる(self):
-        create_user("hanako", public=True)
+        create_operator("hanako")
         html = self.client.get(reverse("portfolio", args=["hanako"])).content.decode()
         self.assertIn("<title>hanako | Portfolio</title>", html)
         self.assertIn("経験年数の自動算出", html)
 
     def test_氏名はエスケープして出力する(self):
-        user = create_user("jiro", public=True)
+        user = create_operator("jiro")
         _site_info(user, name="<script>x</script>", catchphrase='"q"')
         html = self.client.get(reverse("portfolio", args=["jiro"])).content.decode()
         self.assertNotIn("<script>x</script>", html)
         self.assertIn("&lt;script&gt;x&lt;/script&gt;", html)
 
     def test_フッターに本サービスで作成したことを示す(self):
-        create_user("saburo", public=True)
+        create_operator("saburo")
         html = self.client.get(reverse("portfolio", args=["saburo"])).content.decode()
         self.assertIn("SkillSheet で作成</a>", html)
 
 
 class AnalyticsTests(TestCase):
     def test_トークン未設定なら計測用スクリプトを出力しない(self):
-        create_user("taro", public=True)
+        create_operator("taro")
         for url in (reverse("index"), reverse("portfolio", args=["taro"])):
             self.assertNotIn(BEACON, self.client.get(url).content.decode())
 
     @override_settings(CLOUDFLARE_ANALYTICS_TOKEN=TOKEN)
     def test_公開ページにのみ計測用スクリプトを出力する(self):
-        create_user("taro", public=True)
+        create_operator("taro")
         for url in (
             reverse("index"),
             reverse("terms"),
@@ -119,7 +119,7 @@ class CrawlerFilesTests(TestCase):
         self.assertIn("Sitemap: http://testserver/sitemap.xml", body)
 
     def test_sitemap_xmlはサービスの公開ページのみを列挙する(self):
-        create_user("taro", public=True)
+        create_operator("taro")
         response = self.client.get("/sitemap.xml")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response["Content-Type"], "application/xml")

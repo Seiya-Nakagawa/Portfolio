@@ -116,7 +116,7 @@ LEGACY_REDIRECT_USERNAME = env("LEGACY_REDIRECT_USERNAME", default="")
 
 # 現行の利用規約・プライバシーポリシーの版。改定したら更新する。
 # 同意した版が現行と異なるユーザーは、ログイン後に再同意が必要になる。
-TERMS_VERSION = "2026-10-13"
+TERMS_VERSION = "2026-10-28"
 PRIVACY_VERSION = "2026-10-28"
 
 ROOT_URLCONF = "config.urls"

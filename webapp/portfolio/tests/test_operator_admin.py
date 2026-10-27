@@ -49,7 +49,7 @@ class AccessTests(OperatorAdminTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.context["user_counts"],
-            {"total": 3, "suspended": 1, "public": 2},
+            {"total": 3, "suspended": 1},
         )
 
     def test_usage_rows_come_from_usage_daily(self):

@@ -38,11 +38,9 @@ def _account_payload(request) -> dict:
     linked = set(
         SocialAccount.objects.filter(user=user).values_list("provider", flat=True)
     )
-    return {
+    payload = {
         "username": user.username,
         "email": user.email,
-        "is_public": _profile(user).is_public,
-        "public_path": reverse("portfolio", args=[user.username]),
         "site_name_missing": not SiteInfo.objects.for_owner(user)
         .exclude(name="")
         .exists(),
@@ -57,6 +55,11 @@ def _account_payload(request) -> dict:
         ],
         "can_disconnect": len(linked) > 1,
     }
+    # 公開ポートフォリオは運営者のみが利用するため、公開設定は一般ユーザーに返さない。
+    if user.is_staff:
+        payload["is_public"] = _profile(user).is_public
+        payload["public_path"] = reverse("portfolio", args=[user.username])
+    return payload
 
 
 @api_view("GET", "PUT")
@@ -77,8 +80,11 @@ def _update_account(user, body: dict) -> None:
             )
         except ValidationError as error:
             errors.extend(error.messages)
-    if "is_public" in body and not isinstance(body["is_public"], bool):
-        errors.append("公開設定の形式が不正です。")
+    if "is_public" in body:
+        if not user.is_staff:
+            errors.append("公開ポートフォリオは運営者のみ利用できます。")
+        elif not isinstance(body["is_public"], bool):
+            errors.append("公開設定の形式が不正です。")
     if errors:
         raise registry.ValidationFailed(errors)
 
