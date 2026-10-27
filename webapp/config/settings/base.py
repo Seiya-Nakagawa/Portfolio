@@ -102,6 +102,12 @@ SOCIALACCOUNT_PROVIDERS = {
 SERVICE_NAME = "SkillSheet"
 CONTACT_FORM_URL = env("CONTACT_FORM_URL", default="")
 
+# サービス紹介・SNS 共有時に表示するサービスの説明。
+SERVICE_DESCRIPTION = "実績を登録するだけで、経験年数の自動算出と職務経歴書の PDF 出力、公開ポートフォリオまで。"
+
+# Cloudflare Web Analytics の計測用トークン（ページに埋め込まれる公開値）。空の場合は計測しない。
+CLOUDFLARE_ANALYTICS_TOKEN = env("CLOUDFLARE_ANALYTICS_TOKEN", default="")
+
 # 旧 URL（technohonesty.com/portfolio）からのリダイレクト。LEGACY_HOSTS が空の場合は行わない。
 # 転送先は SERVICE_HOST の運営者の公開ポートフォリオ（LEGACY_REDIRECT_USERNAME。未設定ならトップ）。
 SERVICE_HOST = env("SERVICE_HOST", default="")
@@ -110,8 +116,8 @@ LEGACY_REDIRECT_USERNAME = env("LEGACY_REDIRECT_USERNAME", default="")
 
 # 現行の利用規約・プライバシーポリシーの版。改定したら更新する。
 # 同意した版が現行と異なるユーザーは、ログイン後に再同意が必要になる。
-TERMS_VERSION = "2026-10-13"
-PRIVACY_VERSION = "2026-10-13"
+TERMS_VERSION = "2026-10-28"
+PRIVACY_VERSION = "2026-10-28"
 
 ROOT_URLCONF = "config.urls"
 

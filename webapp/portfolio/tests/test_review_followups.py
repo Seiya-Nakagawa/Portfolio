@@ -153,7 +153,7 @@ class MediaDeliveryTests(TestCase):
         override = override_settings(MEDIA_ROOT=self._media.name)
         override.enable()
         self.addCleanup(override.disable)
-        self.owner = create_user("owner", public=True, password=PASSWORD)
+        self.owner = create_user("owner", public=True, is_staff=True, password=PASSWORD)
 
     def _put(self, relative):
         path = Path(self._media.name) / relative

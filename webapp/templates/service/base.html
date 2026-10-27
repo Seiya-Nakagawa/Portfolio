@@ -4,7 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{% block title %}{% endblock %}{{ service_name }}</title>
-    <meta name="description" content="{% block description %}実績を登録するだけで、経験年数の自動算出と職務経歴書の PDF 出力、公開ポートフォリオまで。{% endblock %}" />
+    <meta name="description" content="{{ service_description }}" />
+    {% block share_meta %}{% include "partials/share_meta.html" with og_title=service_name og_description=service_description %}{% endblock %}
     <link rel="stylesheet" href="{% static 'css/service.css' %}" />
   </head>
   <body>
@@ -20,5 +21,6 @@
     </header>
     <main class="service-main">{% block content %}{% endblock %}</main>
     {% include "service/footer.html" %}
+    {% include "partials/analytics.html" %}
   </body>
 </html>

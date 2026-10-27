@@ -17,3 +17,6 @@ data:
   CSRF_TRUSTED_ORIGINS: "https://skillsheet.technohonesty.com"
   # 流量制限の接続元 IP は、共有 Ingress が X-Forwarded-For の末尾に付与した値を用いる。
   TRUSTED_PROXY_COUNT: "1"
+  # Cloudflare Web Analytics の計測用トークン。ページに埋め込まれる公開値のため ConfigMap で管理する。
+  # 空の場合は計測用スクリプトを出力しない。
+  CLOUDFLARE_ANALYTICS_TOKEN: ""

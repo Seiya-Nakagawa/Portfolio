@@ -3,7 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Seiya Nakagawa | Portfolio</title>
+    <title>{{ portfolio_name }} | Portfolio</title>
+    <meta name="description" content="{{ portfolio_description }}" />
+    {% with og_title=portfolio_name|add:" | Portfolio" %}{% include "partials/share_meta.html" with og_type="profile" og_description=portfolio_description %}{% endwith %}
     <meta name="theme-color" content="#0b1120" />
     <meta name="color-scheme" content="dark" />
 
@@ -35,7 +37,7 @@
     <a class="skip-link" href="#main">本文へ移動</a>
     <header>
       <nav class="container" aria-label="メインメニュー">
-        <a class="logo" href="#hero" aria-label="トップへ戻る">Seiya Nakagawa</a>
+        <a class="logo" href="#hero" aria-label="トップへ戻る">{{ portfolio_name }}</a>
         <button
           id="mobile-menu-btn"
           class="menu-btn"
@@ -206,7 +208,7 @@
       <div class="container">
         <p>&copy; <span id="footer-copyright"></span> <span id="footer-name"></span>. All rights reserved.</p>
         <p class="footer-service">
-          <a href="{% url 'index' %}">{{ service_name }}</a>
+          <a href="{% url 'index' %}">{{ service_name }} で作成</a>
           <a href="{% url 'terms' %}">利用規約</a>
           <a href="{% url 'privacy' %}">プライバシーポリシー</a>
           {% if contact_form_url %}<a href="{{ contact_form_url }}" target="_blank" rel="noopener">お問い合わせ</a>{% endif %}
@@ -217,5 +219,6 @@
     <!-- Scripts -->
     <script src="{% static 'js/i18n.js' %}"></script>
     <script src="{% static 'js/main.js' %}"></script>
+    {% include "partials/analytics.html" %}
   </body>
 </html>

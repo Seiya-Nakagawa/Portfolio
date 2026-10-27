@@ -49,20 +49,20 @@ class PublicPortfolioVisibilityTests(TestCase):
         ]
 
     def test_公開中のユーザーはページとAPIを表示できる(self):
-        owner = create_user("taro", public=True)
+        owner = create_operator("taro")
         _site_info(owner)
         for response in self._responses("taro"):
             self.assertEqual(response.status_code, 200, response.request["PATH_INFO"])
 
     def test_ユーザー名の大文字小文字を区別しない(self):
-        create_user("Taro", public=True)
+        create_operator("Taro")
         self.assertEqual(
             self.client.get(reverse("portfolio", args=["TARO"])).status_code, 200
         )
 
     def test_非公開_存在しない_利用停止中は同一の404になる(self):
         create_user("private-user", public=False)
-        stopped = create_user("stopped-user", public=True)
+        stopped = create_operator("stopped-user")
         stopped.is_active = False
         stopped.save()
         bodies = set()
@@ -79,8 +79,8 @@ class PublicPortfolioVisibilityTests(TestCase):
         )
 
     def test_公開APIは対象ユーザーのデータのみを返す(self):
-        a = create_user("user-a", public=True)
-        b = create_user("user-b", public=True)
+        a = create_operator("user-a")
+        b = create_operator("user-b")
         Certification.objects.create(
             owner=a, name="資格A", acquired_on=date(2024, 1, 1), org="X"
         )
@@ -91,7 +91,7 @@ class PublicPortfolioVisibilityTests(TestCase):
         self.assertEqual([c["name"] for c in body], ["資格A"])
 
     def test_書き込み系のメソッドは許可しない(self):
-        create_user("taro", public=True)
+        create_operator("taro")
         for name in PUBLIC_API_NAMES:
             self.assertEqual(
                 self.client.post(reverse(name, args=["taro"])).status_code, 405, name
@@ -111,7 +111,7 @@ class MediaAccessTests(TestCase):
         override = override_settings(MEDIA_ROOT=self._media.name)
         override.enable()
         self.addCleanup(override.disable)
-        self.owner = create_user("owner", password="pw-for-test")
+        self.owner = create_user("owner", password="pw-for-test", is_staff=True)
         self.other = create_user("other", password="pw-for-test")
 
     def _put(self, user, name="a.png"):
@@ -179,7 +179,7 @@ class MediaTraversalTests(MediaAccessTests):
 
 class ThumbnailOwnershipTests(TestCase):
     def setUp(self):
-        self.user = create_user("owner", password="pw-for-test")
+        self.user = create_user("owner", password="pw-for-test", is_staff=True)
         self.other = create_user("other")
         self.client.force_login(self.user)
 
@@ -369,7 +369,7 @@ class UploadStoresUnderUserDirectoryTests(TestCase):
             tempfile.TemporaryDirectory() as media,
             override_settings(MEDIA_ROOT=media),
         ):
-            user = create_user("owner", password="pw-for-test")
+            user = create_user("owner", password="pw-for-test", is_staff=True)
             self.client.force_login(user)
             response = self.client.post(
                 reverse("manage-api-upload-image"),

@@ -36,7 +36,6 @@ class OperatorAdminSite(admin.AdminSite):
         users = get_user_model().objects.aggregate(
             total=Count("pk"),
             suspended=Count("pk", filter=Q(is_active=False)),
-            public=Count("pk", filter=Q(is_active=True, profile__is_public=True)),
         )
         today = timezone.localdate()
         days = [today - timedelta(days=offset) for offset in range(USAGE_DAYS)]

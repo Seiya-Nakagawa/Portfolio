@@ -1,5 +1,6 @@
 {% extends "service/base.html" %}
 {% block title %}プライバシーポリシー | {% endblock %}
+{% block share_meta %}{% with og_title="プライバシーポリシー | "|add:service_name %}{% include "partials/share_meta.html" with og_description=service_description %}{% endwith %}{% endblock %}
 {% block content %}
 <article class="legal">
   <h1>プライバシーポリシー</h1>

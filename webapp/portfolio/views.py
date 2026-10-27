@@ -4,13 +4,14 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_GET
 from django.views.static import serve
 
 from portfolio import health, services
 from portfolio.media_paths import USER_IMAGE_PATH
-from portfolio.models import Work
+from portfolio.models import SiteInfo, Work
 
 
 def _json_response(data) -> JsonResponse:
@@ -19,14 +20,14 @@ def _json_response(data) -> JsonResponse:
 
 
 def _is_published(user_queryset):
-    """公開中かつ有効なユーザーに絞り込む。"""
-    return user_queryset.filter(is_active=True, profile__is_public=True)
+    """公開中かつ有効な運営者（`is_staff`）に絞り込む。一般ユーザーは公開しない。"""
+    return user_queryset.filter(is_active=True, is_staff=True, profile__is_public=True)
 
 
 def get_published_user(username: str):
     """公開ポートフォリオの表示対象のユーザーを返す。
 
-    非公開・存在しない・利用停止中は区別せず、同じ 404 とする。
+    一般ユーザー・非公開・存在しない・利用停止中は区別せず、同じ 404 とする。
     """
     user = _is_published(
         get_user_model().objects.filter(username__iexact=username)
@@ -42,11 +43,50 @@ def index(request):
     return render(request, "service/index.html")
 
 
+# 検索エンジンに案内する公開ページ（URL 名）。公開ポートフォリオは列挙しない。
+SITEMAP_URL_NAMES = ("index", "terms", "privacy")
+
+
+@require_GET
+def robots_txt(request):
+    """ログインが必要な画面・API・アップロード画像を巡回対象から外し、サイトマップの所在を示す。"""
+    lines = [
+        "User-agent: *",
+        "Disallow: /manage/",
+        "Disallow: /admin/",
+        "Disallow: /accounts/",
+        "Disallow: /login/",
+        "Disallow: /media/",
+        "Disallow: /u/*/api/",
+        f"Sitemap: {request.build_absolute_uri(reverse('sitemap'))}",
+    ]
+    return HttpResponse("\n".join(lines) + "\n", content_type="text/plain")
+
+
+@require_GET
+def sitemap_xml(request):
+    urls = [request.build_absolute_uri(reverse(name)) for name in SITEMAP_URL_NAMES]
+    return render(
+        request, "sitemap.xml", {"urls": urls}, content_type="application/xml"
+    )
+
+
 @require_GET
 def portfolio(request, username):
     """ユーザーの公開ポートフォリオのページ本体。"""
     user = get_published_user(username)
-    return render(request, "index.html", {"portfolio_username": user.username})
+    info = SiteInfo.objects.for_owner(user).first()
+    return render(
+        request,
+        "index.html",
+        {
+            "portfolio_username": user.username,
+            # タブ・SNS 共有時の名称と説明。サイト情報が未登録・未入力ならユーザー名とサービスの説明。
+            "portfolio_name": (info.name if info else "") or user.username,
+            "portfolio_description": (info.catchphrase if info else "")
+            or settings.SERVICE_DESCRIPTION,
+        },
+    )
 
 
 @require_GET

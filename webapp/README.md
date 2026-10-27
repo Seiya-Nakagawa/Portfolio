@@ -50,7 +50,7 @@ infra-oci 基盤の Kubernetes 上にコンテナとして配置し、実績 DB�
 | パス | 内容 |
 | ---- | ---- |
 | `/` | サービス紹介 |
-| `/u/{ユーザー名}/` | ユーザーのポートフォリオサイトのページ本体 |
+| `/u/{ユーザー名}/` | 運営者のポートフォリオサイトのページ本体（一般ユーザーは 404） |
 | `/u/{ユーザー名}/api/skills` | スキルデータ（案件実績から集計した経験年数） |
 | `/u/{ユーザー名}/api/certifications` | 資格データ |
 | `/u/{ユーザー名}/api/works` | 実績データ |
@@ -107,6 +107,7 @@ uv run python manage.py import_skill_master
 - 本文には運営者の氏名・連絡先等の個人情報を記載しない。問い合わせは Google フォームで受け付け、URL は環境変数 `CONTACT_FORM_URL` で設定する
   （未設定の場合はリンクを表示しない）。リンクはサービス紹介・規約・ログイン・公開ポートフォリオのフッターに置く
 - 出力例の画像（`static/img/skillsheet-sample.png`）は、架空のデータで生成した職務経歴書を撮影したもので、実データを含まない
+- SNS 共有用の画像（`static/img/ogp.png`、1200×630）は全ページ共通とし、サービスの紹介文のみを載せる
 - 登録画面は、案件が 1 件もない初回の利用時に、案件の登録から職務経歴書の取得までの手順を案内する
 
 ## ログイン・サインアップ
@@ -132,7 +133,7 @@ uv run python manage.py import_skill_master
 
 ## アカウント画面
 
-登録画面の「アカウント」で、ユーザー名の変更・公開設定の切替・外部アカウントの追加連携と解除・退会を行う。
+登録画面の「アカウント」で、ユーザー名の変更・外部アカウントの追加連携と解除・退会を行う（運営者のみ公開設定の切替も行う）。実績・サイト情報の画面と API も運営者のみが使え、一般ユーザーは 403 となる。
 API は `/manage/api/account`（取得・変更）、`/manage/api/account/providers/{提供元}`（連携の解除）、
 `/manage/api/account/withdraw`（退会）で、いずれもログインしたユーザー自身のみを対象とする。
 
@@ -240,6 +241,7 @@ uv run python manage.py import_skill_sheet /path/to/csv --owner {ユーザー名
 | `CSRF_TRUSTED_ORIGINS` | CSRF を許可するオリジン（本番のみ、カンマ区切り。例: `https://example.com`） | 既定値 空 |
 | `TRUSTED_PROXY_COUNT` | 流量制限の接続元 IP に用いる `X-Forwarded-For` の末尾からの位置（共有 Ingress の段数） | 既定値 `0`（`REMOTE_ADDR` を用いる）。本番は `1` |
 | `CONTACT_FORM_URL` | 問い合わせ窓口（Google フォーム）の URL | 既定値 空（リンクを表示しない） |
+| `CLOUDFLARE_ANALYTICS_TOKEN` | Cloudflare Web Analytics の計測用トークン（ページに埋め込まれる公開値） | 既定値 空（計測用スクリプトを出力しない） |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google の OAuth クライアント | 本番は OCI Vault から同期 |
 | `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | GitHub の OAuth App | 本番は OCI Vault から同期 |
 

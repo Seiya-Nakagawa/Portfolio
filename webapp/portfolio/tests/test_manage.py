@@ -641,7 +641,7 @@ class SkillApiTests(OperatorTestCase):
         )
 
 
-class CertificationAndWorkApiTests(LoggedInTestCase):
+class CertificationAndWorkApiTests(OperatorTestCase):
     def test_資格の追加_変更_削除(self):
         payload = {
             "name": "資格A",
@@ -750,7 +750,7 @@ class CertificationAndWorkApiTests(LoggedInTestCase):
         )
 
 
-class ImageUploadTests(LoggedInTestCase):
+class ImageUploadTests(OperatorTestCase):
     def setUp(self):
         super().setUp()
         self._media = tempfile.TemporaryDirectory()
