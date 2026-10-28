@@ -19,4 +19,4 @@ data:
   TRUSTED_PROXY_COUNT: "1"
   # Cloudflare Web Analytics の計測用トークン。ページに埋め込まれる公開値のため ConfigMap で管理する。
   # 空の場合は計測用スクリプトを出力しない。
-  CLOUDFLARE_ANALYTICS_TOKEN: ""
+  CLOUDFLARE_ANALYTICS_TOKEN: "80242451ab3842d2b1a88d266ce0ec93"
