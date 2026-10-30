@@ -2,6 +2,7 @@
 
 from datetime import date
 
+from django.conf import settings
 from django.contrib.staticfiles import finders
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -35,7 +36,12 @@ def _site_info(owner, name="山田 太郎", catchphrase="インフラを支え�
 class ServicePageShareMetaTests(TestCase):
     def test_サービス紹介にOGPとcanonicalを出力する(self):
         html = self.client.get(reverse("index") + "?ref=x").content.decode()
-        self.assertIn('<meta property="og:title" content="SkillSheet" />', html)
+        self.assertIn(f"<title>{settings.SERVICE_TITLE}</title>", html)
+        self.assertIn(
+            f'<meta property="og:title" content="{settings.SERVICE_TITLE}" />', html
+        )
+        self.assertIn("職務経歴書", settings.SERVICE_TITLE)
+        self.assertIn("エンジニア", settings.SERVICE_TITLE)
         self.assertIn('content="summary_large_image"', html)
         self.assertIn(
             '<meta property="og:image" content="http://testserver/static/img/ogp.png" />',
@@ -69,7 +75,7 @@ class PortfolioShareMetaTests(TestCase):
         create_operator("hanako")
         html = self.client.get(reverse("portfolio", args=["hanako"])).content.decode()
         self.assertIn("<title>hanako | Portfolio</title>", html)
-        self.assertIn("経験年数の自動算出", html)
+        self.assertIn(settings.SERVICE_DESCRIPTION, html)
 
     def test_氏名はエスケープして出力する(self):
         user = create_operator("jiro")
@@ -127,3 +133,10 @@ class CrawlerFilesTests(TestCase):
         for path in ("/", "/terms/", "/privacy/"):
             self.assertIn(f"<loc>http://testserver{path}</loc>", body)
         self.assertNotIn("/u/", body)
+
+
+class PublicPageHeadTests(TestCase):
+    def test_公開ページはHEADリクエストに200を返す(self):
+        for name in ("index", "terms", "privacy", "login"):
+            with self.subTest(name=name):
+                self.assertEqual(self.client.head(reverse(name)).status_code, 200)
