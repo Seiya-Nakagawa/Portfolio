@@ -1,6 +1,7 @@
 {% extends "service/base.html" %}
 {% load static %}
-{% block title %}{% endblock %}
+{% block title_suffix %}{{ service_title }}{% endblock %}
+{% block share_meta %}{% include "partials/share_meta.html" with og_title=service_title og_description=service_description %}{% endblock %}
 {% block content %}
 <section class="hero">
   <h1>案件を登録するだけで、<br />職務経歴書が完成する。</h1>

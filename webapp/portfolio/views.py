@@ -6,7 +6,7 @@ from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.urls import reverse
 from django.utils import timezone
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_safe
 from django.views.static import serve
 
 from portfolio import health, services
@@ -37,7 +37,7 @@ def get_published_user(username: str):
     return user
 
 
-@require_GET
+@require_safe
 def index(request):
     """サービス紹介ページ。"""
     return render(request, "service/index.html")
@@ -47,7 +47,7 @@ def index(request):
 SITEMAP_URL_NAMES = ("index", "terms", "privacy")
 
 
-@require_GET
+@require_safe
 def robots_txt(request):
     """ログインが必要な画面・API・アップロード画像を巡回対象から外し、サイトマップの所在を示す。"""
     lines = [
@@ -63,7 +63,7 @@ def robots_txt(request):
     return HttpResponse("\n".join(lines) + "\n", content_type="text/plain")
 
 
-@require_GET
+@require_safe
 def sitemap_xml(request):
     urls = [request.build_absolute_uri(reverse(name)) for name in SITEMAP_URL_NAMES]
     return render(
@@ -71,7 +71,7 @@ def sitemap_xml(request):
     )
 
 
-@require_GET
+@require_safe
 def portfolio(request, username):
     """ユーザーの公開ポートフォリオのページ本体。"""
     user = get_published_user(username)
@@ -89,25 +89,25 @@ def portfolio(request, username):
     )
 
 
-@require_GET
+@require_safe
 def api_skills(request, username):
     user = get_published_user(username)
     return _json_response(services.build_skills_payload(user, timezone.localdate()))
 
 
-@require_GET
+@require_safe
 def api_certifications(request, username):
     user = get_published_user(username)
     return _json_response(services.build_certifications_payload(user))
 
 
-@require_GET
+@require_safe
 def api_works(request, username):
     user = get_published_user(username)
     return _json_response(services.build_works_payload(user))
 
 
-@require_GET
+@require_safe
 def api_site(request, username):
     user = get_published_user(username)
     payload = services.build_site_payload(user, timezone.localdate())
@@ -135,7 +135,7 @@ def _image_owner_id(path: str) -> int | None:
     return None
 
 
-@require_GET
+@require_safe
 def media(request, path):
     """アップロードした画像を配信する。
 
@@ -157,7 +157,7 @@ def media(request, path):
     return response
 
 
-@require_GET
+@require_safe
 def healthz(request):
     """死活監視用のヘルスチェック（認証不要）。件数・構成などの内部情報は応答に含めない。"""
     healthy = health.is_healthy()

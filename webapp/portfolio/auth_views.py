@@ -4,12 +4,12 @@ from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
-from django.views.decorators.http import require_GET, require_http_methods
+from django.views.decorators.http import require_http_methods, require_safe
 
 from portfolio.accounts import ReconsentForm, record_agreement
 
 
-@require_GET
+@require_safe
 def login_page(request):
     """Google・GitHub のボタンのみを置くログイン画面。パスワードの入力欄は持たない。"""
     if request.user.is_authenticated:
@@ -46,7 +46,7 @@ def reconsent(request):
     )
 
 
-@require_GET
+@require_safe
 def terms(request):
     return render(
         request,
@@ -58,7 +58,7 @@ def terms(request):
     )
 
 
-@require_GET
+@require_safe
 def privacy(request):
     return render(
         request,

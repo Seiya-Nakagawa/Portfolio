@@ -102,9 +102,15 @@ SOCIALACCOUNT_PROVIDERS = {
 SERVICE_NAME = "SkillSheet"
 CONTACT_FORM_URL = env("CONTACT_FORM_URL", default="")
 
+# サービス紹介のタイトル・SNS 共有時の名称。検索結果で内容が伝わるよう検索語句を含める。
+SERVICE_TITLE = (
+    "SkillSheet | エンジニアの職務経歴書を案件登録だけで作成・経験年数を自動計算"
+)
+
 # サービス紹介・SNS 共有時に表示するサービスの説明。
 SERVICE_DESCRIPTION = (
-    "案件を登録するだけで、経験年数の自動算出と職務経歴書の PDF 出力ができます。"
+    "エンジニア向けの職務経歴書作成サービス。案件を登録するだけで、"
+    "技術ごとの経験年数を自動で算出し、職務経歴書の PDF を出力できます。"
 )
 
 # Cloudflare Web Analytics の計測用トークン（ページに埋め込まれる公開値）。空の場合は計測しない。
