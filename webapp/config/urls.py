@@ -45,6 +45,8 @@ urlpatterns = [
         name="socialaccount_login_error",
     ),
     path("accounts/reconsent/", portfolio_auth_views.reconsent, name="reconsent"),
+    path("articles/", views.article_list, name="article-list"),
+    path("articles/<slug:slug>/", views.article_detail, name="article-detail"),
     path("terms/", portfolio_auth_views.terms, name="terms"),
     path("privacy/", portfolio_auth_views.privacy, name="privacy"),
     # 登録画面（ログインが必要）

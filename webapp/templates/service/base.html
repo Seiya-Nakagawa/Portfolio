@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{% block title %}{% endblock %}{% block title_suffix %}{{ service_name }}{% endblock %}</title>
-    <meta name="description" content="{{ service_description }}" />
+    <meta name="description" content="{% block description %}{{ service_description }}{% endblock %}" />
     {% block share_meta %}{% include "partials/share_meta.html" with og_title=service_name og_description=service_description %}{% endblock %}
     <link rel="stylesheet" href="{% static 'css/service.css' %}" />
   </head>

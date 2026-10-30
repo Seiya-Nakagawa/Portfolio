@@ -10,6 +10,7 @@ from django.views.decorators.http import require_safe
 from django.views.static import serve
 
 from portfolio import health, services
+from portfolio.articles import ARTICLES, get_article
 from portfolio.media_paths import USER_IMAGE_PATH
 from portfolio.models import SiteInfo, Work
 
@@ -43,8 +44,25 @@ def index(request):
     return render(request, "service/index.html")
 
 
+@require_safe
+def article_list(request):
+    return render(request, "articles/list.html", {"articles": ARTICLES})
+
+
+@require_safe
+def article_detail(request, slug):
+    article = get_article(slug)
+    if article is None:
+        raise Http404("記事が見つかりません。")
+    return render(
+        request,
+        "articles/detail.html",
+        {"article": article, "body_template": f"articles/{slug}.html"},
+    )
+
+
 # 検索エンジンに案内する公開ページ（URL 名）。公開ポートフォリオは列挙しない。
-SITEMAP_URL_NAMES = ("index", "terms", "privacy")
+SITEMAP_URL_NAMES = ("index", "terms", "privacy", "article-list")
 
 
 @require_safe
@@ -66,6 +84,10 @@ def robots_txt(request):
 @require_safe
 def sitemap_xml(request):
     urls = [request.build_absolute_uri(reverse(name)) for name in SITEMAP_URL_NAMES]
+    urls += [
+        request.build_absolute_uri(reverse("article-detail", args=[a.slug]))
+        for a in ARTICLES
+    ]
     return render(
         request, "sitemap.xml", {"urls": urls}, content_type="application/xml"
     )

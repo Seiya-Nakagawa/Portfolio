@@ -1,0 +1,17 @@
+{% extends "service/base.html" %}
+{% block title %}{{ article.title }} | {% endblock %}
+{% block description %}{{ article.description }}{% endblock %}
+{% block share_meta %}{% with og_title=article.title|add:" | "|add:service_name %}{% include "partials/share_meta.html" with og_type="article" og_description=article.description %}{% endwith %}{% endblock %}
+{% block content %}
+<article class="article">
+  <h1>{{ article.title }}</h1>
+  <p class="lead">{{ article.description }}</p>
+  {% include body_template %}
+  <section class="cta" aria-labelledby="cta">
+    <h2 id="cta">案件を登録するだけで職務経歴書を作成</h2>
+    <p>{{ service_name }} は、案件ごとに使ったスキルを登録すると、経験年数を自動で算出し職務経歴書の PDF を出力できます。</p>
+    <p><a class="button primary" href="{% url 'index' %}">サービスの詳細を見る</a></p>
+  </section>
+  <p><a href="{% url 'article-list' %}">解説記事の一覧へ</a></p>
+</article>
+{% endblock %}

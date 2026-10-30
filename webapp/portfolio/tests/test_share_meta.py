@@ -7,6 +7,7 @@ from django.contrib.staticfiles import finders
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
+from portfolio.articles import ARTICLES
 from portfolio.models import SiteInfo
 from portfolio.tests.helpers import create_operator, create_user
 
@@ -130,13 +131,17 @@ class CrawlerFilesTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response["Content-Type"], "application/xml")
         body = response.content.decode()
-        for path in ("/", "/terms/", "/privacy/"):
+        for path in ("/", "/terms/", "/privacy/", "/articles/"):
             self.assertIn(f"<loc>http://testserver{path}</loc>", body)
+        for article in ARTICLES:
+            self.assertIn(
+                f"<loc>http://testserver/articles/{article.slug}/</loc>", body
+            )
         self.assertNotIn("/u/", body)
 
 
 class PublicPageHeadTests(TestCase):
     def test_公開ページはHEADリクエストに200を返す(self):
-        for name in ("index", "terms", "privacy", "login"):
+        for name in ("index", "terms", "privacy", "login", "article-list"):
             with self.subTest(name=name):
                 self.assertEqual(self.client.head(reverse(name)).status_code, 200)
