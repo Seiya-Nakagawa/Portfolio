@@ -1,0 +1,16 @@
+{% extends "service/base.html" %}
+{% block title %}解説記事 | {% endblock %}
+{% block share_meta %}{% with og_title="解説記事 | "|add:service_name %}{% include "partials/share_meta.html" with og_description=service_description %}{% endwith %}{% endblock %}
+{% block content %}
+<section class="article">
+  <h1>解説記事</h1>
+  <ul class="article-list">
+    {% for article in articles %}
+    <li>
+      <a href="{% url 'article-detail' article.slug %}">{{ article.title }}</a>
+      <p>{{ article.description }}</p>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}

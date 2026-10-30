@@ -162,7 +162,8 @@ h2 {
   text-align: center;
 }
 
-.legal {
+.legal,
+.article {
   max-width: 46rem;
 }
 
@@ -195,4 +196,21 @@ h2 {
 
 .legal thead th {
   background: var(--panel);
+}
+
+.article h2 {
+  margin-top: 2rem;
+  font-size: 1.25rem;
+}
+
+.article .lead {
+  color: var(--muted);
+}
+
+.article-list {
+  padding-left: 1.25rem;
+}
+
+.article-list li {
+  margin-bottom: 1rem;
 }
