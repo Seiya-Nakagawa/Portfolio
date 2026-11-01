@@ -9,6 +9,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_safe
 from django.views.static import serve
 
+from portfolio import demo as demo_module
 from portfolio import health, services
 from portfolio.articles import ARTICLES, get_article
 from portfolio.media_paths import USER_IMAGE_PATH
@@ -45,6 +46,17 @@ def index(request):
 
 
 @require_safe
+def demo(request):
+    """ログインなしで経験年数の算出を試せるデモ。"""
+    result = demo_module.build_result(request.GET, timezone.localdate())
+    return render(
+        request,
+        "service/demo.html",
+        {"result": result, "skills": demo_module.DEMO_SKILLS},
+    )
+
+
+@require_safe
 def article_list(request):
     return render(request, "articles/list.html", {"articles": ARTICLES})
 
@@ -62,7 +74,7 @@ def article_detail(request, slug):
 
 
 # 検索エンジンに案内する公開ページ（URL 名）。公開ポートフォリオは列挙しない。
-SITEMAP_URL_NAMES = ("index", "terms", "privacy", "article-list")
+SITEMAP_URL_NAMES = ("index", "demo", "terms", "privacy", "article-list")
 
 
 @require_safe

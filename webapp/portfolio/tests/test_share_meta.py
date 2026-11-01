@@ -131,7 +131,7 @@ class CrawlerFilesTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response["Content-Type"], "application/xml")
         body = response.content.decode()
-        for path in ("/", "/terms/", "/privacy/", "/articles/"):
+        for path in ("/", "/demo/", "/terms/", "/privacy/", "/articles/"):
             self.assertIn(f"<loc>http://testserver{path}</loc>", body)
         for article in ARTICLES:
             self.assertIn(

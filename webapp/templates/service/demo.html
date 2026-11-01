@@ -1,0 +1,54 @@
+{% extends "service/base.html" %}
+{% block title %}デモ | {% endblock %}
+{% block description %}架空の案件の期間とスキルを変更して、並行案件を重複させずに経験年数を算出する様子を、ログインなしで試せます。{% endblock %}
+{% block share_meta %}{% include "partials/share_meta.html" with og_title="デモ | SkillSheet" og_description="架空の案件の期間とスキルを変更して、経験年数が自動で算出される様子をログインなしで試せます。" %}{% endblock %}
+{% block content %}
+<section class="hero">
+  <h1>ログインせずに、経験年数の算出を試す</h1>
+  <p class="lead">架空の 3 案件の期間と使ったスキルを変えて「算出する」を押すと、スキルごとの経験年数が表示されます。並行して進めた期間は重複せずに数えます。入力した内容は保存されません。</p>
+</section>
+
+{% if result.errors %}
+<ul class="demo-errors" role="alert">
+  {% for error in result.errors %}<li>{{ error }}</li>{% endfor %}
+</ul>
+{% endif %}
+
+<form method="get" action="{% url 'demo' %}" class="demo-form">
+  {% for project in result.projects %}
+  <fieldset>
+    <legend>{{ project.name }}</legend>
+    <label>開始年月 <input type="month" name="{{ project.project_id }}_start" value="{{ project.start }}" required /></label>
+    <label>終了年月（空欄は継続中） <input type="month" name="{{ project.project_id }}_end" value="{{ project.end }}" /></label>
+    <div class="demo-skills">
+      {% for skill_id, skill_name in skills %}
+      <label><input type="checkbox" name="{{ project.project_id }}_skills" value="{{ skill_id }}"{% if skill_id in project.skills %} checked{% endif %} /> {{ skill_name }}</label>
+      {% endfor %}
+    </div>
+  </fieldset>
+  {% endfor %}
+  <p><button type="submit" class="button primary">算出する</button></p>
+</form>
+
+<section aria-labelledby="demo-result">
+  <h2 id="demo-result">算出結果</h2>
+  {% if result.rows %}
+  <table class="demo-table">
+    <thead><tr><th>スキル</th><th>開始年</th><th>使用期間</th><th>経験</th></tr></thead>
+    <tbody>
+      {% for row in result.rows %}
+      <tr><td>{{ row.name }}</td><td>{{ row.start_year }}年</td><td>{{ row.duration }}</td><td aria-label="星 {{ row.stars }} / 5">{% for _ in "12345"|slice:row.stars %}★{% endfor %}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>使用したスキルが選ばれていません。案件にスキルを選んでください。</p>
+  {% endif %}
+</section>
+
+<section class="cta" aria-labelledby="demo-start">
+  <h2 id="demo-start">自分の案件で職務経歴書を作る</h2>
+  <p>実際の会社・案件・資格を登録すると、同じ計算で経験年数を算出し、職務経歴書の PDF を出力できます。無料でご利用いただけます。</p>
+  <p><a class="button primary" href="{% if user.is_authenticated %}{% url 'manage' %}{% else %}{% url 'login' %}{% endif %}">{% if user.is_authenticated %}スキル実績管理へ{% else %}Google / GitHub で始める{% endif %}</a></p>
+</section>
+{% endblock %}

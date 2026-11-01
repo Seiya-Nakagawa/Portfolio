@@ -214,3 +214,43 @@ h2 {
 .article-list li {
   margin-bottom: 1rem;
 }
+
+.demo-form fieldset {
+  margin: 0 0 1rem;
+  padding: 1rem 1.25rem;
+  background: var(--panel);
+  border: 0;
+  border-radius: 0.75rem;
+}
+
+.demo-form legend {
+  font-weight: 700;
+}
+
+.demo-form label {
+  display: inline-block;
+  margin-right: 1rem;
+}
+
+.demo-skills {
+  margin-top: 0.75rem;
+}
+
+.demo-errors {
+  padding: 0.75rem 1.25rem;
+  color: #b00020;
+  border: 1px solid currentColor;
+  border-radius: 0.5rem;
+}
+
+.demo-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.demo-table th,
+.demo-table td {
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--panel);
+}
