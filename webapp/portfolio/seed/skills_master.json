@@ -1464,6 +1464,8 @@
       "name": "AI",
       "skill_id_prefix": "ai-",
       "skills": [
+      {"name": "GitHub Copilot", "subcategory": "コーディング支援"},
+      {"name": "Claude Code", "subcategory": "コーディング支援"},
       {"name": "Cursor", "subcategory": "コーディング支援"},
       {"name": "Windsurf", "subcategory": "コーディング支援"},
       {"name": "Cline", "subcategory": "コーディング支援"},
