@@ -45,6 +45,7 @@ urlpatterns = [
         name="socialaccount_login_error",
     ),
     path("accounts/reconsent/", portfolio_auth_views.reconsent, name="reconsent"),
+    path("demo/", views.demo, name="demo"),
     path("articles/", views.article_list, name="article-list"),
     path("articles/<slug:slug>/", views.article_detail, name="article-detail"),
     path("terms/", portfolio_auth_views.terms, name="terms"),
