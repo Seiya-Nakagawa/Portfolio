@@ -2,6 +2,7 @@ from allauth.socialaccount import views as socialaccount_views
 from allauth.socialaccount.providers.github.provider import GitHubProvider
 from allauth.socialaccount.providers.google.provider import GoogleProvider
 from allauth.socialaccount.providers.oauth2.urls import default_urlpatterns
+from django.conf import settings
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import include, path
@@ -14,6 +15,13 @@ from portfolio import auth_views as portfolio_auth_views
 urlpatterns = [
     path("", views.index, name="index"),
     path("healthz", views.healthz, name="healthz"),
+    # ブラウザが既定で取得する /favicon.ico は、SVG のファビコンへ転送する
+    path(
+        "favicon.ico",
+        RedirectView.as_view(
+            url=f"{settings.STATIC_URL}img/favicon.svg", permanent=True
+        ),
+    ),
     path("robots.txt", views.robots_txt, name="robots"),
     path("sitemap.xml", views.sitemap_xml, name="sitemap"),
     # ユーザー別の公開ポートフォリオと読み取り専用 API（認証不要。公開中のユーザーのみ）

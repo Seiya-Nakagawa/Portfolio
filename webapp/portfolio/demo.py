@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from datetime import date
 
 from portfolio.experience import (
+    STAR_THRESHOLDS,
     ProjectPeriod,
     SkillUsage,
     aggregate_skill_experience,
@@ -63,6 +64,21 @@ DEFAULT_PROJECTS = (
 )
 
 
+def build_star_legend() -> tuple[tuple[int, str], ...]:
+    """星の段階と、その段階になる使用期間の目安（経験年数の基準）を返す。"""
+    legend = []
+    for lower_bound, stars in reversed(STAR_THRESHOLDS):
+        if lower_bound == 0:
+            label = f"{format_experience(STAR_THRESHOLDS[-2][0])}未満"
+        else:
+            label = f"{format_experience(lower_bound)}以上"
+        legend.append((stars, label))
+    return tuple(legend)
+
+
+STAR_LEGEND = build_star_legend()
+
+
 @dataclass(frozen=True)
 class DemoRow:
     name: str
@@ -79,7 +95,7 @@ class DemoResult:
 
 
 def parse_projects(params) -> tuple[tuple[DemoProject, ...], list[str]]:
-    """クエリから案件を読み取る。不正な案件は既定値に戻し、エラーを返す。"""
+    """クエリから案件を読み取る。不正な入力もそのまま保持し、案件ごとのエラーを返す。"""
     if not any(key.startswith("p") for key in params):
         return DEFAULT_PROJECTS, []
 
@@ -103,9 +119,7 @@ def parse_projects(params) -> tuple[tuple[DemoProject, ...], list[str]]:
             problem = "終了年月は開始年月以降にしてください。"
         if problem:
             errors.append(f"{default.name}: {problem}")
-            projects.append(default)
-        else:
-            projects.append(DemoProject(pid, default.name, start, end, skills))
+        projects.append(DemoProject(pid, default.name, start, end, skills))
     return tuple(projects), errors
 
 
@@ -132,4 +146,6 @@ def calculate(projects: tuple[DemoProject, ...], today: date) -> tuple[DemoRow, 
 
 def build_result(params, today: date) -> DemoResult:
     projects, errors = parse_projects(params)
-    return DemoResult(projects, calculate(projects, today), tuple(errors))
+    # 入力にエラーがある間は、入力と対応しない結果を見せないよう算出しない
+    rows = () if errors else calculate(projects, today)
+    return DemoResult(projects, rows, tuple(errors))
