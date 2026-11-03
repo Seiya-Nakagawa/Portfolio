@@ -5,7 +5,7 @@
 {% block content %}
 <section class="hero">
   <h1>ログインせずに、経験年数の算出を試す</h1>
-  <p class="lead">架空の 3 案件の期間と使ったスキルを変えて「算出する」を押すと、スキルごとの経験年数が表示されます。並行して進めた期間は重複せずに数えます。入力した内容は保存されません。</p>
+  <p class="lead">架空の 3 案件の期間と使ったスキルを変えて「算出する」を押すと、スキルごとの経験年数が表示されます。並行して進めた期間は重複せずに数えます。入力した内容は保存されません。年月の入力欄は、ブラウザの表示言語によって英語表記になることがあります（例: 2022年4月 は April 2022）。</p>
 </section>
 
 {% if result.errors %}
@@ -32,7 +32,9 @@
 
 <section aria-labelledby="demo-result">
   <h2 id="demo-result">算出結果</h2>
-  {% if result.rows %}
+  {% if result.errors %}
+  <p>入力内容にエラーがあります。上のメッセージを確認して修正し、もう一度「算出する」を押してください。</p>
+  {% elif result.rows %}
   <table class="demo-table">
     <thead><tr><th>スキル</th><th>開始年</th><th>使用期間</th><th>経験</th></tr></thead>
     <tbody>
@@ -41,6 +43,8 @@
       {% endfor %}
     </tbody>
   </table>
+  <p class="demo-note">星は使用期間の目安で、{% for stars, label in star_legend %}★{{ stars }}: {{ label }}{% if not forloop.last %}、{% endif %}{% endfor %} です。</p>
+  <p class="demo-note">実際の出力イメージは<a href="{% url 'index' %}#sample">職務経歴書の出力例</a>で確認できます。</p>
   {% else %}
   <p>使用したスキルが選ばれていません。案件にスキルを選んでください。</p>
   {% endif %}

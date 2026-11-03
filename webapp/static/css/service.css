@@ -243,6 +243,11 @@ h2 {
   border-radius: 0.5rem;
 }
 
+.demo-note {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
 .demo-table {
   width: 100%;
   border-collapse: collapse;

@@ -52,7 +52,11 @@ def demo(request):
     return render(
         request,
         "service/demo.html",
-        {"result": result, "skills": demo_module.DEMO_SKILLS},
+        {
+            "result": result,
+            "skills": demo_module.DEMO_SKILLS,
+            "star_legend": demo_module.STAR_LEGEND,
+        },
     )
 
 
